@@ -1,49 +1,72 @@
-# Instagram Reels — revised after feedback (3 × ~30s, 9:16)
+# Instagram Reels — final copy locked, production plan (3 × ~30s, 9:16)
 
-All of the feedback is accepted. The plan below replaces the earlier one.
+Copy approved via review. Voice will be generated verbatim — no paraphrasing at generation time.
 
-## Accepted changes
+## Claims verified against the product
 
-- **No title card.** Frame 1 is already the real UI mid-motion, hook text over it. Rari's first word lands by frame 15 (0.5s). No logo, no fade-in at the top.
-- **Spoken CTA before the end card.** Mechanism: comment a keyword. Rari says it (~3s before the end), and it also appears as on-screen text. End card carries exotiq.ai only, not the ask.
-- **Rari speaks in first person** as the operator's fleet manager: "I reprice your fleet while you sleep," never "MotorIQ uses demand-based pricing."
-- **Claim accuracy.** Reel 2 says "every channel you run through Exotiq" — no implied Turo sync. Reel 3 sells certainty, not payout speed.
-- **Three text layers per reel**: hook text (big, short), Rari lines (captions transcribe verbatim), payoff text (separate, punchier). Captions never duplicate the hook or payoff wording.
-- **Scripts come from you.** I generate voice from your approved copy verbatim — no paraphrasing, no rewriting at generation time.
-- **Feed cut is 4:5** (1080×1350), not 1:1.
-- **Launch order**: 1) Double-booking killer, 2) Prices itself, 3) Money, not limbo.
-- **Music**: dark minimal pulse, sub-bass and sparse ticks, ducked ~12dB under Rari, faded up in the last 3s over the end card.
+- Reel 3 line 2 ("overdue" state): confirmed — the payments view flags overdue bookings against their payment deadline with a red count badge.
+- Reel 2 line 3 (one click, fleet-wide): confirmed — MotorIQ has a single "Apply All AI Optimizations" action that pushes pricing across the fleet.
 
-## Per-reel structure (~28–30s)
+## Format (applies to all three)
 
-```text
-0.0–0.5s   real UI already moving + hook text        (no card, no logo)
-0.5–3.0s   Rari's first line lands over the UI
-3–20s      one differentiator on real UI, slow zoom-pan
-20–24s     payoff text + Rari payoff line
-24–27s     Rari speaks the CTA + on-screen keyword line
-27–30s     end card: exotiq.ai, music up
-```
+- 1080×1920, ~28–30s, H.264, 30fps. Plus 4:5 (1080×1350) feed cuts.
+- No title card, no logo, no fade-in. Frame 1 is real UI mid-motion with hook text over it; Rari's first word lands by frame 15.
+- Three text layers: hook text (big, short), Rari lines as burned-in captions (verbatim), payoff text (separate).
+- Spoken CTA at ~24s, before the end card. End card shows exotiq.ai only, music rises.
+- Music: dark minimal pulse, ducked ~12dB under Rari, up over the end card.
+- Safe margins: bottom ~250px, top ~120px.
+- Launch order: 1) Double-booking killer, 2) Prices itself, 3) Money, not limbo.
 
-Safe margins: bottom ~250px and top ~120px kept clear of anything load-bearing.
+## Locked copy
 
-## Copy slots I need from you
+### Reel 1 — Double-booking killer
+- Hook text: **Same car. Two renters. Saturday.** (first pick of three)
+- Rari lines:
+  1. You pull a car for service.
+  2. I make it unbookable. Instantly.
+  3. Calendar. Booking site. Your team's phones. One answer, every surface Exotiq runs.
+  4. No apology call. No comped weekend.
+  5. You never explain a conflict to a customer again.
+  6. Comment TRUTH and I'll DM you the walkthrough.
+- Payoff text: **One fleet. One truth.**
+- Post caption: Pull a car, and it's gone from every booking surface at once. Comment TRUTH for the walkthrough.
 
-For each of the three reels: hook text (≤6 words), 4–6 Rari first-person lines, payoff text (≤6 words), and the comment keyword. Send them and I generate voice from them exactly as written.
+### Reel 2 — Prices itself
+- Hook text: **Same rate Tuesday and Saturday?**
+- Rari lines:
+  1. Race weekend? Convention in town? I already know.
+  2. I price every car for the day it's actually in. Not the rate you set in March.
+  3. You review. One click. The whole fleet moves.
+  4. More per car. No spreadsheet. No late-night rate edits.
+  5. Comment PRICE and I'll DM you the walkthrough.
+- Payoff text: **Priced for today. Not last month.**
+- Post caption: Your fleet priced for the weekend it's actually in. Comment PRICE for the walkthrough.
+
+### Reel 3 — Money, not limbo
+- Hook text: **Who still owes you a deposit?**
+- Rari lines:
+  1. Deposit. Balance. Hold. I tie every one to its booking.
+  2. Paid, pending, overdue. You see which is which before the customer calls.
+  3. Stripe underneath. Every charge is real money, not a note in a spreadsheet.
+  4. No chasing. No guessing. No limbo.
+  5. Comment MONEY and I'll DM you the whole flow.
+- Payoff text: **Money. Not limbo.**
+- Post caption: Every deposit, balance and hold tied to its booking. Comment MONEY for the walkthrough.
 
 ## Production steps
 
-1. You send approved copy (3 reels × 3 layers + keyword).
-2. Generate Rari narration verbatim; measure per-line timings and lay the timeline to those measurements.
-3. Build a 1080×1920 Remotion composition (new reel components, reframed for vertical) alongside the untouched overview video.
-4. Source the music bed, mix with sidechain-style ducking under narration.
-5. Reuse existing UI captures; re-capture vertically only where a crop fails (fleet status flip, MotorIQ pricing, payments).
-6. Render 3 MP4s to `/mnt/documents/`, verify duration/resolution/audio with ffprobe, and check each plays muted with captions alone.
-7. Export 4:5 feed cuts of all three.
+1. Generate Rari narration verbatim (voice ID `lcMyyd2HUfFzxdCaC4Ta`), measure per-line timings, lay the timeline to those measurements.
+2. Build 1080×1920 Remotion compositions (reel components reframed for vertical) alongside the untouched overview video.
+3. Source the music bed and mix with ducking keyed to narration segment timings.
+4. Reuse existing UI captures; re-capture vertically only where a crop fails (fleet status flip, MotorIQ pricing, payments).
+5. Render 3 MP4s + 3 feed cuts to `/mnt/documents/`, verify with ffprobe, and check each plays muted with captions alone.
+
+## Open dependency (flagged, not blocking)
+
+The "Comment X and I'll DM you" CTA promises a fast DM reply. If no automation or responder is in place at launch, we swap the spoken/on-screen CTA to "Link in bio" before rendering — it's one line per reel.
 
 ## Technical details
 
 - New Remotion compositions at 1080×1920 and 1080×1350; existing `main` composition untouched.
-- Rari voice ID `lcMyyd2HUfFzxdCaC4Ta`; mp3 clips under `remotion/public/audio/reels/`.
-- Music bed as a separate audio track with a volume envelope keyed off the narration segment timings.
+- Voice mp3 clips under `remotion/public/audio/reels/`; music as a separate track with a volume envelope.
 - No app codebase changes — all work sits in `remotion/` plus generated assets.
