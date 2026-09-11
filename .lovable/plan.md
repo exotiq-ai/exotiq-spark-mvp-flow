@@ -9,12 +9,13 @@ Copy approved via review. Voice will be generated verbatim — no paraphrasing a
 
 ## Format (applies to all three)
 
-- 1080×1920, ~28–30s, H.264, 30fps. Plus 4:5 (1080×1350) feed cuts.
+- 1080×1920, ~28–30s, H.264, 30fps. Plus 4:5 (1080×1350) feed cuts with their own text layout — not a crop. Hook position, type size, and safe zones are re-laid for the feed frame so the hook never sits under the feed UI.
 - No title card, no logo, no fade-in. Frame 1 is real UI mid-motion with hook text over it; Rari's first word lands by frame 15.
 - Three text layers: hook text (big, short), Rari lines as burned-in captions (verbatim), payoff text (separate).
-- Spoken CTA at ~24s, before the end card. End card shows exotiq.ai only, music rises.
+- Spoken CTA at ~24s, before the end card. End card: Instagram handle on top, exotiq.ai under it. Music rises.
 - Music: dark minimal pulse, ducked ~12dB under Rari, up over the end card.
-- Safe margins: bottom ~250px, top ~120px.
+- Safe margins (9:16): bottom ~250px, top ~120px. Feed cut gets its own margins.
+- Each Rari line is generated as its own audio clip, never one take per reel — exact caption sync, and any single flat line can be regenerated on its own.
 - Launch order: 1) Double-booking killer, 2) Prices itself, 3) Money, not limbo.
 
 ## Locked copy
@@ -55,15 +56,17 @@ Copy approved via review. Voice will be generated verbatim — no paraphrasing a
 
 ## Production steps
 
-1. Generate Rari narration verbatim (voice ID `lcMyyd2HUfFzxdCaC4Ta`), measure per-line timings, lay the timeline to those measurements.
-2. Build 1080×1920 Remotion compositions (reel components reframed for vertical) alongside the untouched overview video.
+1. Generate one audio clip per Rari line, verbatim (voice ID `lcMyyd2HUfFzxdCaC4Ta`), measure each clip, lay the timeline to those measurements. Any weak read gets regenerated in isolation.
+2. Build the 1080×1920 Remotion compositions (reel components reframed for vertical) alongside the untouched overview video.
 3. Source the music bed and mix with ducking keyed to narration segment timings.
 4. Reuse existing UI captures; re-capture vertically only where a crop fails (fleet status flip, MotorIQ pricing, payments).
-5. Render 3 MP4s + 3 feed cuts to `/mnt/documents/`, verify with ffprobe, and check each plays muted with captions alone.
+5. Build separate 1080×1350 compositions with their own text layout and safe zones, sharing the same audio and captures.
+6. Render 3 MP4s + 3 feed cuts to `/mnt/documents/`, verify with ffprobe, and check each plays muted with captions alone.
 
-## Open dependency (flagged, not blocking)
+## Open items (flagged, not blocking)
 
-The "Comment X and I'll DM you" CTA promises a fast DM reply. If no automation or responder is in place at launch, we swap the spoken/on-screen CTA to "Link in bio" before rendering — it's one line per reel.
+- **Instagram handle** for the end card — I have exotiq.ai for the domain but not the handle. Placeholder is `@exotiq.ai`; send the real one before render.
+- **DM automation.** "Comment X and I'll DM you" promises a fast reply. If no automation or responder is live at launch, the spoken and on-screen CTA becomes "Link in bio" — one line per reel, changed before rendering.
 
 ## Technical details
 
