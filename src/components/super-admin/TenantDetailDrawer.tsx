@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Copy, Mail, Phone } from 'lucide-react';
+import { SuperAdminPeopleSection } from './SuperAdminPeopleSection';
 
 interface Props {
   teamId: string | null;
@@ -183,6 +184,10 @@ export const TenantDetailDrawer = ({ teamId, onClose }: Props) => {
                   />
                 </CardContent>
               </Card>
+
+              <SuperAdminPeopleSection teamId={teamId as string} teamName={detail.team_name} />
+
+
 
               <div className="flex gap-2 pt-2">
                 <Button variant="outline" size="sm" onClick={copySummary} className="gap-2">
