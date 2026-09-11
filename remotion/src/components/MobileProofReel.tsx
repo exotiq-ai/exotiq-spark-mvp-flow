@@ -51,6 +51,8 @@ export const MOBILE_PROOF_REEL_FRAMES = 750;
 
 export const MobileProofReel: React.FC = () => {
   const frame = useCurrentFrame();
+  const narrationActive = lines.some((line) => frame >= line.from && frame < line.from + line.duration);
+  const musicVolume = frame >= 675 ? 0.2 : narrationActive ? 0.035 : 0.1;
   return (
     <AbsoluteFill style={{ background: COLORS.bgDeep }}>
       {shots.map((shot) => (
@@ -71,6 +73,7 @@ export const MobileProofReel: React.FC = () => {
           <Caption text={line.caption} duration={line.duration} />
         </Sequence>
       ))}
+      <Audio src={staticFile("audio/reels/music-bed.mp3")} volume={musicVolume} />
 
       {frame >= 520 && frame < 600 && (
         <div style={{ position: "absolute", top: 140, left: 45, right: 45, color: "white", fontFamily: sora.fontFamily, textAlign: "center", fontSize: 61, fontWeight: 700, lineHeight: 1.05, textShadow: "0 4px 24px #000" }}>
