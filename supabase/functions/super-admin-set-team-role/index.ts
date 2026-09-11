@@ -188,6 +188,76 @@ serve(async (req: Request) => {
       return json({ success: true, role: newRole });
     }
 
+    // ---------- invite someone who has no account yet ----------
+    if (action === "invite") {
+      const email: string = (body?.email ?? "").trim().toLowerCase();
+      const inviteRole: Role = ROLES.includes(body?.role) ? body.role : "owner";
+      if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+        return json({ error: "A valid email address is required" }, 400);
+      }
+
+      const { data: existingInvite } = await admin
+        .from("user_invitations")
+        .select("id")
+        .eq("team_id", teamId)
+        .eq("email", email)
+        .eq("status", "pending")
+        .maybeSingle();
+
+      let invitationId = existingInvite?.id as string | undefined;
+
+      if (invitationId) {
+        await admin
+          .from("user_invitations")
+          .update({
+            role: inviteRole,
+            expires_at: new Date(Date.now() + 7 * 864e5).toISOString(),
+          })
+          .eq("id", invitationId);
+      } else {
+        const { data: inserted, error: insErr } = await admin
+          .from("user_invitations")
+          .insert({
+            team_id: teamId,
+            email,
+            role: inviteRole,
+            status: "pending",
+            token: crypto.randomUUID(),
+            invited_by: actorId,
+            expires_at: new Date(Date.now() + 7 * 864e5).toISOString(),
+          })
+          .select("id")
+          .single();
+        if (insErr) throw insErr;
+        invitationId = inserted.id;
+      }
+
+      const sendRes = await fetch(`${supabaseUrl}/functions/v1/super-admin-send-invite`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${serviceKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ invitation_id: invitationId, app_origin: body?.app_origin }),
+      });
+      const sendBody = await sendRes.json().catch(() => ({}));
+      if (!sendRes.ok) {
+        console.error("[super-admin-set-team-role] invite email failed", sendBody);
+        return json({ error: "Invitation saved but the email could not be sent" }, 502);
+      }
+
+      await admin.from("role_audit_log").insert({
+        user_id: actorId,
+        changed_by: actorId,
+        team_id: teamId,
+        action: "super_admin_invite_sent",
+        new_role: inviteRole,
+        metadata: { actor_email: actorEmail, invited_email: email, source: "super_admin_portal" },
+      });
+
+      return json({ success: true, invitation_id: invitationId });
+    }
+
     return json({ error: "Unknown action" }, 400);
   } catch (e) {
     console.error("[super-admin-set-team-role] error", e);
