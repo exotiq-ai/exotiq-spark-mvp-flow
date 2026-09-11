@@ -184,6 +184,10 @@ export const TenantDetailDrawer = ({ teamId, onClose }: Props) => {
                 </CardContent>
               </Card>
 
+              <SuperAdminPeopleSection teamId={detail.team_id} teamName={detail.team_name} />
+
+
+
               <div className="flex gap-2 pt-2">
                 <Button variant="outline" size="sm" onClick={copySummary} className="gap-2">
                   <Copy className="h-3.5 w-3.5" /> Copy support summary
