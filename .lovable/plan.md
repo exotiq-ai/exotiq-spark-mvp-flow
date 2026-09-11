@@ -63,10 +63,15 @@ Copy approved via review. Voice will be generated verbatim — no paraphrasing a
 5. Build separate 1080×1350 compositions with their own text layout and safe zones, sharing the same audio and captures.
 6. Render 3 MP4s + 3 feed cuts to `/mnt/documents/`, verify with ffprobe, and check each plays muted with captions alone.
 
-## Open items (flagged, not blocking)
+## Open item (flagged, not blocking)
 
-- **Instagram handle** for the end card — I have exotiq.ai for the domain but not the handle. Placeholder is `@exotiq.ai`; send the real one before render.
 - **DM automation.** "Comment X and I'll DM you" promises a fast reply. If no automation or responder is live at launch, the spoken and on-screen CTA becomes "Link in bio" — one line per reel, changed before rendering.
+
+## End card
+
+Top line: **@exotiq_ai**
+Second line: **exotiq.ai**
+Music rises under the last 3 seconds.
 
 ## Technical details
 
