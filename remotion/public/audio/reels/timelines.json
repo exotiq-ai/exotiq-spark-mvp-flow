@@ -1,0 +1,171 @@
+[
+  {
+    "id": "double-booking",
+    "fps": 30,
+    "width": 1080,
+    "height": 1920,
+    "totalFrames": 845,
+    "totalSeconds": 28.166666666666668,
+    "leadIn": 15,
+    "lines": [
+      {
+        "index": 0,
+        "text": "You pull a car for service.",
+        "file": "double-booking-00.mp3",
+        "duration": 52,
+        "from": 15
+      },
+      {
+        "index": 1,
+        "text": "I make it unbookable. Instantly.",
+        "file": "double-booking-01.mp3",
+        "duration": 57,
+        "from": 82
+      },
+      {
+        "index": 2,
+        "text": "Calendar. Booking site. Your team's phones. One answer, every surface Exotiq runs.",
+        "file": "double-booking-02.mp3",
+        "duration": 159,
+        "from": 154
+      },
+      {
+        "index": 3,
+        "text": "No apology call. No comped weekend.",
+        "file": "double-booking-03.mp3",
+        "duration": 59,
+        "from": 328
+      },
+      {
+        "index": 4,
+        "text": "You never explain a conflict to a customer again.",
+        "file": "double-booking-04.mp3",
+        "duration": 75,
+        "from": 402
+      }
+    ],
+    "cta": {
+      "index": 5,
+      "text": "Comment TRUTH and I'll DM you the walkthrough.",
+      "file": "double-booking-05.mp3",
+      "duration": 68,
+      "from": 597
+    },
+    "payoff": {
+      "from": 402,
+      "duration": 443
+    },
+    "endCard": {
+      "from": 695,
+      "duration": 150
+    }
+  },
+  {
+    "id": "prices-itself",
+    "fps": 30,
+    "width": 1080,
+    "height": 1920,
+    "totalFrames": 797,
+    "totalSeconds": 26.566666666666666,
+    "leadIn": 15,
+    "lines": [
+      {
+        "index": 0,
+        "text": "Race weekend? Convention in town? I already know.",
+        "file": "prices-itself-00.mp3",
+        "duration": 82,
+        "from": 15
+      },
+      {
+        "index": 1,
+        "text": "I price every car for the day it's actually in. Not the rate you set in March.",
+        "file": "prices-itself-01.mp3",
+        "duration": 117,
+        "from": 112
+      },
+      {
+        "index": 2,
+        "text": "You review. One click. The whole fleet moves.",
+        "file": "prices-itself-02.mp3",
+        "duration": 79,
+        "from": 244
+      },
+      {
+        "index": 3,
+        "text": "More per car. No spreadsheet. No late-night rate edits.",
+        "file": "prices-itself-03.mp3",
+        "duration": 91,
+        "from": 338
+      }
+    ],
+    "cta": {
+      "index": 4,
+      "text": "Comment PRICE and I'll DM you the walkthrough.",
+      "file": "prices-itself-04.mp3",
+      "duration": 68,
+      "from": 549
+    },
+    "payoff": {
+      "from": 338,
+      "duration": 459
+    },
+    "endCard": {
+      "from": 647,
+      "duration": 150
+    }
+  },
+  {
+    "id": "money-not-limbo",
+    "fps": 30,
+    "width": 1080,
+    "height": 1920,
+    "totalFrames": 826,
+    "totalSeconds": 27.533333333333335,
+    "leadIn": 15,
+    "lines": [
+      {
+        "index": 0,
+        "text": "Deposit. Balance. Hold. I tie every one to its booking.",
+        "file": "money-not-limbo-00.mp3",
+        "duration": 96,
+        "from": 15
+      },
+      {
+        "index": 1,
+        "text": "Paid, pending, overdue. You see which is which before the customer calls.",
+        "file": "money-not-limbo-01.mp3",
+        "duration": 118,
+        "from": 126
+      },
+      {
+        "index": 2,
+        "text": "Stripe underneath. Every charge is real money, not a note in a spreadsheet.",
+        "file": "money-not-limbo-02.mp3",
+        "duration": 123,
+        "from": 259
+      },
+      {
+        "index": 3,
+        "text": "No chasing. No guessing. No limbo.",
+        "file": "money-not-limbo-03.mp3",
+        "duration": 65,
+        "from": 397
+      }
+    ],
+    "cta": {
+      "index": 4,
+      "text": "Comment MONEY and I'll DM you the whole flow.",
+      "file": "money-not-limbo-04.mp3",
+      "duration": 64,
+      "from": 582
+    },
+    "payoff": {
+      "from": 397,
+      "duration": 429
+    },
+    "endCard": {
+      "from": 676,
+      "duration": 150
+    }
+  }
+]

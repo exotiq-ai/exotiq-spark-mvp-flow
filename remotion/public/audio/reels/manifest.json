@@ -1,0 +1,97 @@
+[
+  {
+    "id": "double-booking",
+    "lines": [
+      {
+        "index": 0,
+        "text": "You pull a car for service.",
+        "file": "double-booking-00.mp3"
+      },
+      {
+        "index": 1,
+        "text": "I make it unbookable. Instantly.",
+        "file": "double-booking-01.mp3"
+      },
+      {
+        "index": 2,
+        "text": "Calendar. Booking site. Your team's phones. One answer, every surface Exotiq runs.",
+        "file": "double-booking-02.mp3"
+      },
+      {
+        "index": 3,
+        "text": "No apology call. No comped weekend.",
+        "file": "double-booking-03.mp3"
+      },
+      {
+        "index": 4,
+        "text": "You never explain a conflict to a customer again.",
+        "file": "double-booking-04.mp3"
+      },
+      {
+        "index": 5,
+        "text": "Comment TRUTH and I'll DM you the walkthrough.",
+        "file": "double-booking-05.mp3"
+      }
+    ]
+  },
+  {
+    "id": "prices-itself",
+    "lines": [
+      {
+        "index": 0,
+        "text": "Race weekend? Convention in town? I already know.",
+        "file": "prices-itself-00.mp3"
+      },
+      {
+        "index": 1,
+        "text": "I price every car for the day it's actually in. Not the rate you set in March.",
+        "file": "prices-itself-01.mp3"
+      },
+      {
+        "index": 2,
+        "text": "You review. One click. The whole fleet moves.",
+        "file": "prices-itself-02.mp3"
+      },
+      {
+        "index": 3,
+        "text": "More per car. No spreadsheet. No late-night rate edits.",
+        "file": "prices-itself-03.mp3"
+      },
+      {
+        "index": 4,
+        "text": "Comment PRICE and I'll DM you the walkthrough.",
+        "file": "prices-itself-04.mp3"
+      }
+    ]
+  },
+  {
+    "id": "money-not-limbo",
+    "lines": [
+      {
+        "index": 0,
+        "text": "Deposit. Balance. Hold. I tie every one to its booking.",
+        "file": "money-not-limbo-00.mp3"
+      },
+      {
+        "index": 1,
+        "text": "Paid, pending, overdue. You see which is which before the customer calls.",
+        "file": "money-not-limbo-01.mp3"
+      },
+      {
+        "index": 2,
+        "text": "Stripe underneath. Every charge is real money, not a note in a spreadsheet.",
+        "file": "money-not-limbo-02.mp3"
+      },
+      {
+        "index": 3,
+        "text": "No chasing. No guessing. No limbo.",
+        "file": "money-not-limbo-03.mp3"
+      },
+      {
+        "index": 4,
+        "text": "Comment MONEY and I'll DM you the whole flow.",
+        "file": "money-not-limbo-04.mp3"
+      }
+    ]
+  }
+]
