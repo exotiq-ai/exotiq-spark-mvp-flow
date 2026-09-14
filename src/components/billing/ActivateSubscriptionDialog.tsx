@@ -50,11 +50,6 @@ export const ActivateSubscriptionDialog = ({
         body: { isAnnual, returnPath, cancelPath },
       });
       if (error) throw error;
-      if (data?.contactSales) {
-        window.open('https://calendly.com/exotiq/enterprise', '_blank');
-        onOpenChange(false);
-        return;
-      }
       if (data?.url) {
         window.location.href = data.url;
         return;
