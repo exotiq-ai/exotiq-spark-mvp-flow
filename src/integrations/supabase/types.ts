@@ -207,6 +207,50 @@ export type Database = {
           },
         ]
       }
+      billing_email_log: {
+        Row: {
+          created_at: string
+          email_type: string
+          id: string
+          metadata: Json
+          recipient: string
+          resend_message_id: string | null
+          sent_at: string
+          stripe_event_id: string | null
+          team_id: string
+        }
+        Insert: {
+          created_at?: string
+          email_type: string
+          id?: string
+          metadata?: Json
+          recipient: string
+          resend_message_id?: string | null
+          sent_at?: string
+          stripe_event_id?: string | null
+          team_id: string
+        }
+        Update: {
+          created_at?: string
+          email_type?: string
+          id?: string
+          metadata?: Json
+          recipient?: string
+          resend_message_id?: string | null
+          sent_at?: string
+          stripe_event_id?: string | null
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_email_log_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_extensions: {
         Row: {
           added_days: number
@@ -3837,19 +3881,28 @@ export type Database = {
       }
       teams: {
         Row: {
+          activated_at: string | null
           ai_data_minimization_level: string
+          annual_offer_dismissed_at: string | null
+          annual_offer_shown_at: string | null
           assumed_plan_fleet_size: number | null
           assumed_plan_is_annual: boolean | null
           assumed_plan_tier: string | null
+          billed_quantity: number | null
+          billed_tier: string | null
           billing_dunning_message: string | null
           billing_dunning_notes: string | null
           billing_dunning_set_at: string | null
           billing_dunning_set_by: string | null
           billing_dunning_stage: string | null
+          billing_interval: string | null
+          billing_status: string | null
           business_address: Json | null
+          cancel_at_period_end: boolean
           country_code: string
           created_at: string | null
           currency: string
+          current_period_end: string | null
           data_region: string
           default_deposit_cents: number | null
           default_mileage_limit: number | null
@@ -3893,8 +3946,10 @@ export type Database = {
           slug: string | null
           stripe_account_id: string | null
           stripe_charges_enabled: boolean
+          stripe_customer_id: string | null
           stripe_onboarding_complete: boolean
           stripe_payouts_enabled: boolean
+          stripe_subscription_id: string | null
           stripe_test_account_id: string | null
           support_email: string | null
           support_phone: string | null
@@ -3911,19 +3966,28 @@ export type Database = {
           vat_number: string | null
         }
         Insert: {
+          activated_at?: string | null
           ai_data_minimization_level?: string
+          annual_offer_dismissed_at?: string | null
+          annual_offer_shown_at?: string | null
           assumed_plan_fleet_size?: number | null
           assumed_plan_is_annual?: boolean | null
           assumed_plan_tier?: string | null
+          billed_quantity?: number | null
+          billed_tier?: string | null
           billing_dunning_message?: string | null
           billing_dunning_notes?: string | null
           billing_dunning_set_at?: string | null
           billing_dunning_set_by?: string | null
           billing_dunning_stage?: string | null
+          billing_interval?: string | null
+          billing_status?: string | null
           business_address?: Json | null
+          cancel_at_period_end?: boolean
           country_code?: string
           created_at?: string | null
           currency?: string
+          current_period_end?: string | null
           data_region?: string
           default_deposit_cents?: number | null
           default_mileage_limit?: number | null
@@ -3967,8 +4031,10 @@ export type Database = {
           slug?: string | null
           stripe_account_id?: string | null
           stripe_charges_enabled?: boolean
+          stripe_customer_id?: string | null
           stripe_onboarding_complete?: boolean
           stripe_payouts_enabled?: boolean
+          stripe_subscription_id?: string | null
           stripe_test_account_id?: string | null
           support_email?: string | null
           support_phone?: string | null
@@ -3985,19 +4051,28 @@ export type Database = {
           vat_number?: string | null
         }
         Update: {
+          activated_at?: string | null
           ai_data_minimization_level?: string
+          annual_offer_dismissed_at?: string | null
+          annual_offer_shown_at?: string | null
           assumed_plan_fleet_size?: number | null
           assumed_plan_is_annual?: boolean | null
           assumed_plan_tier?: string | null
+          billed_quantity?: number | null
+          billed_tier?: string | null
           billing_dunning_message?: string | null
           billing_dunning_notes?: string | null
           billing_dunning_set_at?: string | null
           billing_dunning_set_by?: string | null
           billing_dunning_stage?: string | null
+          billing_interval?: string | null
+          billing_status?: string | null
           business_address?: Json | null
+          cancel_at_period_end?: boolean
           country_code?: string
           created_at?: string | null
           currency?: string
+          current_period_end?: string | null
           data_region?: string
           default_deposit_cents?: number | null
           default_mileage_limit?: number | null
@@ -4041,8 +4116,10 @@ export type Database = {
           slug?: string | null
           stripe_account_id?: string | null
           stripe_charges_enabled?: boolean
+          stripe_customer_id?: string | null
           stripe_onboarding_complete?: boolean
           stripe_payouts_enabled?: boolean
+          stripe_subscription_id?: string | null
           stripe_test_account_id?: string | null
           support_email?: string | null
           support_phone?: string | null
@@ -5903,6 +5980,7 @@ export type Database = {
         Returns: undefined
       }
       auto_purge_expired_vehicles: { Args: never; Returns: number }
+      billing_tier_for_count: { Args: { _count: number }; Returns: string }
       booking_has_captured_leg:
         | {
             Args: { _exotiq_pi: string; _operator_pi: string; _paid_at: string }
@@ -6927,6 +7005,9 @@ export type Database = {
         Args: { check_user_id?: string; permission_name: string }
         Returns: boolean
       }
+      team_active_vehicle_count: { Args: { _team_id: string }; Returns: number }
+      team_can_transact: { Args: { _team_id: string }; Returns: boolean }
+      team_is_writable: { Args: { _team_id: string }; Returns: boolean }
       team_state_code: { Args: { _team_id: string }; Returns: string }
       team_state_fee_daily_cents: {
         Args: { _team_id: string }
