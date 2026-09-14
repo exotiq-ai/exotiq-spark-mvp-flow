@@ -1,385 +1,284 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import {
   CreditCard,
   Crown,
-  Check,
   Calendar,
   Download,
-  Sparkles,
   Loader2,
-  Rocket
+  Car,
+  AlertTriangle,
+  ShieldCheck,
+  Sparkles,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useFleet } from "@/contexts/FleetContext";
-import { EmptyState } from "@/components/common/EmptyState";
-import { pricingTiers, type PricingTier } from "@/components/landing/pricing/PricingData";
-import { PlanSelectionModal } from "@/components/landing/pricing/PlanSelectionModal";
-import { BillingToggle } from "@/components/landing/pricing/BillingToggle";
+import { useBillingStatus, TIER_BOUNDS, ENTERPRISE_THRESHOLD } from "@/hooks/useBillingStatus";
+import { ActivateSubscriptionDialog } from "@/components/billing/ActivateSubscriptionDialog";
 import { Celebration } from "@/components/common/MicroInteractions";
-import { motion, AnimatePresence } from "framer-motion";
 
-// Vehicle limits by subscription tier (2026 restructure)
-const TIER_LIMITS: Record<string, number> = {
-  pro: 15,
-  business: 50,
-  enterprise: 9999,
-};
+const money = (n: number) => `$${Math.round(n).toLocaleString()}`;
+
+const formatDate = (d: Date | null) =>
+  d
+    ? d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+    : "—";
 
 export const SubscriptionSection = () => {
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
-  const { subscription } = useAuth();
-  const { vehicles } = useFleet();
-  const [selectedTier, setSelectedTier] = useState<PricingTier | null>(null);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [isAnnual, setIsAnnual] = useState(true);
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [showCelebration, setShowCelebration] = useState(false);
-
   const { checkSubscription } = useAuth();
+  const billing = useBillingStatus();
+  const [isLoading, setIsLoading] = useState(false);
+  const [activateOpen, setActivateOpen] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  // Detect subscription=success and trigger celebration
   useEffect(() => {
-    if (searchParams.get('subscription') === 'success') {
+    if (searchParams.get("subscription") === "success") {
       setShowCelebration(true);
-      // Clear the query param
-      searchParams.delete('subscription');
-      searchParams.delete('session_id');
+      searchParams.delete("subscription");
+      searchParams.delete("session_id");
       setSearchParams(searchParams, { replace: true });
-      // Re-use the AuthContext subscription check (no duplicate call)
       checkSubscription();
     }
   }, []);
-  
-  const vehiclesUsed = vehicles?.length || 0;
-  const currentTier = subscription?.tier || null;
-  const vehicleLimit = currentTier ? (TIER_LIMITS[currentTier] || 0) : 0;
-  const isSubscribed = subscription?.subscribed || false;
 
   const handleManageBilling = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('customer-portal');
+      const { data, error } = await supabase.functions.invoke("customer-portal");
       if (error) throw error;
-      if (data?.url) {
-        window.open(data.url, '_blank');
-      }
-    } catch (error) {
+      if (data?.url) window.open(data.url, "_blank");
+    } catch {
       toast({
-        title: "Error",
-        description: "Failed to open billing portal. Please try again.",
-        variant: "destructive"
+        title: "Couldn't open billing",
+        description: "Please try again in a moment.",
+        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSelectPlan = (tier: PricingTier) => {
-    setSelectedTier(tier);
-    setModalOpen(true);
-  };
+  const bounds = billing.tier === "enterprise" ? null : TIER_BOUNDS[billing.tier];
+  const monthly = bounds ? bounds.perVehicle.month * billing.fleetCount : null;
+  const annual = bounds ? bounds.perVehicle.year * billing.fleetCount : null;
 
-  const usagePercentage = vehicleLimit > 0 
-    ? (vehiclesUsed / vehicleLimit) * 100 
-    : 0;
-
-  const getPlanDisplayName = (tier: string | null) => {
-    if (!tier) return "None";
-    return tier.charAt(0).toUpperCase() + tier.slice(1);
-  };
-
-  const getCurrentPlanFeatures = () => {
-    const plan = pricingTiers.find(p => p.id === currentTier);
-    return plan?.features || [];
-  };
-
-  const getDisplayPrice = (tier: PricingTier) => {
-    if (tier.priceType === 'custom') return 'Custom';
-    return `$${tier.perVehicleRate ?? tier.price}`;
-  };
-
-  const getPriceLabel = (tier: PricingTier) => {
-    if (tier.priceType === 'custom') return '';
-    return '/vehicle/mo';
-  };
-
-  // No subscription state
-  if (!isSubscribed) {
-    return (
-      <div className="space-y-6">
-        <EmptyState
-          icon={Crown}
-          title="No Active Subscription"
-          description="Choose a plan to unlock fleet management features and start managing your vehicles."
-          action={{
-            label: "View Plans",
-            onClick: () => {
-              const plansSection = document.getElementById('available-plans');
-              plansSection?.scrollIntoView({ behavior: 'smooth' });
-            }
-          }}
-        />
-
-        <div id="available-plans">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">Available Plans</h3>
-            <BillingToggle isAnnual={isAnnual} onChange={setIsAnnual} />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {pricingTiers.map((tier) => (
-              <Card
-                key={tier.id}
-                className={`p-5 flex flex-col h-full ${tier.popular ? 'border-primary shadow-lg ring-2 ring-primary/20' : 'card-premium'}`}
-              >
-                <div className="flex items-start justify-between gap-2 mb-1">
-                  <h4 className="text-base font-semibold">{tier.name}</h4>
-                  {tier.popular && (
-                    <Badge className="bg-primary text-xs shrink-0">Popular</Badge>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground">{tier.vehicleRange}</p>
-
-                <div className="mt-3 mb-4">
-                  <div className="flex items-baseline gap-1 whitespace-nowrap tabular-nums">
-                    <span className="text-2xl font-bold">{getDisplayPrice(tier)}</span>
-                    <span className="text-sm text-muted-foreground">{getPriceLabel(tier)}</span>
-                  </div>
-                  {tier.priceType === 'custom' && (
-                    <p className="text-xs text-muted-foreground mt-1">Volume pricing — contact sales</p>
-                  )}
-                  {tier.priceType !== 'custom' && isAnnual && (
-                    <p className="text-xs text-success mt-1">Save 2 months annually</p>
-                  )}
-                </div>
-
-                <div className="space-y-2 flex-1">
-                  {tier.features.slice(0, 5).map((feature, i) => (
-                    <div key={i} className="flex items-center gap-2 min-w-0">
-                      <Check className="w-3.5 h-3.5 text-success shrink-0" />
-                      <span className="text-sm truncate" title={feature}>{feature}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <Button
-                  className="w-full mt-5"
-                  variant={tier.popular ? "default" : "outline"}
-                  onClick={() => {
-                    if (tier.priceType === 'custom') {
-                      window.open('https://calendly.com/exotiq/enterprise', '_blank');
-                    } else {
-                      handleSelectPlan(tier);
-                    }
-                  }}
-                >
-                  {tier.priceType === 'custom' ? 'Contact Sales' : 'Start Free Trial'}
-                </Button>
-              </Card>
-            ))}
-          </div>
-        </div>
-
-        <PlanSelectionModal
-          open={modalOpen}
-          onOpenChange={setModalOpen}
-          selectedTier={selectedTier}
-          isAnnual={isAnnual}
-          returnPath="/dashboard/settings?subscription=success"
-          cancelPath="/dashboard/settings"
-        />
-      </div>
-    );
-  }
+  const statusBadge = (() => {
+    switch (billing.state) {
+      case "grandfathered":
+        return { label: "Included", className: "bg-success text-success-foreground" };
+      case "trialing":
+        return {
+          label:
+            billing.daysLeftInTrial !== null
+              ? `Free trial — ${billing.daysLeftInTrial} ${billing.daysLeftInTrial === 1 ? "day" : "days"} left`
+              : "Free trial",
+          className: "bg-primary text-primary-foreground",
+        };
+      case "active":
+        return { label: "Active", className: "bg-success text-success-foreground" };
+      case "past_due":
+        return { label: "Payment failed", className: "bg-warning text-warning-foreground" };
+      case "unpaid":
+        return { label: "Paused", className: "bg-destructive text-destructive-foreground" };
+      case "canceled":
+        return { label: "Cancelled", className: "bg-destructive text-destructive-foreground" };
+      default:
+        return { label: "Not activated", className: "bg-muted text-muted-foreground" };
+    }
+  })();
 
   return (
     <div className="space-y-6">
-      {/* Celebration confetti + animated card */}
-      <Celebration 
-        trigger={showCelebration} 
-        message="Subscription Activated! 🚀" 
+      <Celebration
+        trigger={showCelebration}
+        message="You're all set 🚀"
         variant="milestone"
         onComplete={() => setShowCelebration(false)}
       />
-      <AnimatePresence>
-        {showCelebration && (
-          <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -10, scale: 0.95 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
-          >
-            <Card className="p-8 border-primary/30 bg-gradient-to-br from-primary/10 via-success/5 to-primary/5 text-center overflow-hidden relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent animate-pulse" />
-              <div className="relative z-10">
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: [0, 1.3, 1] }}
-                  transition={{ duration: 0.6, times: [0, 0.6, 1] }}
-                  className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-success/20 mb-4"
-                >
-                  <Rocket className="h-8 w-8 text-success" />
-                </motion.div>
-                <h3 className="text-2xl font-bold mb-2">
-                  Welcome to {getPlanDisplayName(currentTier)}!
-                </h3>
-                <p className="text-muted-foreground max-w-md mx-auto">
-                  Your subscription is now active. Your fleet management just leveled up — enjoy your new features!
+
+      {/* Needs a card */}
+      {billing.needsActivation && (
+        <Card className="p-6 border-primary/30 bg-gradient-to-br from-primary/10 to-transparent">
+          <div className="flex items-start gap-3">
+            <div className="rounded-lg bg-primary/10 p-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex-1 space-y-3">
+              <div>
+                <h3 className="text-lg font-semibold">Add a card to finish setting up</h3>
+                <p className="text-sm text-muted-foreground">
+                  Your first 30 days are free. Until a card is on file you can build out your fleet
+                  and settings, but you can't take bookings or payments.
                 </p>
               </div>
-            </Card>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      {/* Current Plan Card */}
-      <Card className="card-premium p-6 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
-        <div className="flex items-center justify-between mb-6">
+              <Button onClick={() => setActivateOpen(true)}>Activate account</Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Payment trouble */}
+      {(billing.state === "past_due" || billing.state === "unpaid") && (
+        <Card className="p-6 border-destructive/30 bg-destructive/5">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 h-5 w-5 text-destructive" />
+            <div className="flex-1 space-y-3">
+              <div>
+                <h3 className="text-lg font-semibold">
+                  {billing.state === "past_due" ? "Your last payment didn't go through" : "Your account is paused"}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {billing.state === "past_due"
+                    ? "We'll try again shortly. Updating your card now avoids any interruption."
+                    : "New bookings and payments are on hold until the balance is settled."}
+                </p>
+              </div>
+              <Button onClick={handleManageBilling} disabled={isLoading}>
+                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}
+                Update payment method
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Plan summary */}
+      <Card className="card-premium border-primary/20 bg-gradient-to-br from-primary/5 to-transparent p-6">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center space-x-3">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <Crown className="w-6 h-6 text-primary" />
+            <div className="rounded-lg bg-primary/10 p-2">
+              <Crown className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <h3 className="text-xl font-semibold">Current Plan</h3>
-              <p className="text-sm text-muted-foreground">Your subscription details</p>
-            </div>
-          </div>
-          <Badge className="bg-success text-success-foreground">
-            <Sparkles className="w-3 h-3 mr-1" />
-            Active
-          </Badge>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">Plan</p>
-            <p className="text-2xl font-bold">{getPlanDisplayName(currentTier)}</p>
-          </div>
-          
-          <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">Next Billing</p>
-            <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-muted-foreground" />
-              <p className="font-medium">
-                {subscription?.subscriptionEnd 
-                  ? new Date(subscription.subscriptionEnd).toLocaleDateString('en-US', {
-                      month: 'long',
-                      day: 'numeric',
-                      year: 'numeric'
-                    })
-                  : 'N/A'
-                }
+              <h3 className="text-xl font-semibold">Your plan</h3>
+              <p className="text-sm text-muted-foreground">
+                Priced on the vehicles in your fleet — it adjusts on its own.
               </p>
             </div>
           </div>
+          <Badge className={statusBadge.className}>{statusBadge.label}</Badge>
+        </div>
 
-          <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">Vehicle Usage</p>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>{vehiclesUsed} of {vehicleLimit}</span>
-                <span className="text-muted-foreground">{Math.round(usagePercentage)}%</span>
-              </div>
-              <Progress value={Math.min(usagePercentage, 100)} className="h-2" />
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground">Plan</p>
+            <p className="text-2xl font-bold">{billing.tierLabel}</p>
+            {bounds && (
+              <p className="text-xs text-muted-foreground">
+                {bounds.min}–{bounds.max} vehicles · {money(bounds.perVehicle.month)} per vehicle
+                monthly
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground">Vehicles</p>
+            <div className="flex items-center gap-2">
+              <Car className="h-4 w-4 text-muted-foreground" />
+              <p className="text-2xl font-bold">{billing.fleetCount}</p>
             </div>
+            {billing.billedQuantity !== null && billing.billedQuantity !== billing.fleetCount && (
+              <p className="text-xs text-muted-foreground">
+                Billing {billing.billedQuantity} today — the change applies on your next bill.
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground">
+              {billing.onTrial ? "First charge" : "Next charge"}
+            </p>
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <p className="font-medium">
+                {billing.isGrandfathered
+                  ? "Not billed"
+                  : formatDate(billing.onTrial ? billing.trialEnd : billing.nextChargeAt)}
+              </p>
+            </div>
+            {!billing.isGrandfathered && monthly !== null && annual !== null && (
+              <p className="text-xs text-muted-foreground">
+                {billing.billingInterval === "year"
+                  ? `${money(annual)} per year`
+                  : `${money(monthly)} per month`}
+              </p>
+            )}
+            {billing.cancelAtPeriodEnd && (
+              <p className="text-xs text-destructive">Cancels at the end of this period.</p>
+            )}
           </div>
         </div>
 
-        <div className="mt-6 pt-6 border-t flex flex-wrap gap-3">
-          {getCurrentPlanFeatures().map((feature, i) => (
-            <Badge key={i} variant="secondary" className="gap-1">
-              <Check className="w-3 h-3" />
-              {feature}
-            </Badge>
-          ))}
-        </div>
-
-        <div className="mt-6 flex flex-col sm:flex-row gap-3">
-          <Button onClick={handleManageBilling} disabled={isLoading} className="btn-premium w-full sm:w-auto">
-            {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CreditCard className="w-4 h-4 mr-2" />}
-            Manage Billing
-          </Button>
-          <Button variant="outline" className="w-full sm:w-auto" onClick={handleManageBilling}>
-            <Download className="w-4 h-4 mr-2" />
-            Download Invoices
-          </Button>
-        </div>
+        {billing.isGrandfathered ? (
+          <div className="mt-6 flex items-start gap-2 border-t pt-6 text-sm text-muted-foreground">
+            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+            <span>
+              Your workspace is on our founding-operator terms — nothing to pay and nothing to set
+              up. We'll always tell you first if that changes.
+            </span>
+          </div>
+        ) : (
+          <div className="mt-6 flex flex-col gap-3 border-t pt-6 sm:flex-row">
+            {billing.needsActivation ? (
+              <Button className="btn-premium w-full sm:w-auto" onClick={() => setActivateOpen(true)}>
+                <Sparkles className="mr-2 h-4 w-4" />
+                Activate account
+              </Button>
+            ) : (
+              <>
+                <Button
+                  onClick={handleManageBilling}
+                  disabled={isLoading}
+                  className="btn-premium w-full sm:w-auto"
+                >
+                  {isLoading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <CreditCard className="mr-2 h-4 w-4" />
+                  )}
+                  Manage billing
+                </Button>
+                <Button variant="outline" className="w-full sm:w-auto" onClick={handleManageBilling}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Invoices &amp; receipts
+                </Button>
+              </>
+            )}
+          </div>
+        )}
       </Card>
 
-      {/* Available Plans for upgrade */}
-      <div>
-        <h3 className="text-lg font-semibold mb-4">Available Plans</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {pricingTiers.map((tier) => {
-            const isCurrentPlan = tier.id === currentTier;
+      {/* How pricing works */}
+      <Card className="p-6">
+        <h3 className="mb-3 text-lg font-semibold">How your price is worked out</h3>
+        <ul className="space-y-2 text-sm text-muted-foreground">
+          <li>
+            Up to {TIER_BOUNDS.pro.max} vehicles: {money(TIER_BOUNDS.pro.perVehicle.month)} per
+            vehicle each month.
+          </li>
+          <li>
+            {TIER_BOUNDS.business.min}–{TIER_BOUNDS.business.max} vehicles:{" "}
+            {money(TIER_BOUNDS.business.perVehicle.month)} per vehicle each month.
+          </li>
+          <li>Annual billing gives you two months free.</li>
+          <li>
+            Add or retire vehicles whenever you like — we recount before each bill, so you only pay
+            for what you actually run.
+          </li>
+          <li>
+            Over {ENTERPRISE_THRESHOLD} vehicles we price it with you directly, so nothing is
+            charged automatically at that size.
+          </li>
+        </ul>
+      </Card>
 
-            return (
-              <Card
-                key={tier.id}
-                className={`p-5 flex flex-col h-full ${
-                  isCurrentPlan
-                    ? 'border-primary shadow-lg ring-2 ring-primary/20'
-                    : 'card-premium'
-                }`}
-              >
-                <div className="flex items-start justify-between gap-2 mb-1">
-                  <h4 className="text-base font-semibold">{tier.name}</h4>
-                  {isCurrentPlan && (
-                    <Badge className="bg-primary text-xs shrink-0">Current</Badge>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground">{tier.vehicleRange}</p>
-
-                <div className="mt-3 mb-4">
-                  <div className="flex items-baseline gap-1 whitespace-nowrap tabular-nums">
-                    <span className="text-2xl font-bold">{getDisplayPrice(tier)}</span>
-                    <span className="text-sm text-muted-foreground">{getPriceLabel(tier)}</span>
-                  </div>
-                </div>
-
-                <div className="space-y-2 flex-1">
-                  {tier.features.slice(0, 5).map((feature, i) => (
-                    <div key={i} className="flex items-center gap-2 min-w-0">
-                      <Check className="w-3.5 h-3.5 text-success shrink-0" />
-                      <span className="text-sm truncate" title={feature}>{feature}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <Button
-                  className="w-full mt-5"
-                  variant={isCurrentPlan ? "default" : "outline"}
-                  disabled={isCurrentPlan}
-                  onClick={() => {
-                    if (tier.priceType === 'custom') {
-                      window.open('https://calendly.com/exotiq/enterprise', '_blank');
-                    } else {
-                      handleSelectPlan(tier);
-                    }
-                  }}
-                >
-                  {isCurrentPlan ? "Current Plan" : tier.priceType === 'custom' ? "Contact Sales" : "Switch Plan"}
-                </Button>
-              </Card>
-            );
-          })}
-        </div>
-      </div>
-
-      <PlanSelectionModal
-        open={modalOpen}
-        onOpenChange={setModalOpen}
-        selectedTier={selectedTier}
-        isAnnual={isAnnual}
-        returnPath="/dashboard/settings?subscription=success"
-        cancelPath="/dashboard/settings"
-      />
+      <ActivateSubscriptionDialog open={activateOpen} onOpenChange={setActivateOpen} />
     </div>
   );
 };
