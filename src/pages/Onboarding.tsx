@@ -20,6 +20,7 @@ import { useOnboardingProgress, OnboardingFormData } from '@/hooks/useOnboarding
 import { AddressAutocomplete, AddressData } from '@/components/ui/address-autocomplete';
 import { SUPPORTED_COUNTRIES, getCountryDefaults, detectCountryFromBrowser } from '@/lib/countryDefaults';
 import { LocationInput, LocationData } from '@/components/onboarding/LocationInput';
+import { OnboardingActivateCard } from '@/components/billing/OnboardingActivateCard';
 import { 
   Building2, 
   Car, 
