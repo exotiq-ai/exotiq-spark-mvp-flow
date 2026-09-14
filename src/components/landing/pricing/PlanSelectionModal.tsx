@@ -139,7 +139,7 @@ export const PlanSelectionModal = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Start your 14-day free trial</DialogTitle>
+          <DialogTitle>Start your 30-day free trial</DialogTitle>
           <DialogDescription>
             {selectedTier.name} — {selectedTier.valueProposition}
           </DialogDescription>
@@ -224,12 +224,12 @@ export const PlanSelectionModal = ({
             {isLoading ? (
               <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing…</>
             ) : (
-              <><Sparkles className="mr-2 h-4 w-4" />Start 14-day free trial</>
+              <><Sparkles className="mr-2 h-4 w-4" />Start 30-day free trial</>
             )}
           </Button>
 
           <p className="text-xs text-center text-muted-foreground">
-            No credit card required. We'll remind you before the trial ends.
+            Your card is saved now but nothing is charged for 30 days. We'll email you before the first payment.
           </p>
         </div>
       </DialogContent>

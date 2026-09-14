@@ -1,6 +1,13 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { sendBillingEmail, TIER_NAMES, type BillingTier } from "../_shared/billing.ts";
+import {
+  billingRecipient,
+  recountSubscriptionQuantity,
+  resolveBillingTeam,
+  syncTeamFromSubscription,
+} from "../_shared/billingSync.ts";
 
 const logStep = (step: string, details?: Record<string, unknown>) => {
   console.log(`[STRIPE-WEBHOOK] ${step}${details ? ` - ${JSON.stringify(details)}` : ''}`);
@@ -453,28 +460,117 @@ serve(async (req) => {
         break;
       }
 
+      case "customer.subscription.created":
       case "customer.subscription.updated": {
         const subscription = event.data.object as Stripe.Subscription;
-        logStep("Subscription updated", { subId: subscription.id, status: subscription.status });
+        logStep("Subscription synced", { subId: subscription.id, status: subscription.status });
 
-        // Find the user by customer email and notify them
-        const updatedCustomer = await stripe.customers.retrieve(subscription.customer as string);
-        if (updatedCustomer && !updatedCustomer.deleted && updatedCustomer.email) {
-          const { data: profile } = await supabaseClient
-            .from("profiles")
-            .select("id")
-            .eq("email", updatedCustomer.email)
-            .limit(1)
-            .maybeSingle();
+        const team = await resolveBillingTeam(supabaseClient, stripe, subscription);
+        if (!team) {
+          logStep("No team for subscription", { subId: subscription.id });
+          break;
+        }
 
-          if (profile) {
-            const tierName = subscription.metadata?.tierId || 'unknown';
-            await supabaseClient.from("notifications").insert({
-              user_id: profile.id,
-              type: "payment",
-              title: "Subscription Updated",
-              message: `Your subscription (${tierName}) status is now: ${subscription.status}`,
-              data: { subscription_id: subscription.id, status: subscription.status, tier: tierName },
+        await syncTeamFromSubscription(supabaseClient, team.id, subscription);
+
+        if (event.type === "customer.subscription.created" && subscription.status === "trialing") {
+          const owner = await billingRecipient(supabaseClient, team);
+          if (owner) {
+            await sendBillingEmail(supabaseClient, {
+              teamId: team.id,
+              type: "trial_started",
+              to: owner,
+              stripeEventId: event.id,
+              vars: {
+                teamName: team.name ?? "",
+                quantity: subscription.items.data[0]?.quantity ?? 1,
+                tierName: TIER_NAMES[(subscription.metadata?.tierId as BillingTier) || "pro"] ?? "Pro",
+                trialEnd: subscription.trial_end
+                  ? new Date(subscription.trial_end * 1000).toLocaleDateString("en-US", { dateStyle: "long" })
+                  : "",
+              },
+            });
+          }
+        }
+        break;
+      }
+
+      case "customer.subscription.trial_will_end": {
+        const subscription = event.data.object as Stripe.Subscription;
+        logStep("Trial will end", { subId: subscription.id });
+
+        const team = await resolveBillingTeam(supabaseClient, stripe, subscription);
+        if (!team) break;
+        await syncTeamFromSubscription(supabaseClient, team.id, subscription);
+
+        const to = await billingRecipient(supabaseClient, team);
+        if (to) {
+          await sendBillingEmail(supabaseClient, {
+            teamId: team.id,
+            type: "trial_ending",
+            to,
+            stripeEventId: event.id,
+            vars: {
+              quantity: subscription.items.data[0]?.quantity ?? 1,
+              tierName: TIER_NAMES[(subscription.metadata?.tierId as BillingTier) || "pro"] ?? "Pro",
+              trialEnd: subscription.trial_end
+                ? new Date(subscription.trial_end * 1000).toLocaleDateString("en-US", { dateStyle: "long" })
+                : "",
+            },
+          });
+        }
+        if (team.owner_id) {
+          await supabaseClient.from("notifications").insert({
+            user_id: team.owner_id,
+            type: "payment",
+            title: "Trial ends in 3 days",
+            message: "Your card will be charged when the trial ends. Review billing if anything needs changing.",
+            data: { subscription_id: subscription.id },
+          });
+        }
+        break;
+      }
+
+      case "invoice.upcoming": {
+        // Primary recount hook: align billed quantity with the live fleet count
+        // before the renewal invoice finalises.
+        const invoice = event.data.object as Stripe.Invoice;
+        const subId = typeof invoice.subscription === "string" ? invoice.subscription : null;
+        if (!subId) break;
+        const subscription = await stripe.subscriptions.retrieve(subId);
+        const team = await resolveBillingTeam(supabaseClient, stripe, subscription);
+        if (!team) break;
+        const result = await recountSubscriptionQuantity(supabaseClient, stripe, team.id, subscription);
+        logStep("Renewal recount", { teamId: team.id, ...result });
+        break;
+      }
+
+      case "invoice.paid": {
+        const invoice = event.data.object as Stripe.Invoice;
+        const subId = typeof invoice.subscription === "string" ? invoice.subscription : null;
+        if (!subId) break;
+        const subscription = await stripe.subscriptions.retrieve(subId);
+        const team = await resolveBillingTeam(supabaseClient, stripe, subscription);
+        if (!team) break;
+        await syncTeamFromSubscription(supabaseClient, team.id, subscription);
+
+        // "First paid invoice" = Stripe says this is a subscription cycle/creation
+        // invoice AND we have never sent the first-payment email for this team.
+        // Amount alone would misfire on a mid-cycle proration.
+        const reason = invoice.billing_reason ?? "";
+        const isCycleInvoice = ["subscription_create", "subscription_cycle"].includes(reason);
+        if (isCycleInvoice && (invoice.amount_paid ?? 0) > 0) {
+          const to = await billingRecipient(supabaseClient, team);
+          if (to) {
+            await sendBillingEmail(supabaseClient, {
+              teamId: team.id,
+              type: "first_payment",
+              to,
+              vars: {
+                amount: `$${((invoice.amount_paid ?? 0) / 100).toFixed(2)}`,
+                quantity: subscription.items.data[0]?.quantity ?? 1,
+                interval: subscription.items.data[0]?.price?.recurring?.interval ?? "month",
+              },
             });
           }
         }
@@ -485,24 +581,35 @@ serve(async (req) => {
         const subscription = event.data.object as Stripe.Subscription;
         logStep("Subscription cancelled", { subId: subscription.id });
 
-        const cancelledCustomer = await stripe.customers.retrieve(subscription.customer as string);
-        if (cancelledCustomer && !cancelledCustomer.deleted && cancelledCustomer.email) {
-          const { data: profile } = await supabaseClient
-            .from("profiles")
-            .select("id")
-            .eq("email", cancelledCustomer.email)
-            .limit(1)
-            .maybeSingle();
+        const team = await resolveBillingTeam(supabaseClient, stripe, subscription);
+        if (!team) break;
 
-          if (profile) {
-            await supabaseClient.from("notifications").insert({
-              user_id: profile.id,
-              type: "payment",
-              title: "Subscription Cancelled",
-              message: "Your subscription has been cancelled. You will lose access at the end of the current billing period.",
-              data: { subscription_id: subscription.id },
-            });
-          }
+        await supabaseClient
+          .from("teams")
+          .update({
+            billing_status: "canceled",
+            cancel_at_period_end: false,
+            stripe_subscription_id: subscription.id,
+          })
+          .eq("id", team.id);
+
+        const to = await billingRecipient(supabaseClient, team);
+        if (to) {
+          await sendBillingEmail(supabaseClient, {
+            teamId: team.id,
+            type: "subscription_canceled",
+            to,
+            stripeEventId: event.id,
+          });
+        }
+        if (team.owner_id) {
+          await supabaseClient.from("notifications").insert({
+            user_id: team.owner_id,
+            type: "payment",
+            title: "Subscription Cancelled",
+            message: "Your subscription has been cancelled. Your data is safe and read-only until you reactivate.",
+            data: { subscription_id: subscription.id },
+          });
         }
         break;
       }
@@ -511,25 +618,40 @@ serve(async (req) => {
         const invoice = event.data.object as Stripe.Invoice;
         logStep("Invoice payment failed", { invoiceId: invoice.id, customer: invoice.customer });
 
-        if (invoice.customer) {
-          const failedCustomer = await stripe.customers.retrieve(invoice.customer as string);
-          if (failedCustomer && !failedCustomer.deleted && failedCustomer.email) {
-            const { data: profile } = await supabaseClient
-              .from("profiles")
-              .select("id")
-              .eq("email", failedCustomer.email)
-              .limit(1)
-              .maybeSingle();
+        const customerId = typeof invoice.customer === "string" ? invoice.customer : null;
+        if (!customerId) break;
 
-            if (profile) {
-              await supabaseClient.from("notifications").insert({
-                user_id: profile.id,
-                type: "payment",
-                title: "Payment Failed",
-                message: `Your payment of $${((invoice.amount_due || 0) / 100).toFixed(2)} failed. Please update your payment method to avoid service interruption.`,
-                data: { invoice_id: invoice.id },
-              });
-            }
+        const { data: team } = await supabaseClient
+          .from("teams")
+          .select("id, name, owner_id, support_email")
+          .eq("stripe_customer_id", customerId)
+          .limit(1)
+          .maybeSingle();
+
+        if (team) {
+          await supabaseClient
+            .from("teams")
+            .update({ billing_status: "past_due" })
+            .eq("id", team.id);
+
+          const to = await billingRecipient(supabaseClient, team);
+          if (to) {
+            await sendBillingEmail(supabaseClient, {
+              teamId: team.id,
+              type: "payment_failed",
+              to,
+              stripeEventId: event.id,
+              vars: { amount: `$${((invoice.amount_due ?? 0) / 100).toFixed(2)}` },
+            });
+          }
+          if (team.owner_id) {
+            await supabaseClient.from("notifications").insert({
+              user_id: team.owner_id,
+              type: "payment",
+              title: "Payment Failed",
+              message: `Your payment of $${((invoice.amount_due || 0) / 100).toFixed(2)} failed. Update your card to keep bookings and payments running.`,
+              data: { invoice_id: invoice.id },
+            });
           }
         }
         break;

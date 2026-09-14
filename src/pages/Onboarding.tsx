@@ -20,6 +20,7 @@ import { useOnboardingProgress, OnboardingFormData } from '@/hooks/useOnboarding
 import { AddressAutocomplete, AddressData } from '@/components/ui/address-autocomplete';
 import { SUPPORTED_COUNTRIES, getCountryDefaults, detectCountryFromBrowser } from '@/lib/countryDefaults';
 import { LocationInput, LocationData } from '@/components/onboarding/LocationInput';
+import { OnboardingActivateCard } from '@/components/billing/OnboardingActivateCard';
 import { 
   Building2, 
   Car, 
@@ -764,6 +765,8 @@ export default function Onboarding() {
                 </div>
 
                 <div className="space-y-6">
+                  {!isEditMode && <OnboardingActivateCard returnPath="/onboarding" />}
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="fleetSize">Fleet Size *</Label>
