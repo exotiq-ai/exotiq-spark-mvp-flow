@@ -15,7 +15,7 @@ export interface BillingTeam {
   id: string;
   name?: string | null;
   owner_id?: string | null;
-  contact_email?: string | null;
+  support_email?: string | null;
 }
 
 const STATUS_MAP: Record<string, string> = {
@@ -39,7 +39,7 @@ export async function resolveBillingTeam(
   stripe: Stripe,
   subscription: Stripe.Subscription,
 ): Promise<BillingTeam | null> {
-  const select = "id, name, owner_id, contact_email";
+  const select = "id, name, owner_id, support_email";
 
   const metaTeamId = subscription.metadata?.team_id;
   if (metaTeamId) {
@@ -99,7 +99,7 @@ export async function billingRecipient(
   supabase: SupabaseClient,
   team: BillingTeam,
 ): Promise<string | null> {
-  if (team.contact_email) return team.contact_email;
+  if (team.support_email) return team.support_email;
   if (!team.owner_id) return null;
   const { data } = await supabase.from("profiles").select("email").eq("id", team.owner_id).maybeSingle();
   return (data as { email?: string } | null)?.email ?? null;

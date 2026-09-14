@@ -66,7 +66,7 @@ serve(async (req) => {
 
     const { data: teams } = await admin
       .from("teams")
-      .select("id, name, owner_id, billing_status, stripe_customer_id, stripe_subscription_id, is_demo_account, contact_email")
+      .select("id, name, owner_id, billing_status, stripe_customer_id, stripe_subscription_id, is_demo_account, support_email")
       .in("id", teamIds);
 
     const team = (teams ?? []).find((t) => t.owner_id === user.id) ?? (teams ?? [])[0];

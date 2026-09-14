@@ -623,7 +623,7 @@ serve(async (req) => {
 
         const { data: team } = await supabaseClient
           .from("teams")
-          .select("id, name, owner_id, contact_email")
+          .select("id, name, owner_id, support_email")
           .eq("stripe_customer_id", customerId)
           .limit(1)
           .maybeSingle();
