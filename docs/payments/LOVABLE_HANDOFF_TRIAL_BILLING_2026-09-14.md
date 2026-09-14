@@ -1,11 +1,11 @@
 # Lovable Handoff — 30-Day Card-Required Trial, Per-Vehicle Billing, Automated Emails
 
 **Date:** 2026-09-14
-**Decision record:** `docs/payments/TRIAL_AND_BILLING_PLAN_2026-09-14.md` (read §2 first; those sentences are the contract every screen must match)
+**Customer-facing contract:** Appendix A of this document. Those six sentences are the contract every screen, email, and the Terms page must match.
 **Owner of the build:** Lovable (Supabase, Stripe Billing, edge functions, app UI, command center)
 **Owner of Stripe dashboard settings and email copy sign-off:** Gregory (§8, §7)
 
-This is one feature with seven work packages. Ship them in order; each is independently testable. Do not start WP-3 until WP-1 and WP-2 are verified with a Stripe test clock.
+This is one feature with eight work packages. Ship them in order; each is independently testable. Do not start WP-3 until WP-1 and WP-2 are verified with a Stripe test clock.
 
 ---
 
@@ -202,7 +202,7 @@ Receipts, failed-payment emails, and retry notices come from Stripe (§8). Do no
 
 **Vehicle add/archive surfaces:** no billing email, no modal. Optional one-line note under the add-vehicle form: "Billed from your next invoice." Archive confirmation gains one sentence: "Archived vehicles aren't bookable and aren't billed."
 
-**In-app pricing/landing copy** (`PricingData.ts` and the landing pricing components in this repo): update the FAQ and hero copy to the six sentences in the decision record §2. Specifically remove "14-day" and "no credit card required" everywhere. Keep `launchPricingMessage`.
+**In-app pricing/landing copy** (`PricingData.ts` and the landing pricing components in this repo): replace the FAQ answers with Appendix B verbatim and align hero and card copy with Appendix A. Remove "14-day" and "no credit card required" everywhere. Keep `launchPricingMessage`.
 
 **Remove** `pickTierForFleetSize` usage from customer-facing code, the `assumed_plan_*` inputs from any customer flow (they remain for the super-admin fallback ladder), and the `trial=true` request flag.
 
@@ -235,8 +235,26 @@ Use **Stripe test clocks** for every time-based case; do not wait real days.
 10. Grandfathered team (`trial_end IS NULL`, `billing_status` NULL): no banner, all writes work, Settings shows "Legacy plan." Demo account: same.
 11. Activation attempt on an already-activated team returns the Portal URL, not a second Checkout.
 12. Existing e2e suites under `tests/e2e/` still pass; `tier1-*` specs especially.
+13. Terms page shows the WP-8 clauses, the terms version identifier changed, a new activation writes a clickwrap acceptance row with the new version, and Settings → Billing reaches the Portal cancel flow in one click.
 
-Acceptance is all twelve green in a Stripe test mode project, plus a screen recording of case 1 and case 4 for Gregory.
+Acceptance is all thirteen green in a Stripe test mode project, plus a screen recording of case 1 and case 4 for Gregory.
+
+---
+
+## WP-8 — Terms page (`app.exotiq.ai/terms`)
+
+The Terms page lives in this app and is the document Stripe Checkout links to via `consent_collection`. Update the billing section so it states, in plain language, each of the following. Keep the existing structure; add or replace the billing clauses only. Bump the terms version identifier so the clickwrap acceptance record captures the new version (per `clickwrap-acceptance-spec.md`).
+
+1. **Free trial and automatic conversion.** The trial is 30 days. A payment method is required to activate. On the last day of the trial the subscription begins automatically and the payment method on file is charged, unless the customer cancels before that date. The trial end date is shown at activation, in Settings, and in the acknowledgment email.
+2. **Per-vehicle pricing.** Fees are calculated per vehicle in the customer's fleet at the published per-vehicle rate for the applicable tier. At each billing renewal Exotiq counts the vehicles in the account that are not archived and bills that number, with a minimum of one. Vehicles in maintenance or booked elsewhere count. Archived vehicles do not.
+3. **Tier.** Fleets of 1 to 15 vehicles are billed at the Pro rate, 16 to 50 at the Business rate, determined at each renewal. Fleets over 50 require an Enterprise agreement.
+4. **Annual plans.** Annual plans are prepaid for twelve months. Vehicles added during the term are charged for the remainder of the term on a prorated basis and invoiced monthly. Vehicles removed during the term reduce the billed quantity at the next annual renewal. No refunds for mid-term reductions.
+5. **Rate lock.** The per-vehicle rate in effect at activation applies for the life of the subscription unless the customer cancels.
+6. **Cancellation.** The customer may cancel at any time from Settings → Billing. Cancellation takes effect at the end of the current billing period. Cancelling before the trial end date results in no charge.
+7. **Failed payments.** If a payment fails Exotiq will retry and notify the customer. If payment is not completed, the account is placed in read-only mode until payment is made. Customer data is not deleted because of non-payment.
+8. **Reminders.** Exotiq sends a reminder before the first charge and before any renewal where the billed vehicle count has changed.
+
+Add a "Cancel subscription" link in Settings → Billing that opens the Customer Portal directly on the cancel flow. One click from Settings to the cancel confirmation; no email, no call required.
 
 ---
 
@@ -255,7 +273,7 @@ Acceptance is all twelve green in a Stripe test mode project, plus a screen reco
 
 1. Ship WP-1 through WP-7 to staging against the Stripe **test** project. Run §7.
 2. Gregory signs off email copy and the in-app Activate step copy.
-3. Gregory updates exotiq.ai pricing page (decision record Appendix A) and the Terms page (decision record §2). Both go live the same day as step 4.
+3. Gregory updates the exotiq.ai pricing page (separate brief, same copy as Appendix B). It goes live the same day as step 4 so the two sites never disagree on the card.
 4. Deploy to production with live Stripe keys. Run the `admin-billing-backfill` once. Review its log.
 5. For each currently trialing tenant (has `trial_end`, no subscription), Gregory decides: activate under the new flow on a call (they get a fresh 30 days, that is fine), or leave as is. No bulk action.
 6. Watch `billing_email_log` and `stripe_webhook_events` for the first two renewals.
@@ -267,3 +285,33 @@ Acceptance is all twelve green in a Stripe test mode project, plus a screen reco
 - Full activation funnel with stall alerts.
 - Any change to Stripe Connect, renter checkout, deposits, or marketplace payments.
 - Trial extension mechanics. The trial is 30 days, one constant.
+
+---
+
+## Appendix A — Customer-facing contract (verbatim)
+
+Every screen, email, FAQ, and the Terms page must agree with these sentences. Do not paraphrase in ways that change meaning.
+
+1. **30-day free trial.** A card is required to activate. You are not charged until day 30. Cancel anytime in Settings with one click.
+2. **Priced per vehicle in your fleet.** Pro is $39 per vehicle per month for fleets of 1 to 15. Business is $29 per vehicle per month for fleets of 16 to 50. Fleets over 50 are Enterprise and are quoted.
+3. **Your invoice reflects your fleet.** At each renewal we count the vehicles in your garage and bill that number. Archived vehicles are not billed and are not bookable. Vehicles in maintenance or booked elsewhere still count. Minimum one vehicle.
+4. **Annual saves two months.** Annual is $390 (Pro) or $290 (Business) per vehicle per year. On annual, vehicles you add mid-term are billed for the remaining term and invoiced once a month. Vehicles you remove reduce the count at your next anniversary. No mid-term refunds.
+5. **Launch pricing locks.** Your per-vehicle rate is locked for the life of the subscription. Increases are planned for 2027 for new customers only.
+6. **If a payment fails,** we retry, email you, and pause the account to read-only until it is fixed. Nothing is ever deleted.
+
+## Appendix B — FAQ copy for the in-app pricing page (`PricingData.ts` `faqItems`)
+
+Replace the existing items with these. Same answers are used on exotiq.ai so the two sites never disagree.
+
+- **How does the free trial work?** Every account starts with a 30-day free trial. A card is required to activate and is not charged until day 30. Cancel anytime from Settings. If you do nothing, your subscription starts automatically on day 30 at the per-vehicle rate for the vehicles in your fleet.
+- **How is pricing calculated?** Per vehicle, per month. Pro is $39/vehicle/month for fleets of 1–15. Business is $29/vehicle/month for fleets of 16–50. At each renewal we count the vehicles in your garage and bill that number. Archived vehicles are not billed. Fleets over 50 are Enterprise; book a call.
+- **What if I add or remove vehicles?** Monthly plans adjust at your next invoice. Annual plans bill added vehicles for the remaining term, invoiced monthly; removed vehicles reduce your count at your next anniversary.
+- **What happens when my fleet crosses 15 vehicles?** You move to the Business rate automatically at your next renewal, and back to Pro if you drop below 16.
+- **Can I switch to annual later?** Yes, anytime from Settings → Billing, with credit for the unused portion of your month. Annual is two months free.
+- **What happens after the trial ends?** Your subscription starts automatically on day 30 for the vehicles in your fleet. Cancel before then and you are not charged.
+- **What happens if my card fails?** We retry and email you. If it is not resolved, the account pauses to read-only. Nothing is deleted.
+- **Is there a long-term contract?** No. Monthly plans cancel anytime, effective at the end of the period. Annual plans are prepaid for twelve months.
+- **Is there a setup fee?** No. Onboarding and fleet migration are included on every plan.
+- **What about the Drive Exotiq marketplace?** Every paid account is listed on Drive Exotiq as it launches.
+
+---
