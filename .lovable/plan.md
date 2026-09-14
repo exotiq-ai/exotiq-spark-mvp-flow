@@ -17,7 +17,9 @@ Verdict: the design is sound and I'd build it. Nine things need correcting or a 
 
 ## Things I'd push back on
 
-6. **Blocking every write during `pending_activation` is too harsh for a live demo call.** A brand-new team can't add a vehicle, so they can't see their own fleet count before being asked for a card, and the "your fleet: N vehicles" line reads "1 vehicle" for everyone. Proposal: `pending_activation` allows fleet and location setup and blocks only bookings, payments and renter-facing actions. Full lock stays for `unpaid`/`canceled`.
+6. **Signup order changes, since the fleet is pre-loaded by us before the call.** (Your call, agreed.) The wizard becomes: business info → activate with card → everything else. The fleet count shown on the activate step reads the vehicles we already loaded, so it's real on the call instead of "1 vehicle". Two things this needs:
+   - a super-admin action per tenant: **Restart onboarding** (clears their progress and drops them back at step one) and **Start demo** (puts the account in a state you can drive on a call without charging anything).
+   - the write-lock during `pending_activation` blocks bookings, payments and renter-facing actions, but never blocks us or them from loading fleet, locations and business info — otherwise your pre-load and their first-call edits both fail.
 
 7. **Capping at 50 vehicles instead of billing them is a silent revenue leak.** A team at 70 cars gets billed for 50 indefinitely until someone works the notification. Proposal: keep the cap (don't auto-bill Enterprise pricing) but add it to the super-admin trial/billing tile as a standing exception list, not just a one-time task.
 
@@ -47,8 +49,13 @@ Verdict: the design is sound and I'd build it. Nine things need correcting or a 
 
 Nothing here touches Stripe Connect, renter checkout, deposits or the marketplace.
 
-## Decisions I need from you
+## Decisions — settled
 
-- Item 6: soften `pending_activation` to allow fleet setup, or keep it fully locked?
-- Item 8: reword the rate-lock clause, or store activation prices per team?
-- Item 9: nightly reconciliation in scope now, or note it as a follow-up?
+- Item 6: signup starts with business info + card; fleet pre-loaded; add super-admin Restart onboarding / Start demo. Agreed.
+- Item 7: keep the 50-vehicle cap, add a standing exception list in the command center. Agreed.
+- Item 8: reword the rate-lock clause (no per-team price storage). Agreed.
+- Item 9: nightly reconciliation is in scope. Agreed.
+
+## Handoff back to Claude
+
+Alongside the build I'll write `docs/payments/LOVABLE_REVIEW_TRIAL_BILLING_2026-09-14.md` on main: the five corrections, the four decisions above with reasoning, and the exact Terms wording change for item 8, so Claude reviews decisions rather than re-deriving them. Item 5 of the doc's rollout (the pricing page on exotiq.ai) stays yours.
