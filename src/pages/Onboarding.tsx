@@ -764,6 +764,8 @@ export default function Onboarding() {
                 </div>
 
                 <div className="space-y-6">
+                  {!isEditMode && <OnboardingActivateCard returnPath="/onboarding" />}
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="fleetSize">Fleet Size *</Label>
