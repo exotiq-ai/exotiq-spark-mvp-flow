@@ -49,8 +49,13 @@ Verdict: the design is sound and I'd build it. Nine things need correcting or a 
 
 Nothing here touches Stripe Connect, renter checkout, deposits or the marketplace.
 
-## Decisions I need from you
+## Decisions — settled
 
-- Item 6: soften `pending_activation` to allow fleet setup, or keep it fully locked?
-- Item 8: reword the rate-lock clause, or store activation prices per team?
-- Item 9: nightly reconciliation in scope now, or note it as a follow-up?
+- Item 6: signup starts with business info + card; fleet pre-loaded; add super-admin Restart onboarding / Start demo. Agreed.
+- Item 7: keep the 50-vehicle cap, add a standing exception list in the command center. Agreed.
+- Item 8: reword the rate-lock clause (no per-team price storage). Agreed.
+- Item 9: nightly reconciliation is in scope. Agreed.
+
+## Handoff back to Claude
+
+Alongside the build I'll write `docs/payments/LOVABLE_REVIEW_TRIAL_BILLING_2026-09-14.md` on main: the five corrections, the four decisions above with reasoning, and the exact Terms wording change for item 8, so Claude reviews decisions rather than re-deriving them. Item 5 of the doc's rollout (the pricing page on exotiq.ai) stays yours.
