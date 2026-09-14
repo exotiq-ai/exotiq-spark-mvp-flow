@@ -17,7 +17,9 @@ Verdict: the design is sound and I'd build it. Nine things need correcting or a 
 
 ## Things I'd push back on
 
-6. **Blocking every write during `pending_activation` is too harsh for a live demo call.** A brand-new team can't add a vehicle, so they can't see their own fleet count before being asked for a card, and the "your fleet: N vehicles" line reads "1 vehicle" for everyone. Proposal: `pending_activation` allows fleet and location setup and blocks only bookings, payments and renter-facing actions. Full lock stays for `unpaid`/`canceled`.
+6. **Signup order changes, since the fleet is pre-loaded by us before the call.** (Your call, agreed.) The wizard becomes: business info → activate with card → everything else. The fleet count shown on the activate step reads the vehicles we already loaded, so it's real on the call instead of "1 vehicle". Two things this needs:
+   - a super-admin action per tenant: **Restart onboarding** (clears their progress and drops them back at step one) and **Start demo** (puts the account in a state you can drive on a call without charging anything).
+   - the write-lock during `pending_activation` blocks bookings, payments and renter-facing actions, but never blocks us or them from loading fleet, locations and business info — otherwise your pre-load and their first-call edits both fail.
 
 7. **Capping at 50 vehicles instead of billing them is a silent revenue leak.** A team at 70 cars gets billed for 50 indefinitely until someone works the notification. Proposal: keep the cap (don't auto-bill Enterprise pricing) but add it to the super-admin trial/billing tile as a standing exception list, not just a one-time task.
 
