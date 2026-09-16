@@ -444,9 +444,11 @@ export const BusinessProfileSection = () => {
             maxLength={300}
           />
           <p className="text-xs text-muted-foreground">
-            Used when a vehicle has no location assigned. Vehicles with a
-            location use that address instead.
+            Optional fallback — only used when a vehicle has no location assigned.
+            Vehicles with a location always use that location's address, so most
+            operators can leave this blank.
           </p>
+
         </div>
         <div className="space-y-2">
           <Label>Pickup instructions</Label>
