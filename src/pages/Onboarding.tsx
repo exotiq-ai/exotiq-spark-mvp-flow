@@ -315,6 +315,13 @@ export default function Onboarding() {
             tax_label: defaults.tax_label,
             tax_rate_percent: defaults.tax_rate_percent,
             tax_inclusive: defaults.tax_inclusive,
+            // Same address the owner just typed — this is the copy used on tax
+            // invoices, receipts, and the marketplace readiness check, so it never
+            // has to be entered a second time in Settings → Business.
+            ...(formData.businessAddress
+              ? { business_address: formAddressToTeam(formData.businessAddress) }
+              : {}),
+            ...(formData.phone?.trim() ? { support_phone: formData.phone.trim() } : {}),
           } as any)
           .eq('id', currentTeam.id);
         if (teamError) console.warn('[Onboarding] team region update failed:', teamError.message);
