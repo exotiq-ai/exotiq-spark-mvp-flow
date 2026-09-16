@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FounderBanner } from './pricing/FounderBanner';
+
 import { PricingCards } from './pricing/PricingCards';
 import { ROICalculator } from './pricing/ROICalculator';
 import { FeatureComparison } from './pricing/FeatureComparison';
@@ -43,17 +43,14 @@ export const PricingSectionNew = () => {
 
   return (
     <>
-      {/* Founder Urgency Banner */}
-      <FounderBanner />
-
       {/* Pricing Hero */}
-      <section className="py-20 lg:py-28 px-4 text-center">
+      <section className="py-20 lg:py-24 px-4 text-center">
         <div className="container mx-auto max-w-3xl">
-          <p className="text-primary font-medium mb-4">Simple, Transparent Pricing</p>
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 tracking-tight">
+          <p className="text-primary font-medium mb-4">Simple, transparent pricing</p>
+          <h2 className="font-brand text-3xl sm:text-4xl font-bold mb-5 tracking-tight">
             Per-vehicle pricing that scales with you
-          </h1>
-          <p className="text-xl text-muted-foreground">
+          </h2>
+          <p className="text-lg text-muted-foreground">
             Launch pricing — start with a 30-day free trial. Card required, nothing charged for 30 days.
           </p>
         </div>
@@ -69,11 +66,11 @@ export const PricingSectionNew = () => {
         </div>
       </section>
 
-      {/* ROI Calculator */}
-      <ROICalculator />
-
       {/* Feature Comparison */}
       <FeatureComparison />
+
+      {/* ROI Calculator */}
+      <ROICalculator />
 
       {/* Free Trial Banner */}
       <FreeTrialBanner onStartTrial={handleStartTrial} />

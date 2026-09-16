@@ -12,12 +12,13 @@ export const FinalCTA = ({ onLockPricing, onStartTrial, onScheduleDemo }: FinalC
   return (
     <section className="py-20 px-4">
       <div className="container mx-auto max-w-4xl">
-        <Card className="p-8 md:p-12 bg-gradient-to-br from-primary via-primary-dark to-primary text-primary-foreground text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Ready to Transform Your Fleet Operations?
+        <Card className="p-8 md:p-12 bg-primary text-primary-foreground text-center">
+          <h2 className="font-brand text-3xl md:text-4xl font-bold mb-4">
+            Ready to run your fleet from one place?
           </h2>
-          <p className="text-xl opacity-90 mb-8 max-w-2xl mx-auto">
-            Join the fleet operators who are already using AI to boost revenue by 25% and cut maintenance costs by 38%
+          <p className="text-lg opacity-90 mb-8 max-w-2xl mx-auto">
+            Set up your fleet, take direct bookings and get paid — with 30 days to try it before
+            anything is charged.
           </p>
 
           {/* CTA Buttons */}

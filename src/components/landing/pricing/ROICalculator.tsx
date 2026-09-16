@@ -109,7 +109,7 @@ export const ROICalculator = () => {
   };
 
   return (
-    <section className="py-20 lg:py-28 px-4 bg-gradient-to-b from-background via-muted/20 to-background">
+    <section className="py-20 lg:py-28 px-4 bg-background">
       <div className="container mx-auto max-w-6xl">
         {/* Header */}
         <div className="text-center mb-12">
@@ -117,11 +117,14 @@ export const ROICalculator = () => {
             <Calculator className="h-4 w-4" />
             ROI Calculator
           </div>
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 tracking-tight">
-            See your numbers in seconds
+          <h2 className="font-brand text-3xl md:text-4xl font-bold mb-4 tracking-tight">
+            Estimate your numbers
           </h2>
-          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
-            Move the sliders. Watch the math. No assumptions — your fleet, your rates.
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            Move the sliders to see how the cost compares with your own fleet and rates.
+          </p>
+          <p className="text-sm text-muted-foreground/80 max-w-xl mx-auto mt-3">
+            These figures are an estimate based on the values you enter, not a guarantee of results.
           </p>
         </div>
 
@@ -215,7 +218,7 @@ export const ROICalculator = () => {
           </div>
 
           {/* ============ HERO STAT — payback + ROI multiplier ============ */}
-          <div className="text-center p-8 md:p-10 rounded-2xl bg-gradient-to-r from-primary/10 via-emerald-500/10 to-primary/10 border border-primary/20 mb-10" ref={paybackCounter.ref}>
+          <div className="text-center p-8 md:p-10 rounded-2xl bg-muted/40 border border-border mb-10" ref={paybackCounter.ref}>
             {!isEnterprise ? (
               <>
                 <p className="text-lg md:text-xl text-muted-foreground mb-3">
@@ -265,7 +268,7 @@ export const ROICalculator = () => {
               ) : (
                 <Button size="lg" onClick={handleStartTrial} className="gap-2 text-base px-8">
                   <Zap className="h-5 w-5" />
-                  Start 14-Day Free Trial
+                  Start 30-Day Free Trial
                   <ArrowRight className="h-5 w-5" />
                 </Button>
               )}
