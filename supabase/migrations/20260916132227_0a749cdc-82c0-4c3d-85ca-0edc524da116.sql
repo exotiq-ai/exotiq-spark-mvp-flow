@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.fn_set_default_vehicle_location() FROM PUBLIC, anon, authenticated;
