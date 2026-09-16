@@ -160,13 +160,27 @@ export function LocationInput({ value, onChange, className, businessAddress }: L
             </div>
             
             <div className="space-y-2">
-              <Label>Address</Label>
+              <div className="flex items-center justify-between gap-2">
+                <Label>Address</Label>
+                {businessAddress?.formatted && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={handleUseBusinessAddress}
+                  >
+                    Same as business address
+                  </Button>
+                )}
+              </div>
               <AddressAutocomplete
                 value={newLocationAddress}
                 onChange={setNewLocationAddress}
                 placeholder="Search for address..."
               />
             </div>
+
 
             <div className="flex items-center gap-2 justify-end">
               <Button
