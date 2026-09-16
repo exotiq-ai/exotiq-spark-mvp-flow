@@ -466,6 +466,11 @@ export const BusinessProfileSection = () => {
         </div>
       </Card>
 
+      {/* Default pickup deposit — same stored value as Team → Settings */}
+      <DefaultDepositCard footnote="Also available under Settings → Team → Settings. Both places edit the same amount." />
+
+
+
       {/* Drive Exotiq marketplace listing */}
       <Card className="p-6 space-y-5">
         <div className="flex items-center gap-2">
