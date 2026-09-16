@@ -1,36 +1,47 @@
-# ARK marketplace link: 404 explained, plus the empty-storefront follow-on
+# Why ARK's storefront is empty — and removing the hidden publish step
 
-## What happened
+## Your question, answered
 
-Two separate things, neither of them broken data.
+Yes, there is a per-vehicle publish step today, and no, it shouldn't be a separate hunt after the account is marketplace-ready.
 
-**1. The link pointed at the wrong app.** The address in the screenshots is `app.exotiq.ai/ark`. That's the operator app — the place you and your tenants log in to run their fleet. It has no renter-facing pages, so anything it doesn't recognise falls through to the 404 screen. Same on desktop and mobile, which is why both screenshots look identical.
+Here's the exact state of things:
 
-ARK's renter storefront lives on the separate renter app: `book.exotiq.rent/ark`. That address loads correctly right now.
+- Every vehicle is created hidden from renters. That's the stored default, and nothing changes it when the account goes live.
+- ARK's account is fully live: approved, visible, platform fee confirmed. But all 9 vehicles are still hidden, so `book.exotiq.rent/ark` correctly renders an empty lineup.
+- The only place a tenant can change it is inside each vehicle's Edit screen, under "Public booking site" — Listed / Link only / Hidden. Nine cars means opening nine dialogs, and nothing in the app tells them this step exists.
+- The readiness panel makes it worse by saying they're ready, because "ready" measures the account and whether vehicles *could* be listed — not whether any actually are.
 
-**2. The button inside the app produces that wrong address.** On the Marketplace settings screen, "Open public storefront" opens `/ark` relative to whatever site you're currently on. Since you're always on the operator app when you click it, it always lands on the operator app's 404. So this isn't a link you typed wrong — the app handed it to you that way. Any tenant who clicks it hits the same dead end.
+The 404 was the separate thing: `app.exotiq.ai/ark` is the operator app, which has no renter pages. `book.exotiq.rent/ark` is the storefront. I'm fixing the in-app button that generates that wrong address too, since it's what a tenant would click.
 
-**3. Even with the right address, ARK's storefront will look empty.** ARK's account is approved and visible, and 8 of the 9 vehicles pass the readiness checks, but zero vehicles have actually been published to the marketplace yet. Publishing the account and publishing each vehicle are two separate steps; only the first is done.
+## The plan
 
-## What to change
+**1. Going live publishes the eligible fleet automatically**
 
-**Fix the storefront button (operator app only)**
-- Point "Open public storefront" at the renter app host with the tenant's slug, so it opens `book.exotiq.rent/<slug>` instead of a path on the current site.
-- Put the host in one shared constant so every future link to a renter page uses the same value, and keep it overridable per environment so staging never sends anyone to the live renter app.
-- Show the full address as copyable text next to the button, so tenants can paste it into their own site, Instagram bio, or a text message without hunting for it.
-- Add the same copy/open pair to the marketplace readiness panel, where tenants land right after going live.
+When an account becomes marketplace-visible, every vehicle that already passes its own checks (photo, rate, location, available status) gets listed in the same step. Vehicles that fail a check, or are in maintenance or retired, stay hidden until they're fixed — then they list automatically as well. Hidden stays a deliberate tenant choice: if someone sets a car to Hidden or Link only, that decision is never overwritten.
 
-**Make the two publish steps obvious**
-- On the marketplace status card, show a plain line: how many vehicles are eligible and how many are actually published, e.g. "8 vehicles ready, 0 published".
-- When that published count is zero while the account is live, show a short note that the storefront will look empty until vehicles are published, with a link straight to the fleet list.
+This makes "marketplace-ready" mean what tenants read it as: cars are on the storefront.
 
-**Publish ARK's vehicles**
-- Publish the 8 eligible ARK vehicles so the storefront is real. The Maybach stays unpublished while it's in maintenance. I'll do this as a data change after you confirm you want them live.
+**2. Fleet-wide publish controls, no dialog-by-dialog work**
+
+- Fleet page header shows the live truth: "7 of 9 cars on your booking site" with a link to the storefront.
+- A "Publish all eligible" action for tenants who want to do it by hand or after fixing a blocker.
+- Publish/hide from each vehicle card's menu, so it's one click rather than opening the edit dialog.
+- Cars that can't publish yet show the specific reason on the card — missing photo, no rate, in maintenance.
+
+**3. Fix the storefront link**
+
+- "Open public storefront" points at the renter site (`book.exotiq.rent/<slug>`), not a path on the operator app. One shared setting, overridable per environment so staging never links to the live renter site.
+- The full address shown as copyable text next to the button and in the readiness panel, so tenants can paste it into their site or Instagram bio.
+
+**4. Bring ARK live now**
+
+Publish ARK's 8 eligible cars so the storefront is real today. The Maybach stays hidden while it's in maintenance and will list itself once it's back. I'll run this once you approve.
 
 ## Technical notes
 
-- `src/components/dashboard/settings/MarketplaceSection.tsx:171` calls `window.open(`/${feeRow.slug}`)` — a same-origin path, hence the operator app's catch-all `NotFound` route. No `/:slug` route exists in `src/App.tsx`, and this is the only place in the codebase that builds a link that way.
-- New shared helper (e.g. `src/lib/renterApp.ts`) exporting the renter base URL from a Vite env var with `https://book.exotiq.rent` as the fallback, plus a `renterStorefrontUrl(slug)` function.
-- Counts come from the existing readiness data (`useMarketplaceReadiness`), which already returns eligible vs published — no new query or schema change.
-- Verified: teams row for slug `ark` has `marketplace_visible = true`, `marketplace_request_status = 'approved'`, platform fee confirmed; of 9 vehicles, `marketplace_visible` is true on 0 and none are unlisted.
-- Nothing on the renter app, no schema changes, no changes to existing public RPCs. Vehicle publishing is a data update on `vehicles.marketplace_visible`, done only on your confirmation.
+- `vehicles.marketplace_visible` and `marketplace_unlisted` both default to `false`, `NOT NULL`; all 9 ARK vehicles have `marketplace_visible = false`. The team row has `marketplace_visible = true`, `marketplace_request_status = 'approved'`, platform fee confirmed.
+- Auto-publish goes in an `AFTER UPDATE` trigger on `teams` (fires when `marketplace_visible` flips to true) plus an `AFTER UPDATE` trigger on `vehicles` for the fix-a-blocker case. Both skip rows where the tenant explicitly chose hidden/link-only, which needs a nullable `marketplace_visibility_set_by_tenant` timestamp so "never touched" is distinguishable from "deliberately hidden" — additive column, no existing column altered.
+- Existing guard triggers (`enforce_marketplace_readiness`, `enforce_platform_fee_on_marketplace_visible`, `enforce_deposit_source_on_marketplace_visible`) stay untouched and still gate every write, so auto-publish cannot bypass fee or deposit confirmation.
+- `src/components/dashboard/settings/MarketplaceSection.tsx:171` calls `window.open(`/${feeRow.slug}`)`, a same-origin path that hits the operator app's catch-all `NotFound`. New `src/lib/renterApp.ts` exports the base URL from a Vite env var defaulting to `https://book.exotiq.rent`, plus `renterStorefrontUrl(slug)`. This is the only place in the codebase building a link that way.
+- Fleet counts come from the existing vehicle query; per-card blocker reasons reuse the hints already in `useMarketplaceReadiness`.
+- No renter-app changes, no changes to existing public RPCs, no columns removed or renamed. Edit Vehicle keeps its Listed / Link only / Hidden radio as the manual override.
