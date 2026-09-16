@@ -19,9 +19,11 @@ interface LocationInputProps {
   value: LocationData[];
   onChange: (locations: LocationData[]) => void;
   className?: string;
+  /** Business address entered earlier — offered as a one-tap fill so it isn't retyped. */
+  businessAddress?: AddressData | null;
 }
 
-export function LocationInput({ value, onChange, className }: LocationInputProps) {
+export function LocationInput({ value, onChange, className, businessAddress }: LocationInputProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [newLocationName, setNewLocationName] = useState('');
   const [newLocationAddress, setNewLocationAddress] = useState<AddressData | null>(null);
@@ -40,6 +42,12 @@ export function LocationInput({ value, onChange, className }: LocationInputProps
     setNewLocationName('');
     setNewLocationAddress(null);
     setIsAdding(false);
+  };
+
+  const handleUseBusinessAddress = () => {
+    if (!businessAddress) return;
+    setNewLocationAddress(businessAddress);
+    if (!newLocationName.trim()) setNewLocationName('Main location');
   };
 
   const handleRemoveLocation = (id: string) => {
@@ -62,6 +70,7 @@ export function LocationInput({ value, onChange, className }: LocationInputProps
   };
 
   const canAdd = newLocationName.trim() && newLocationAddress?.formatted;
+
 
   return (
     <div className={cn("space-y-4", className)}>
