@@ -394,49 +394,12 @@ export const TeamSettingsSection = () => {
 
         <Separator className="my-4" />
 
-        {/* Pickup Deposit (operator reference only) */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-muted-foreground" />
-            <h4 className="text-sm font-semibold">Deposit you collect at pickup</h4>
-          </div>
+        {/* Pickup Deposit (operator reference only) — shared with Settings → Business */}
+        <DefaultDepositCard
+          variant="inline"
+          footnote="This is the same setting shown under Settings → Business. Changing it in either place updates both."
+        />
 
-          <div className="space-y-2">
-            <Label htmlFor="defaultDeposit">Default deposit amount ({currency})</Label>
-            <p className="text-sm text-muted-foreground">
-              Reference only — Exotiq does not collect this. You settle the deposit directly
-              with the renter at pickup (card, cash, or your own terminal). Overridable per
-              vehicle on the rate card. Leave blank for no default.
-            </p>
-            <div className="flex items-center gap-2">
-              <Input
-                id="defaultDeposit"
-                type="number"
-                min="0"
-                step="1"
-                placeholder="1000"
-                value={depositDollars}
-                onChange={(e) => setDepositDollars(e.target.value)}
-                onWheel={(e) => e.currentTarget.blur()}
-                className="w-[200px]"
-              />
-              <PermissionGuard minRole="admin" fallback={null}>
-                <Button
-                  variant="outline"
-                  onClick={handleSaveDeposit}
-                  disabled={savingDeposit}
-                >
-                  {savingDeposit ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <Save className="w-4 h-4 mr-2" />
-                  )}
-                  Save deposit
-                </Button>
-              </PermissionGuard>
-            </div>
-          </div>
-        </div>
 
         <Separator className="my-4" />
 
