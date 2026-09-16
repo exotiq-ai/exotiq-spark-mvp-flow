@@ -160,6 +160,7 @@ export function VehicleImageDialog({
   onOpenChange,
   vehicleName,
   vehicleId,
+  vehicle,
   vehicleDetails,
   onApplyRate,
   onCreateTask,
