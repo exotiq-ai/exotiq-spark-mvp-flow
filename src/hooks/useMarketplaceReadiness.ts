@@ -17,7 +17,11 @@ export type MarketplaceReadinessData = {
     photo_count?: number;
     hero_count?: number;
   }>;
+  /** Vehicles that pass every check AND are already switched on for the marketplace. */
   ready_vehicle_count: number;
+  published_vehicle_count?: number;
+  /** Vehicles that pass every check, whether published yet or not. */
+  eligible_vehicle_count?: number;
   trashed_marketplace_visible_count?: number;
   checked_at: string;
 };
@@ -31,7 +35,20 @@ export const CHECK_LABELS: Record<string, string> = {
   owner_email_set: 'Owner contact email',
   terms_accepted: 'Terms accepted by owner',
   not_demo: 'Not a demo account',
-  has_ready_vehicle: 'At least one publish-ready vehicle',
+  has_ready_vehicle: 'At least one vehicle ready to publish',
+};
+
+/** Plain-English fix for each failing account-level check. */
+export const CHECK_FIX_HINTS: Record<string, string> = {
+  stripe_charges_enabled: 'Finish payout onboarding so this workspace can take card payments',
+  stripe_payouts_enabled: 'Finish payout onboarding so funds can be paid out',
+  logo_set: 'Upload a business logo in Team Settings',
+  business_name_set: 'Add the business name in Team Settings',
+  business_address_set: 'Add the business address in Team Settings',
+  owner_email_set: 'The workspace owner needs a contact email on file',
+  terms_accepted: 'The owner must accept the current terms',
+  not_demo: 'This is a demo workspace — switch it out of demo mode to go live',
+  has_ready_vehicle: 'No vehicle passes every check yet — see the per-vehicle list below',
 };
 
 export const VEHICLE_CHECK_LABELS: Record<string, string> = {
