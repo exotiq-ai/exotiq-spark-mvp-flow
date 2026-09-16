@@ -23,6 +23,8 @@ import { useVehiclePhotos } from '@/hooks/useVehiclePhotos';
 import { useTeam } from '@/contexts/TeamContext';
 import { supabase } from '@/integrations/supabase/client';
 import { FleetVehicleCard } from './FleetVehicleCard';
+import { FleetListingBanner } from './FleetListingBanner';
+import { useMarketplaceReadiness, useMarketplaceFeeStatus } from '@/hooks/useMarketplaceReadiness';
 import { FleetFilters, FleetFiltersState, ViewMode, FleetFacets, DEFAULT_FLEET_FILTERS } from './FleetFilters';
 import { TaskQueue } from './TaskQueue';
 import { TaskDetailSheet } from './TaskDetailSheet';
@@ -78,6 +80,46 @@ export const FleetPageEnhanced = () => {
   const { updateOpsStatus } = useVehicleOpsStatus();
   const { photoCountByVehicle } = useVehiclePhotos({ realtime: false });
   const { currentTeam } = useTeam();
+  const { data: readiness, refetch: refetchReadiness } = useMarketplaceReadiness(currentTeam?.id);
+  const { data: marketplaceFeeRow } = useMarketplaceFeeStatus(currentTeam?.id);
+  const marketplaceLive = marketplaceFeeRow?.marketplace_visible === true;
+
+  /** Plain-English reason a car can't be published yet, keyed by vehicle id. */
+  const listingBlockerMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    (readiness?.vehicles || []).forEach((v) => {
+      if (v.ready) return;
+      const c = v.checks || {};
+      const reason = c.hero_photo_set === false
+        ? 'Needs a photo'
+        : c.rate_set === false
+          ? 'Needs a daily rate'
+          : c.location_set === false
+            ? 'Needs a pickup location'
+            : c.status_available === false
+              ? 'Not available right now'
+              : 'Not ready to publish';
+      map[v.id] = reason;
+    });
+    return map;
+  }, [readiness]);
+
+  const handleSetListing = useCallback(async (vehicle: any, next: 'listed' | 'hidden') => {
+    const ok = await updateVehicle(vehicle.id, {
+      marketplace_visible: next === 'listed',
+      marketplace_unlisted: false,
+      marketplace_visibility_set_by_tenant: new Date().toISOString(),
+    } as any);
+    if (ok) {
+      sonnerToast.success(
+        next === 'listed'
+          ? `${vehicle.name} is now on your booking site`
+          : `${vehicle.name} is hidden from your booking site`,
+      );
+      refetchReadiness();
+    }
+  }, [updateVehicle, refetchReadiness]);
+
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
 
   // Selection state for batch operations
@@ -567,6 +609,8 @@ export const FleetPageEnhanced = () => {
       >
         {/* Fleet Tab Content */}
         <TabsContent value="fleet" className="space-y-6 mt-0">
+          <FleetListingBanner onPublished={() => refreshData?.()} />
+
           {/* Ops Mode: My Tasks */}
           {isOpsMode && myTasks.length > 0 && (
             <Card className="p-4 border-primary/20 bg-primary/5">
@@ -660,6 +704,9 @@ export const FleetPageEnhanced = () => {
                     onViewDetails={(v) => setDetailsVehicle(v)}
                     onStatusChange={handleStatusChange}
                     onDelete={handleDeleteVehicle}
+                    marketplaceLive={marketplaceLive}
+                    listingBlocker={listingBlockerMap[vehicle.id] ?? null}
+                    onSetListing={handleSetListing}
                     isOpsMode={isOpsMode}
                     viewMode={viewMode}
                     isSelected={selectedVehicleIds.has(vehicle.id)}

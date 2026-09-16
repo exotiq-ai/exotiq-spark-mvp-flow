@@ -29,10 +29,12 @@ import {
   Loader2,
   ChevronRight,
   ExternalLink,
+  Copy,
   Car,
   ArrowRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { renterStorefrontUrl, renterStorefrontDisplayUrl } from '@/lib/renterApp';
 
 const CTA_PATHS: Record<string, string> = {
   stripe_charges_enabled: '/dashboard/settings?tab=payments',
@@ -164,15 +166,34 @@ export const MarketplaceSection = () => {
                 : 'Complete the go-live checklist to request review and appear on the public marketplace.'}
             </p>
             {feeRow?.slug && isLive && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-2"
-                onClick={() => window.open(`/${feeRow.slug}`, '_blank')}
-              >
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Open public storefront
-              </Button>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.open(renterStorefrontUrl(feeRow.slug), '_blank')}
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Open public storefront
+                </Button>
+                <code className="text-xs text-muted-foreground select-all">
+                  {renterStorefrontDisplayUrl(feeRow.slug)}
+                </code>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(renterStorefrontUrl(feeRow.slug));
+                      toast({ title: 'Storefront link copied' });
+                    } catch {
+                      toast({ title: 'Could not copy the link', variant: 'destructive' });
+                    }
+                  }}
+                >
+                  <Copy className="h-4 w-4 mr-2" />
+                  Copy link
+                </Button>
+              </div>
             )}
           </div>
         </div>

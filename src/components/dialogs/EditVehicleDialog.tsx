@@ -225,6 +225,8 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
         }
         if (nextVisible !== (vehicle.marketplace_visible !== false)) updates.marketplace_visible = nextVisible;
         if (nextUnlisted !== (vehicle.marketplace_unlisted === true)) updates.marketplace_unlisted = nextUnlisted;
+        // Record that this is a deliberate choice so auto-publish never overrides it.
+        updates.marketplace_visibility_set_by_tenant = new Date().toISOString();
       }
 
 

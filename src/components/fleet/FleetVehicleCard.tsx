@@ -33,6 +33,8 @@ import {
   Sparkles,
   CircleDashed,
   Ban,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -93,6 +95,11 @@ interface FleetVehicleCardProps {
   onBlockDates?: (vehicle: Vehicle) => void;
   onArchive?: (vehicle: Vehicle) => void;
   onDelete?: (vehicle: Vehicle) => void;
+  /** Whether the workspace itself is live on the public booking site. */
+  marketplaceLive?: boolean;
+  /** Plain-English reason this car can't be published yet, if any. */
+  listingBlocker?: string | null;
+  onSetListing?: (vehicle: Vehicle, next: 'listed' | 'hidden') => void;
   isOpsMode?: boolean;
   viewMode?: 'grid' | 'list';
   isSelected?: boolean;
@@ -129,6 +136,9 @@ export const FleetVehicleCard = ({
   onBlockDates,
   onArchive,
   onDelete,
+  marketplaceLive = false,
+  listingBlocker = null,
+  onSetListing,
   isOpsMode = false,
   viewMode = 'grid',
   isSelected = false,
@@ -173,12 +183,40 @@ export const FleetVehicleCard = ({
 
   const statusDisplay = getStatusDisplay();
 
-  // Public listing state (informational only — changed from Edit Vehicle)
-  const listingChip = vehicle.marketplace_visible === false
-    ? 'Not public'
+  // Public listing state
+  const isListed = vehicle.marketplace_visible !== false;
+  const listingChip = !marketplaceLive
+    ? null
     : vehicle.marketplace_unlisted === true
       ? 'Link only'
-      : null;
+      : isListed
+        ? 'On booking site'
+        : 'Not public';
+  const listingChipClass = listingChip === 'On booking site'
+    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+    : 'border-border bg-muted/80 text-muted-foreground';
+
+  // Publish / hide menu entry, shared by both layouts
+  const listingMenuItems = marketplaceLive && onSetListing && !isRetired ? (
+    <PermissionGuard minRole="manager">
+      {isListed ? (
+        <DropdownMenuItem onClick={() => onSetListing(vehicle, 'hidden')}>
+          <EyeOff className="h-4 w-4 mr-2" />
+          Hide from booking site
+        </DropdownMenuItem>
+      ) : listingBlocker ? (
+        <DropdownMenuItem disabled>
+          <Eye className="h-4 w-4 mr-2" />
+          Can't publish — {listingBlocker}
+        </DropdownMenuItem>
+      ) : (
+        <DropdownMenuItem onClick={() => onSetListing(vehicle, 'listed')}>
+          <Eye className="h-4 w-4 mr-2" />
+          Publish to booking site
+        </DropdownMenuItem>
+      )}
+    </PermissionGuard>
+  ) : null;
 
 
   
@@ -478,6 +516,7 @@ export const FleetVehicleCard = ({
                   )}
                 </>
               )}
+              {listingMenuItems}
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => onViewDetails(vehicle)}>
                 View Details
@@ -584,7 +623,7 @@ export const FleetVehicleCard = ({
             {listingChip && (
               <Badge
                 variant="outline"
-                className="text-xs backdrop-blur-md shadow-sm border border-border bg-muted/80 text-muted-foreground"
+                className={cn('text-xs backdrop-blur-md shadow-sm border', listingChipClass)}
               >
                 {listingChip}
               </Badge>
@@ -632,6 +671,7 @@ export const FleetVehicleCard = ({
                     )}
                   </>
                 )}
+                {listingMenuItems}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => onViewDetails(vehicle)}>
                   View Details
@@ -777,6 +817,13 @@ export const FleetVehicleCard = ({
                 <>
                   <span className="text-muted-foreground/40">·</span>
                   <span>{vehicle.license_plate}</span>
+                </>
+              )}
+
+              {marketplaceLive && !isListed && listingBlocker && (
+                <>
+                  <span className="text-muted-foreground/40">·</span>
+                  <span className="text-amber-600 dark:text-amber-400">{listingBlocker}</span>
                 </>
               )}
             </div>
