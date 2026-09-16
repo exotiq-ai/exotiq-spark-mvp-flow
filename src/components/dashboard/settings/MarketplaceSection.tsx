@@ -33,6 +33,7 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { renterStorefrontUrl, renterStorefrontDisplayUrl } from '@/lib/renterApp';
 
 const CTA_PATHS: Record<string, string> = {
   stripe_charges_enabled: '/dashboard/settings?tab=payments',
@@ -182,9 +183,9 @@ export const MarketplaceSection = () => {
                   onClick={async () => {
                     try {
                       await navigator.clipboard.writeText(renterStorefrontUrl(feeRow.slug));
-                      toast.success('Storefront link copied');
+                      toast({ title: 'Storefront link copied' });
                     } catch {
-                      toast.error('Could not copy the link');
+                      toast({ title: 'Could not copy the link', variant: 'destructive' });
                     }
                   }}
                 >
