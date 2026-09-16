@@ -124,42 +124,49 @@ export default function Onboarding() {
     }
   }, [user?.email, formData.email]);
 
-  // Load existing data in edit mode
+  // Hydrate the form from information the account already has, in both edit mode and a
+  // resumed / previously skipped onboarding. Priority: team record (authoritative) →
+  // user profile → saved onboarding progress. Never overwrites a value already typed.
   useEffect(() => {
-    const loadExistingData = async () => {
-      if (!isEditMode || !user?.id) {
+    let cancelled = false;
+
+    const hydrateFromAccount = async () => {
+      if (!user?.id) {
         setInitialLoading(false);
         return;
       }
 
       try {
-        // Fetch profile data
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('company_name, phone, website, business_address, fleet_size, business_type')
-          .eq('id', user.id)
-          .single();
+        const [{ data: profile }, { data: locations }] = await Promise.all([
+          supabase
+            .from('profiles')
+            .select('company_name, phone, website, business_address, fleet_size, business_type')
+            .eq('id', user.id)
+            .maybeSingle(),
+          currentTeam?.id
+            ? supabase
+                .from('locations')
+                .select('id, name, address, city, state, zip_code, country, is_default')
+                .eq('team_id', currentTeam.id)
+            : Promise.resolve({ data: [] as any[] }),
+        ]);
 
-        // Fetch locations
-        const { data: locations } = await supabase
-          .from('locations')
-          .select('id, name, address, city, state, zip_code, country, is_default')
-          .eq('team_id', currentTeam?.id);
+        if (cancelled) return;
 
-        if (profile) {
-          // Safely cast the JSON business_address
-          const businessAddress = profile.business_address as unknown as AddressData | null;
-          
-          setFormData({
-            companyName: profile.company_name || '',
-            businessAddress: businessAddress,
-            website: profile.website || '',
-            phone: profile.phone || '',
-            email: user.email || '',
-            countryCode: (currentTeam as { country_code?: string } | null)?.country_code || '',
-            fleetSize: profile.fleet_size || '',
-            businessType: profile.business_type || '',
-            locations: locations?.map(loc => ({
+        const team = currentTeam as Record<string, any> | null;
+        const teamAddress = teamAddressToForm(team?.business_address);
+        const profileAddress = (profile?.business_address as unknown as AddressData | null) || null;
+
+        const existing: Partial<OnboardingFormData> = {
+          companyName: (team?.name && team.name !== 'My Fleet' ? team.name : '') || profile?.company_name || '',
+          businessAddress: teamAddress || profileAddress || null,
+          website: profile?.website || '',
+          phone: profile?.phone || team?.support_phone || '',
+          countryCode: (team?.country_code as string) || '',
+          fleetSize: profile?.fleet_size || '',
+          businessType: profile?.business_type || '',
+          locations:
+            locations?.map((loc: any) => ({
               id: loc.id,
               name: loc.name,
               address: {
@@ -172,17 +179,50 @@ export default function Onboarding() {
               },
               isPrimary: loc.is_default || false,
             })) || [],
+        };
+
+        setFormData((prev) => {
+          const next: OnboardingFormData = { ...prev };
+          (Object.keys(existing) as Array<keyof OnboardingFormData>).forEach((key) => {
+            const incoming = existing[key];
+            if (incoming === undefined || incoming === null) return;
+            if (Array.isArray(incoming)) {
+              if (incoming.length > 0 && (prev.locations?.length ?? 0) === 0) {
+                (next as any)[key] = incoming;
+              }
+              return;
+            }
+            if (typeof incoming === 'string') {
+              if (incoming.trim() !== '' && String(prev[key] ?? '').trim() === '') {
+                (next as any)[key] = incoming;
+              }
+              return;
+            }
+            // Object (business address) — only fill when nothing entered yet
+            if (!prev.businessAddress) {
+              (next as any)[key] = incoming;
+            }
           });
-        }
+          next.email = prev.email || user.email || '';
+          return next;
+        });
       } catch (error) {
-        console.error('Error loading profile data:', error);
+        console.error('Error loading existing account data:', error);
       } finally {
-        setInitialLoading(false);
+        if (!cancelled) setInitialLoading(false);
       }
     };
 
-    loadExistingData();
-  }, [isEditMode, user?.id, currentTeam?.id, user?.email]);
+    // In non-edit mode wait for saved progress to land first so it doesn't get clobbered.
+    if (!isEditMode && progressLoading) return;
+    hydrateFromAccount();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditMode, user?.id, currentTeam?.id, progressLoading]);
+
 
   // Step change handler that persists to database
   const handleStepChange = async (newStep: number, markPreviousComplete = true) => {
