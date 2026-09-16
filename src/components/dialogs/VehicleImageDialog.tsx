@@ -223,6 +223,11 @@ export function VehicleImageDialog({
   } : null;
 
   const hasCommandFeatures = !!(onApplyRate || onCreateTask || onStatusChange);
+
+  // Full record when the caller has it, otherwise the trimmed display object.
+  const handoffVehicle = vehicle
+    ? { ...vehicle, id: vehicle.id ?? vehicleId, name: vehicle.name ?? vehicleName }
+    : { id: vehicleId, name: vehicleName, ...vehicleDetails };
   const activeTaskCount = vehicleTasks.filter(t => t.status !== 'completed' && t.status !== 'cancelled').length;
   const currentOpsStatus = vehicleDetails?.ops_status || null;
 
@@ -491,7 +496,7 @@ export function VehicleImageDialog({
                       variant="outline"
                       className="w-full"
                       onClick={() => {
-                        onEdit({ id: vehicleId, name: vehicleName, ...vehicleDetails });
+                        onEdit(handoffVehicle);
                         onOpenChange(false);
                       }}
                     >
@@ -551,7 +556,7 @@ export function VehicleImageDialog({
                 <VehicleTasksList
                   tasks={vehicleTasks}
                   onCreateTask={() => {
-                    onCreateTask?.({ id: vehicleId, name: vehicleName, ...vehicleDetails });
+                    onCreateTask?.(handoffVehicle);
                   }}
                   onCompleteTask={(taskId) => onCompleteTask?.(taskId)}
                   onClaimTask={(taskId) => onClaimTask?.(taskId)}
