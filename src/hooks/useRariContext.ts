@@ -138,7 +138,7 @@ export function useRariContext() {
       } else if (type === 'customer') {
         parts.push(`Currently viewing customer: ${data.full_name}, Email: ${data.email}, Phone: ${data.phone || 'N/A'}. Total bookings: ${data.total_bookings || 0}.`);
       } else if (type === 'vehicle') {
-        parts.push(`Currently viewing vehicle: ${data.year} ${data.make} ${data.model}. License: ${data.license_plate || 'N/A'}. Status: ${data.status}. Rate: $${data.current_rate}/day.`);
+        parts.push(`Currently viewing vehicle: ${[data.year, data.make, data.model].filter(Boolean).join(' ')}. License: ${data.license_plate || 'N/A'}. Status: ${data.status}. Rate: $${data.current_rate}/day.`);
       }
     }
 
