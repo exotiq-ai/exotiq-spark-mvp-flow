@@ -74,26 +74,32 @@ const Terms = () => {
 
       <h2>Article V: Subscription Plans and Pricing</h2>
       <h3>Section 5.1. Tier Structure</h3>
+      <p>Subscriptions are priced per active vehicle per month. Your tier is determined automatically by the number of active vehicles in your account:</p>
       <table>
         <thead>
-          <tr><th>Tier</th><th>Monthly Price</th><th>Fleet Size</th><th>Key Features</th></tr>
+          <tr><th>Tier</th><th>Price</th><th>Active Vehicles</th></tr>
         </thead>
         <tbody>
-          <tr><td>Starter</td><td>$29/vehicle/month (min $79)</td><td>1-10 vehicles</td><td>7-day forecasting, basic AI, email support</td></tr>
-          <tr><td>Professional</td><td>$399/month (flat)</td><td>5-25 vehicles</td><td>30-day forecasting, full AI suite, API access, chat support</td></tr>
-          <tr><td>Business</td><td>$899/month (flat)</td><td>26-75 vehicles</td><td>90-day forecasting, white-label options, phone support</td></tr>
-          <tr><td>Enterprise</td><td>$1,799/month (flat)</td><td>76-150 vehicles</td><td>365-day forecasting, custom AI models, 24/7 support</td></tr>
+          <tr><td>Pro</td><td>$39/vehicle/month, or $390/vehicle/year</td><td>1–15 vehicles</td></tr>
+          <tr><td>Business</td><td>$29/vehicle/month, or $290/vehicle/year</td><td>16–50 vehicles</td></tr>
+          <tr><td>Enterprise</td><td>Custom quote</td><td>51+ vehicles</td></tr>
         </tbody>
       </table>
+      <p>"Active vehicle" means a vehicle in your account that has not been archived or moved to trash. Vehicles marked retired, out of service, or under maintenance remain active vehicles for billing purposes.</p>
 
-      <h3>Section 5.2. Overage Pricing</h3>
-      <p>If your active vehicle count exceeds the maximum for your Subscription Plan, overage fees apply per additional vehicle per month: Professional tier: $22/vehicle; Business tier: $18/vehicle; Enterprise tier: $15/vehicle. Overage fees are billed monthly in arrears.</p>
-      <h3>Section 5.3. Annual Prepayment</h3>
-      <p>Customers who prepay annually receive a discount equivalent to two (2) months of their Subscription Plan. Annual prepayments are non-refundable except as required by applicable law.</p>
-      <h3>Section 5.4. Founding Member Pricing</h3>
-      <p>Customers who subscribed during the Founding Member enrollment period receive their subscription rate locked for the lifetime of their continuous subscription. Founding Member pricing is forfeited if the subscription lapses for more than thirty (30) days.</p>
-      <h3>Section 5.5. Price Changes</h3>
-      <p>Exotiq may adjust pricing for non-Founding Member accounts with sixty (60) days written notice. Price changes take effect at the start of the next billing cycle following the notice period. Founding Member pricing is exempt from price increases for the duration of continuous enrollment.</p>
+      <h3>Section 5.2. Free Trial and Activation</h3>
+      <p>New subscriptions begin with a thirty (30) day free trial. A valid payment method is required to start the trial. No charge is made during the trial period, and Exotiq will notify you by email before the first charge. Your subscription converts automatically to a paid subscription at the end of the trial unless you cancel before it ends. You may cancel at any time during the trial at no charge from Settings → Billing.</p>
+
+      <h3>Section 5.3. Vehicle Count Adjustments</h3>
+      <p>Your billed vehicle quantity is recalculated at each renewal to match your active vehicle count at that time. Adding vehicles mid-cycle does not generate an immediate charge; the additional vehicles are included from your next renewal. If your active vehicle count crosses a tier boundary, the applicable per-vehicle rate for the new tier applies from that renewal.</p>
+      <p>Accounts exceeding fifty (50) active vehicles are billed at the Business rate for fifty (50) vehicles until an Enterprise agreement is executed. Exotiq will contact you to arrange Enterprise terms.</p>
+
+      <h3>Section 5.4. Annual Prepayment</h3>
+      <p>Customers who prepay annually receive a discount equivalent to two (2) months of their Subscription Plan. Annual prepayments are non-refundable except as provided in Section 6.4 or as required by applicable law.</p>
+
+      <h3>Section 5.5. Rate Protection and Price Changes</h3>
+      <p>The per-vehicle rate for your tier at the time you activated your subscription continues to apply for the duration of your continuous subscription. If your active vehicle count later moves you to a different tier, the rate then published for that tier applies. Rate protection is forfeited if your subscription lapses for more than thirty (30) days.</p>
+      <p>Exotiq may adjust published pricing with sixty (60) days written notice. Price changes take effect at the start of the next billing cycle following the notice period and do not affect the protected rate for your then-current tier.</p>
       <h3>Section 5.6. Taxes</h3>
       <p>All prices are exclusive of applicable taxes. You are responsible for all taxes, duties, and government assessments associated with your use of the Platform, excluding taxes based on Exotiq's net income.</p>
 
