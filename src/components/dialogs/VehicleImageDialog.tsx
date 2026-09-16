@@ -109,6 +109,13 @@ interface VehicleImageDialogProps {
   onOpenChange: (open: boolean) => void;
   vehicleName: string;
   vehicleId?: string;
+  /**
+   * The full vehicle row. When supplied, hand-offs (Edit, Create task, Quick
+   * status) pass this straight through so the target dialog opens with every
+   * field already filled in — rate, plate, VIN, location, mileage terms.
+   * `vehicleDetails` below is display-only and intentionally trimmed.
+   */
+  vehicle?: Record<string, any> | null;
   vehicleDetails?: {
     make: string;
     model: string;
@@ -153,6 +160,7 @@ export function VehicleImageDialog({
   onOpenChange,
   vehicleName,
   vehicleId,
+  vehicle,
   vehicleDetails,
   onApplyRate,
   onCreateTask,
@@ -215,6 +223,11 @@ export function VehicleImageDialog({
   } : null;
 
   const hasCommandFeatures = !!(onApplyRate || onCreateTask || onStatusChange);
+
+  // Full record when the caller has it, otherwise the trimmed display object.
+  const handoffVehicle = vehicle
+    ? { ...vehicle, id: vehicle.id ?? vehicleId, name: vehicle.name ?? vehicleName }
+    : { id: vehicleId, name: vehicleName, ...vehicleDetails };
   const activeTaskCount = vehicleTasks.filter(t => t.status !== 'completed' && t.status !== 'cancelled').length;
   const currentOpsStatus = vehicleDetails?.ops_status || null;
 
@@ -371,10 +384,7 @@ export function VehicleImageDialog({
                               "text-xs h-7 px-2.5",
                               currentOpsStatus === opt.value && opt.color
                             )}
-                            onClick={() => onStatusChange(
-                              { id: vehicleId, name: vehicleName, ...vehicleDetails },
-                              opt.value
-                            )}
+                            onClick={() => onStatusChange(handoffVehicle, opt.value)}
                           >
                             {currentOpsStatus === opt.value && <CheckCircle2 className="h-3 w-3 mr-1" />}
                             {opt.label}
@@ -483,7 +493,7 @@ export function VehicleImageDialog({
                       variant="outline"
                       className="w-full"
                       onClick={() => {
-                        onEdit({ id: vehicleId, name: vehicleName, ...vehicleDetails });
+                        onEdit(handoffVehicle);
                         onOpenChange(false);
                       }}
                     >
@@ -543,7 +553,7 @@ export function VehicleImageDialog({
                 <VehicleTasksList
                   tasks={vehicleTasks}
                   onCreateTask={() => {
-                    onCreateTask?.({ id: vehicleId, name: vehicleName, ...vehicleDetails });
+                    onCreateTask?.(handoffVehicle);
                   }}
                   onCompleteTask={(taskId) => onCompleteTask?.(taskId)}
                   onClaimTask={(taskId) => onClaimTask?.(taskId)}

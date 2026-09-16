@@ -175,7 +175,7 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
     if (!vehicle) return;
     setError(null);
 
-    if (!name.trim() || !make.trim() || !model.trim() || !year || !currentRate) {
+    if (!name.trim() || !make.trim() || !model.trim() || !currentRate) {
       setError("Please fill in all required fields.");
       return;
     }
@@ -187,7 +187,8 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
       if (name !== vehicle.name) updates.name = name;
       if (make !== vehicle.make) updates.make = make;
       if (model !== vehicle.model) updates.model = model;
-      if (parseInt(year) !== vehicle.year) updates.year = parseInt(year);
+      const newYear = year ? parseInt(year) : null;
+      if (newYear !== (vehicle.year ?? null)) updates.year = newYear;
       if ((licensePlate || null) !== (vehicle.license_plate || null)) updates.license_plate = licensePlate || null;
       if ((vin || null) !== (vehicle.vin || null)) updates.vin = vin || null;
       if (parseFloat(currentRate) !== vehicle.current_rate) updates.current_rate = parseFloat(currentRate);
@@ -277,8 +278,8 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
                 <Input id="edit-model" value={model} onChange={(e) => setModel(e.target.value)} required />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-year">Year *</Label>
-                <Input id="edit-year" type="number" value={year} onChange={(e) => setYear(e.target.value)} required min="1900" max={new Date().getFullYear() + 1} />
+                <Label htmlFor="edit-year">Year</Label>
+                <Input id="edit-year" type="number" value={year} onChange={(e) => setYear(e.target.value)} min="1900" max={new Date().getFullYear() + 1} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="edit-plate">License Plate</Label>

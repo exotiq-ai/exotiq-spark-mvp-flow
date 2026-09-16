@@ -282,7 +282,7 @@ export const BookEnhanced = () => {
   const getVehicleDisplay = (booking: Booking) => {
     const vehicle = vehicles.find(v => v.id === booking.vehicle_id);
     if (vehicle) {
-      return `${vehicle.year} ${vehicle.make} ${vehicle.model}`;
+      return [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ');
     }
     // Fall back to stored vehicle_name from import
     if (booking.vehicle_name) {

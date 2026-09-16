@@ -117,7 +117,7 @@ export const useFleetAIInsight = (
     
     return {
       vehicleId: best.vehicle.id,
-      vehicleName: best.vehicle.name || `${best.vehicle.year} ${best.vehicle.make} ${best.vehicle.model}`,
+      vehicleName: best.vehicle.name || [best.vehicle.year, best.vehicle.make, best.vehicle.model].filter(Boolean).join(' '),
       suggestedIncreasePercent: Math.round(best.percentIncrease),
       potentialMonthlyRevenue: Math.round(best.potentialMonthlyGain),
       reason: best.reason,

@@ -132,13 +132,13 @@ export function useRariContext() {
       const { type, data } = state.currentEntity;
       
       if (type === 'booking') {
-        const vehicleName = data.vehicles ? `${data.vehicles.year} ${data.vehicles.make} ${data.vehicles.model}` : 'Unknown Vehicle';
+        const vehicleName = data.vehicles ? [data.vehicles.year, data.vehicles.make, data.vehicles.model].filter(Boolean).join(' ') : 'Unknown Vehicle';
         const customerName = data.customers?.full_name || data.customer_name;
         parts.push(`Currently viewing booking for ${vehicleName} by ${customerName} from ${data.start_date} to ${data.end_date}. Daily rate: $${data.daily_rate}. Status: ${data.status}.`);
       } else if (type === 'customer') {
         parts.push(`Currently viewing customer: ${data.full_name}, Email: ${data.email}, Phone: ${data.phone || 'N/A'}. Total bookings: ${data.total_bookings || 0}.`);
       } else if (type === 'vehicle') {
-        parts.push(`Currently viewing vehicle: ${data.year} ${data.make} ${data.model}. License: ${data.license_plate || 'N/A'}. Status: ${data.status}. Rate: $${data.current_rate}/day.`);
+        parts.push(`Currently viewing vehicle: ${[data.year, data.make, data.model].filter(Boolean).join(' ')}. License: ${data.license_plate || 'N/A'}. Status: ${data.status}. Rate: $${data.current_rate}/day.`);
       }
     }
 
@@ -168,7 +168,7 @@ export function useRariContext() {
     } else if (type === 'customer') {
       return data.full_name;
     } else if (type === 'vehicle') {
-      return `${data.year} ${data.make} ${data.model}`;
+      return [data.year, data.make, data.model].filter(Boolean).join(' ');
     }
 
     return null;
@@ -219,7 +219,7 @@ export function useRariContext() {
           ? `${data.vehicles?.make || ''} ${data.vehicles?.model || ''} Booking`.trim()
           : type === 'customer'
           ? data.full_name
-          : `${data.year} ${data.make} ${data.model}`;
+          : [data.year, data.make, data.model].filter(Boolean).join(' ');
 
         setState(prev => ({
           ...prev,

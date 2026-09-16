@@ -50,7 +50,8 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit, onAddPhotos }: 
   const { generateHero, isGenerating } = useGenerateHeroImage();
   
   // Auto-set location when dialog opens or selectedLocationId changes
-  const effectiveLocationId = locationId || (selectedLocationId !== 'all' ? selectedLocationId : locations[0]?.id || '');
+  const defaultLocationId = locations.find((l: any) => l?.is_default)?.id || locations[0]?.id || '';
+  const effectiveLocationId = locationId || (selectedLocationId !== 'all' ? selectedLocationId : defaultLocationId);
 
   // Keep the mileage fields aligned with the tenant defaults while the dialog
   // is closed (team data can load after first mount).
@@ -101,8 +102,7 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit, onAddPhotos }: 
       () => validators.required(name, 'Vehicle name'),
       () => validators.required(make, 'Make'),
       () => validators.required(model, 'Model'),
-      () => validators.required(year, 'Year'),
-      () => validators.year(year),
+      () => (year ? validators.year(year) : { isValid: true }),
       () => validators.required(currentRate, 'Daily rate'),
       () => validators.positiveNumber(currentRate, 'Daily rate'),
     ]);
@@ -118,7 +118,7 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit, onAddPhotos }: 
         name,
         make,
         model,
-        year: parseInt(year),
+        year: year ? parseInt(year) : null,
         license_plate: licensePlate || null,
         vin: vin || null,
         current_rate: parseFloat(currentRate),
@@ -147,7 +147,7 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit, onAddPhotos }: 
           vehicleId: result.id,
           make,
           model,
-          year: parseInt(year),
+          year: year ? parseInt(year) : undefined,
           color: color || undefined
         }).then((heroResult) => {
           setGeneratingHero(false);
@@ -255,14 +255,13 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit, onAddPhotos }: 
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="year">Year *</Label>
+                    <Label htmlFor="year">Year</Label>
                     <Input
                       id="year"
                       type="number"
                       placeholder="2024"
                       value={year}
                       onChange={(e) => setYear(e.target.value)}
-                      required
                       min="1900"
                       max={new Date().getFullYear() + 1}
                     />
