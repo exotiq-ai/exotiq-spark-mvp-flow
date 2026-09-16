@@ -164,15 +164,34 @@ export const MarketplaceSection = () => {
                 : 'Complete the go-live checklist to request review and appear on the public marketplace.'}
             </p>
             {feeRow?.slug && isLive && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-2"
-                onClick={() => window.open(`/${feeRow.slug}`, '_blank')}
-              >
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Open public storefront
-              </Button>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.open(renterStorefrontUrl(feeRow.slug), '_blank')}
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Open public storefront
+                </Button>
+                <code className="text-xs text-muted-foreground select-all">
+                  {renterStorefrontDisplayUrl(feeRow.slug)}
+                </code>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(renterStorefrontUrl(feeRow.slug));
+                      toast.success('Storefront link copied');
+                    } catch {
+                      toast.error('Could not copy the link');
+                    }
+                  }}
+                >
+                  <Copy className="h-4 w-4 mr-2" />
+                  Copy link
+                </Button>
+              </div>
             )}
           </div>
         </div>
