@@ -86,6 +86,22 @@ export const useMarketplaceReadiness = (teamId: string | null | undefined) => {
   });
 };
 
+export const useMarketplaceDepositStatus = (teamId: string | null | undefined) => {
+  return useQuery({
+    queryKey: ['marketplace-readiness-deposit', teamId],
+    enabled: !!teamId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('teams')
+        .select('deposit_source_confirmed_at, default_deposit_cents')
+        .eq('id', teamId as string)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+};
+
 export const useMarketplaceFeeStatus = (teamId: string | null | undefined) => {
   return useQuery({
     queryKey: ['marketplace-readiness-fee', teamId],
