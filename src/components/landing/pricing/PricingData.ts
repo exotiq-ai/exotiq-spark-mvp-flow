@@ -1,5 +1,5 @@
 // Stripe Price IDs — 2026 Pricing Restructure (LIVE)
-// Per-vehicle pricing. 14-day free trial, no credit card required.
+// Per-vehicle pricing. 30-day free trial, card required to start.
 export const STRIPE_PRICES = {
   pro: {
     monthly: 'price_1Tbv4IHO7nC3pJiPH4EbyVlL', // $39/vehicle/month
@@ -130,7 +130,7 @@ export const pickTierForFleetSize = (fleetSize: number): PricingTier => {
 export const faqItems = [
   {
     question: 'How does the free trial work?',
-    answer: 'Every account starts with a 14-day free trial — no credit card required. After 14 days, your account becomes read-only until you subscribe. Existing data is never deleted.',
+    answer: 'Every account starts with a 30-day free trial. You add a card to start it, but nothing is charged for 30 days and we email you before the first payment. Cancel any time during the trial and you pay nothing. If the trial ends without a payment, your account becomes read-only — your data is never deleted.',
   },
   {
     question: 'How is pricing calculated?',
@@ -138,7 +138,7 @@ export const faqItems = [
   },
   {
     question: 'What happens if my fleet grows past my plan?',
-    answer: 'You can resize your subscription anytime — billing adjusts automatically with prorated charges. Crossing into the next tier (e.g. from 15 → 16 vehicles) switches you to Business pricing.',
+    answer: 'Your bill follows your fleet automatically. At each renewal we count your active vehicles and bill that number, so adding a car mid-month never surprises you. Crossing into the next tier (e.g. 15 → 16 vehicles) moves you to Business pricing at the next renewal.',
   },
   {
     question: 'Can I switch plans later?',

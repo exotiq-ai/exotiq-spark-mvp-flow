@@ -269,7 +269,7 @@ export const ROICalculator = () => {
                   <ArrowRight className="h-5 w-5" />
                 </Button>
               )}
-              <span className="text-sm text-muted-foreground">No credit card required</span>
+              <span className="text-sm text-muted-foreground">30-day free trial</span>
             </div>
           </div>
 

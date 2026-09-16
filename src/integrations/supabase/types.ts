@@ -6473,6 +6473,28 @@ export type Database = {
           total_vehicles: number
         }[]
       }
+      get_super_admin_subscription_health: {
+        Args: never
+        Returns: {
+          activated_at: string
+          active_vehicles: number
+          billed_quantity: number
+          billed_tier: string
+          billing_interval: string
+          billing_status: string
+          cancel_at_period_end: boolean
+          current_period_end: string
+          expected_tier: string
+          has_subscription: boolean
+          is_demo_account: boolean
+          over_cap: boolean
+          owner_email: string
+          quantity_mismatch: boolean
+          team_id: string
+          team_name: string
+          trial_end: string
+        }[]
+      }
       get_super_admin_tenant_detail: {
         Args: { p_team_id: string }
         Returns: Json
