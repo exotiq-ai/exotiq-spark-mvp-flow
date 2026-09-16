@@ -143,6 +143,71 @@ serve(async (req: Request) => {
       return json({ success: true, is_demo_account: isDemo });
     }
 
+    if (action === "confirm_platform_fee") {
+      const { data: feeRow, error: feeErr } = await admin
+        .from("teams")
+        .select("platform_fee_percent, platform_fee_confirmed_at")
+        .eq("id", teamId)
+        .maybeSingle();
+      if (feeErr) throw feeErr;
+
+      const pct = body?.platform_fee_percent != null
+        ? Number(body.platform_fee_percent)
+        : Number(feeRow?.platform_fee_percent);
+      if (!Number.isFinite(pct) || pct <= 0 || pct > 100) {
+        return json(
+          { error: "Set a platform fee percentage greater than 0 and no more than 100 first." },
+          400,
+        );
+      }
+
+      const { error: updErr } = await admin
+        .from("teams")
+        .update({
+          platform_fee_percent: pct,
+          platform_fee_confirmed_at: new Date().toISOString(),
+        })
+        .eq("id", teamId);
+      if (updErr) throw updErr;
+
+      await audit("super_admin_confirm_platform_fee", {
+        platform_fee_percent: pct,
+        previously_confirmed_at: feeRow?.platform_fee_confirmed_at ?? null,
+      });
+      return json({ success: true, platform_fee_percent: pct });
+    }
+
+    if (action === "confirm_deposit_source") {
+      const { data: depRow, error: depErr } = await admin
+        .from("teams")
+        .select("default_deposit_cents, deposit_source_confirmed_at")
+        .eq("id", teamId)
+        .maybeSingle();
+      if (depErr) throw depErr;
+
+      const cents = body?.default_deposit_cents != null
+        ? Math.round(Number(body.default_deposit_cents))
+        : Number(depRow?.default_deposit_cents);
+      if (!Number.isFinite(cents) || cents < 0) {
+        return json({ error: "Set a valid default security deposit first." }, 400);
+      }
+
+      const { error: updErr } = await admin
+        .from("teams")
+        .update({
+          default_deposit_cents: cents,
+          deposit_source_confirmed_at: new Date().toISOString(),
+        })
+        .eq("id", teamId);
+      if (updErr) throw updErr;
+
+      await audit("super_admin_confirm_deposit_source", {
+        default_deposit_cents: cents,
+        previously_confirmed_at: depRow?.deposit_source_confirmed_at ?? null,
+      });
+      return json({ success: true, default_deposit_cents: cents });
+    }
+
     if (action === "set_billing") {
       const next = body?.billing_status;
       if (!MANUAL_BILLING_STATES.includes(next)) {
