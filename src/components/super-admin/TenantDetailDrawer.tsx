@@ -187,6 +187,13 @@ export const TenantDetailDrawer = ({ teamId, onClose }: Props) => {
 
               <SuperAdminPeopleSection teamId={teamId as string} teamName={detail.team_name} />
 
+              <TenantLifecycleSection
+                teamId={teamId as string}
+                teamName={detail.team_name}
+                isDemo={detail.is_demo}
+                billingStatus={(detail as any).billing_status ?? null}
+              />
+
 
 
               <div className="flex gap-2 pt-2">
