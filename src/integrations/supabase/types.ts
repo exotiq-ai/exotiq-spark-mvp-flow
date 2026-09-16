@@ -5499,6 +5499,7 @@ export type Database = {
           location_id: string | null
           make: string
           marketplace_unlisted: boolean
+          marketplace_visibility_set_by_tenant: string | null
           marketplace_visible: boolean
           mileage: number | null
           mileage_overage_rate: number | null
@@ -5543,6 +5544,7 @@ export type Database = {
           location_id?: string | null
           make: string
           marketplace_unlisted?: boolean
+          marketplace_visibility_set_by_tenant?: string | null
           marketplace_visible?: boolean
           mileage?: number | null
           mileage_overage_rate?: number | null
@@ -5587,6 +5589,7 @@ export type Database = {
           location_id?: string | null
           make?: string
           marketplace_unlisted?: boolean
+          marketplace_visibility_set_by_tenant?: string | null
           marketplace_visible?: boolean
           mileage?: number | null
           mileage_overage_rate?: number | null
@@ -6854,6 +6857,10 @@ export type Database = {
           state_fee_label: string
         }[]
       }
+      publish_eligible_team_vehicles: {
+        Args: { _team_id: string }
+        Returns: number
+      }
       purge_old_notifications: { Args: never; Returns: undefined }
       purge_vehicle_now: { Args: { p_vehicle_id: string }; Returns: undefined }
       reactivate_team_member:
@@ -7037,6 +7044,10 @@ export type Database = {
       }
       trash_vehicle: { Args: { p_vehicle_id: string }; Returns: undefined }
       update_document_status: { Args: never; Returns: undefined }
+      vehicle_is_marketplace_eligible: {
+        Args: { _vehicle_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "owner" | "admin" | "manager" | "operator" | "viewer"
