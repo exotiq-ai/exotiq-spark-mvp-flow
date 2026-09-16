@@ -7,10 +7,10 @@ interface FreeTrialBannerProps {
 
 export const FreeTrialBanner = ({ onStartTrial }: FreeTrialBannerProps) => {
   return (
-    <section className="py-12 px-4 bg-gradient-to-r from-primary/5 via-accent/5 to-primary/5">
+    <section className="py-14 px-4 bg-muted/30 border-y border-border/60">
       <div className="container mx-auto max-w-4xl text-center">
-        <h2 className="text-2xl md:text-3xl font-bold mb-4">
-          Not Ready to Commit? Start Your Free Trial
+        <h2 className="font-brand text-2xl md:text-3xl font-bold mb-4">
+          Not ready to commit? Start the free trial
         </h2>
         <p className="text-lg text-muted-foreground mb-6">
           30 days of full access to explore every feature. Add a card to start — nothing is charged for 30 days.
