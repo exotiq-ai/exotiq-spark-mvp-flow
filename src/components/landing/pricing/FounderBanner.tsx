@@ -19,7 +19,7 @@ export const FounderBanner = () => {
           </div>
           <span className="text-white/70 hidden md:inline">·</span>
           <span className="text-white/80">
-            From <span className="text-amber-400 font-bold">$29/vehicle/mo</span> · 14-day free trial · No credit card
+            From <span className="text-amber-400 font-bold">$29/vehicle/mo</span> · 30-day free trial · Nothing charged for 30 days
           </span>
           <span className="hidden md:flex items-center gap-1 text-amber-400 font-medium">
             Lock in your rate <ArrowRight className="h-3.5 w-3.5" />

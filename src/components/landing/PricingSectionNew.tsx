@@ -54,7 +54,7 @@ export const PricingSectionNew = () => {
             Per-vehicle pricing that scales with you
           </h1>
           <p className="text-xl text-muted-foreground">
-            Launch pricing — start with a 14-day free trial. No credit card required.
+            Launch pricing — start with a 30-day free trial. Card required, nothing charged for 30 days.
           </p>
         </div>
       </section>

@@ -131,7 +131,7 @@ export const PricingCards = ({ onSelectPlan, onStartTrial }: PricingCardsProps) 
           onClick={onStartTrial}
           className="text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
-          <span className="text-primary font-medium">14-day free trial</span> — no credit card required
+          <span className="text-primary font-medium">30-day free trial</span> — card required, nothing charged for 30 days
         </button>
       </div>
     </div>

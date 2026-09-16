@@ -31,12 +31,15 @@ const ORIGINAL_PUBLICATION: PriorVersionMeta = {
 
 export const LEGAL_DOCS: Record<LegalDocType, LegalDocMeta> = {
   terms: {
-    version: "2026-06-14",
-    effectiveDate: "June 14, 2026",
-    lastUpdated: "June 14, 2026",
+    version: "2026-09-16",
+    effectiveDate: "September 16, 2026",
+    lastUpdated: "September 16, 2026",
     url: "/terms",
     label: "Terms and Conditions",
-    priorVersions: [ORIGINAL_PUBLICATION],
+    priorVersions: [
+      ORIGINAL_PUBLICATION,
+      { version: "2026-06-14", effectiveDate: "June 14, 2026" },
+    ],
   },
   privacy: {
     version: "2026-06-14",
