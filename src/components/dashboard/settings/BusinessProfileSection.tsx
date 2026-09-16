@@ -22,6 +22,7 @@ import {
   getCountryDefaults,
 } from "@/lib/countryDefaults";
 import { formatMoney } from "@/lib/format";
+import { DefaultDepositCard } from "@/components/settings/DefaultDepositCard";
 import { Globe, Building2, Receipt, Save, Mail, Store } from "lucide-react";
 
 interface BusinessAddress {
@@ -443,9 +444,11 @@ export const BusinessProfileSection = () => {
             maxLength={300}
           />
           <p className="text-xs text-muted-foreground">
-            Used when a vehicle has no location assigned. Vehicles with a
-            location use that address instead.
+            Optional fallback — only used when a vehicle has no location assigned.
+            Vehicles with a location always use that location's address, so most
+            operators can leave this blank.
           </p>
+
         </div>
         <div className="space-y-2">
           <Label>Pickup instructions</Label>
@@ -462,6 +465,11 @@ export const BusinessProfileSection = () => {
           </p>
         </div>
       </Card>
+
+      {/* Default pickup deposit — same stored value as Team → Settings */}
+      <DefaultDepositCard footnote="Also available under Settings → Team → Settings. Both places edit the same amount." />
+
+
 
       {/* Drive Exotiq marketplace listing */}
       <Card className="p-6 space-y-5">
