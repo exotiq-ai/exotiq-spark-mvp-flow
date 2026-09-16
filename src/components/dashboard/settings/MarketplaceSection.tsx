@@ -29,6 +29,7 @@ import {
   Loader2,
   ChevronRight,
   ExternalLink,
+  Copy,
   Car,
   ArrowRight,
 } from 'lucide-react';
