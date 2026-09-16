@@ -120,6 +120,9 @@ export const SuperAdminBillingTab = () => {
 
   return (
     <>
+      <div className="mb-6">
+        <SubscriptionHealthPanel />
+      </div>
       <Card>
         <CardHeader>
           <CardTitle>Tenant billing status</CardTitle>
