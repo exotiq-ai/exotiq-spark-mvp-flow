@@ -321,7 +321,9 @@ export default function Onboarding() {
             ...(formData.businessAddress
               ? { business_address: formAddressToTeam(formData.businessAddress) }
               : {}),
-            ...(formData.phone?.trim() ? { support_phone: formData.phone.trim() } : {}),
+            ...(formData.phone?.trim() && !((currentTeam as any)?.support_phone || '').trim()
+              ? { support_phone: formData.phone.trim() }
+              : {}),
           } as any)
           .eq('id', currentTeam.id);
         if (teamError) console.warn('[Onboarding] team region update failed:', teamError.message);
