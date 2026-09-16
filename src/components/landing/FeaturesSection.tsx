@@ -5,79 +5,79 @@ const modules = [
   {
     icon: BarChart3,
     name: "Core",
-    description: "Fleet overview & status",
+    description: "See every car, its status and what needs doing today.",
   },
   {
     icon: Sparkles,
     name: "Pulse",
-    description: "Revenue analytics",
+    description: "Revenue, utilisation and trends without building a spreadsheet.",
   },
   {
     icon: Calendar,
     name: "Book",
-    description: "Booking calendar",
+    description: "Take direct bookings, approve requests and collect payment.",
   },
   {
     icon: Shield,
     name: "Vault",
-    description: "Document management",
+    description: "Insurance, registrations and signed agreements kept in order.",
   },
   {
     icon: Users,
     name: "CRM",
-    description: "Customer relationships",
+    description: "Renter history, verification and lifetime value in one profile.",
   },
   {
     icon: Brain,
     name: "MotorIQ",
-    description: "AI pricing engine",
+    description: "Daily rate suggestions per car based on real demand.",
   },
 ];
 
-export const FeaturesSection = () => {
+interface FeaturesSectionProps {
+  onViewPricing?: () => void;
+}
+
+export const FeaturesSection = ({ onViewPricing }: FeaturesSectionProps) => {
   return (
-    <section id="features" className="py-24 lg:py-32 px-4 sm:px-6 bg-muted/30">
+    <section id="features" className="bg-muted/30 px-4 py-24 sm:px-6 lg:py-28">
       <div className="container mx-auto max-w-5xl">
         {/* Header */}
-        <div className="text-center mb-16">
-          <p className="text-primary font-medium mb-4">Six Intelligent Modules</p>
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-6 tracking-tight">
-            Everything you need to run
-            <br className="hidden sm:block" />
-            {" "}a world-class fleet
+        <div className="mb-14 text-center">
+          <p className="mb-4 font-medium text-primary">Six connected modules</p>
+          <h2 className="mb-5 font-brand text-3xl font-bold tracking-tight sm:text-4xl">
+            Everything you need to run a fleet
           </h2>
-          <p className="text-lg text-muted-foreground max-w-xl mx-auto">
-            From AI-powered pricing to automated compliance, each module is designed to save time and increase revenue.
+          <p className="mx-auto max-w-xl text-lg text-muted-foreground">
+            Each module shares the same fleet, calendar and customer records, so nothing has to be
+            entered twice.
           </p>
         </div>
-        
-        {/* Module grid - minimal elegant cards */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 mb-12">
-          {modules.map((module, index) => (
-            <div 
+
+        {/* Module grid */}
+        <div className="mb-12 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
+          {modules.map((module) => (
+            <div
               key={module.name}
-              className="group p-6 sm:p-8 rounded-2xl bg-card border border-border/50 hover:border-primary/30 hover:shadow-lg transition-all duration-300"
-              style={{ animationDelay: `${index * 0.1}s` }}
+              className="group rounded-2xl border border-border/50 bg-card p-6 transition-colors hover:border-primary/30 sm:p-8"
             >
-              <module.icon className="h-8 w-8 sm:h-10 sm:w-10 text-primary mb-4 group-hover:scale-110 transition-transform" />
-              <h3 className="text-lg sm:text-xl font-semibold mb-1">{module.name}</h3>
-              <p className="text-sm text-muted-foreground">{module.description}</p>
+              <module.icon className="mb-4 h-8 w-8 text-primary" />
+              <h3 className="mb-1 font-brand text-lg font-semibold">{module.name}</h3>
+              <p className="text-sm leading-relaxed text-muted-foreground">{module.description}</p>
             </div>
           ))}
         </div>
 
-        {/* CTA scrolls back to the #features anchor on the landing page (FD-01: /features is not a route) */}
         <div className="text-center">
-          <a href="#features">
-            <Button
-              variant="outline"
-              size="lg"
-              className="h-12 px-8 rounded-full group hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all"
-            >
-              Explore All Features
-              <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-            </Button>
-          </a>
+          <Button
+            variant="outline"
+            size="lg"
+            className="group h-12 rounded-full px-8"
+            onClick={onViewPricing}
+          >
+            See pricing
+            <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+          </Button>
         </div>
       </div>
     </section>
