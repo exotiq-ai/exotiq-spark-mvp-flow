@@ -109,7 +109,7 @@ export const ROICalculator = () => {
   };
 
   return (
-    <section className="py-20 lg:py-28 px-4 bg-gradient-to-b from-background via-muted/20 to-background">
+    <section className="py-20 lg:py-28 px-4 bg-background">
       <div className="container mx-auto max-w-6xl">
         {/* Header */}
         <div className="text-center mb-12">
