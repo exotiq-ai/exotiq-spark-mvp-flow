@@ -384,10 +384,7 @@ export function VehicleImageDialog({
                               "text-xs h-7 px-2.5",
                               currentOpsStatus === opt.value && opt.color
                             )}
-                            onClick={() => onStatusChange(
-                              { id: vehicleId, name: vehicleName, ...vehicleDetails },
-                              opt.value
-                            )}
+                            onClick={() => onStatusChange(handoffVehicle, opt.value)}
                           >
                             {currentOpsStatus === opt.value && <CheckCircle2 className="h-3 w-3 mr-1" />}
                             {opt.label}

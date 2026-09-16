@@ -786,6 +786,7 @@ export const FleetPageEnhanced = () => {
         onOpenChange={(open) => !open && setDetailsVehicle(null)}
         vehicleName={detailsVehicle?.name || ''}
         vehicleId={detailsVehicle?.id}
+        vehicle={detailsVehicle}
         vehicleDetails={{
           make: detailsVehicle?.make,
           model: detailsVehicle?.model,
