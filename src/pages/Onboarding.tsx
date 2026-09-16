@@ -45,6 +45,40 @@ import { Badge } from '@/components/ui/badge';
 import { AddVehicleFromPhotoWizard } from '@/components/photos/AddVehicleFromPhotoWizard';
 import { CompanyLogoUpload } from '@/components/shared/CompanyLogoUpload';
 
+/** teams.business_address shape used by invoices / business settings. */
+interface TeamBusinessAddress {
+  line1?: string;
+  line2?: string;
+  city?: string;
+  region?: string;
+  postal_code?: string;
+  country?: string;
+}
+
+const teamAddressToForm = (raw: unknown): AddressData | null => {
+  const a = (raw || {}) as TeamBusinessAddress;
+  if (!a.line1 && !a.city && !a.postal_code) return null;
+  return {
+    street: a.line1 || '',
+    city: a.city || '',
+    state: a.region || '',
+    zip: a.postal_code || '',
+    country: a.country || '',
+    formatted: [a.line1, a.line2, a.city, a.region, a.postal_code].filter(Boolean).join(', '),
+  } as AddressData;
+};
+
+const formAddressToTeam = (addr: AddressData | null): TeamBusinessAddress | null => {
+  if (!addr) return null;
+  return {
+    line1: addr.street || '',
+    city: addr.city || '',
+    region: addr.state || '',
+    postal_code: addr.zip || '',
+    country: addr.country || '',
+  };
+};
+
 const initialFormData: OnboardingFormData = {
   companyName: '',
   businessAddress: null,
