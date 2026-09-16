@@ -268,7 +268,7 @@ export const ROICalculator = () => {
               ) : (
                 <Button size="lg" onClick={handleStartTrial} className="gap-2 text-base px-8">
                   <Zap className="h-5 w-5" />
-                  Start 14-Day Free Trial
+                  Start 30-Day Free Trial
                   <ArrowRight className="h-5 w-5" />
                 </Button>
               )}
