@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
 import { AlertCircle, CheckCircle2, Loader2, Search } from "lucide-react";
+import { SubscriptionHealthPanel } from "./SubscriptionHealthPanel";
 
 type Stage = "reminder" | "notice" | "restriction";
 type Tier = "pro" | "business" | "enterprise";

@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Copy, Mail, Phone } from 'lucide-react';
 import { SuperAdminPeopleSection } from './SuperAdminPeopleSection';
+import { TenantLifecycleSection } from './TenantLifecycleSection';
 
 interface Props {
   teamId: string | null;
@@ -22,6 +23,7 @@ interface Detail {
   trial_start: string | null;
   trial_end: string | null;
   is_demo: boolean;
+  billing_status?: string | null;
   stripe_connected: boolean;
   created_at: string;
   owner: { user_id: string; full_name: string | null; email: string | null; phone: string | null };
