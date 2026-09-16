@@ -62,27 +62,3 @@ export const pricingPlans = [
     popular: false,
   },
 ];
-
-export const testimonials = [
-  {
-    name: "Sarah Chen",
-    role: "Fleet Owner",
-    company: "Luxury Drives Miami",
-    content: "Exotiq transformed our operations. We increased profits by 40% in just 3 months.",
-    rating: 5
-  },
-  {
-    name: "Marcus Rodriguez",
-    role: "Rental Entrepreneur",
-    company: "Elite Car Share",
-    content: "The AI insights are game-changing. It's like having a business consultant available 24/7.",
-    rating: 5
-  },
-  {
-    name: "Emma Thompson",
-    role: "Operations Manager",
-    company: "Premium Auto Collective",
-    content: "Finally, a platform that understands the exotic rental business. Absolutely essential.",
-    rating: 5
-  }
-];

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FounderBanner } from './pricing/FounderBanner';
+
 import { PricingCards } from './pricing/PricingCards';
 import { ROICalculator } from './pricing/ROICalculator';
 import { FeatureComparison } from './pricing/FeatureComparison';
