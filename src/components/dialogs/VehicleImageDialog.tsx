@@ -109,6 +109,13 @@ interface VehicleImageDialogProps {
   onOpenChange: (open: boolean) => void;
   vehicleName: string;
   vehicleId?: string;
+  /**
+   * The full vehicle row. When supplied, hand-offs (Edit, Create task, Quick
+   * status) pass this straight through so the target dialog opens with every
+   * field already filled in — rate, plate, VIN, location, mileage terms.
+   * `vehicleDetails` below is display-only and intentionally trimmed.
+   */
+  vehicle?: Record<string, any> | null;
   vehicleDetails?: {
     make: string;
     model: string;
