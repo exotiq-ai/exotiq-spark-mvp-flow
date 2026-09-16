@@ -893,7 +893,9 @@ export default function Onboarding() {
                   <LocationInput
                     value={formData.locations}
                     onChange={(locations) => updateFormData('locations', locations)}
+                    businessAddress={formData.businessAddress as any}
                   />
+
 
                   {/* Tax at the pickup location — prefilled from the country you chose */}
                   <div className="rounded-lg border border-border p-4 space-y-4">
