@@ -95,12 +95,12 @@ export const Navigation = ({ onRequestAccess, onTryDemo, scrollToSection, onSche
                   </button>
                   <button 
                     onClick={() => {
-                      scrollToSection('testimonials');
+                      scrollToSection('proof');
                       setMobileMenuOpen(false);
                     }}
                     className="text-lg font-medium text-muted-foreground hover:text-foreground transition-smooth text-left"
                   >
-                    Testimonials
+                    How it works
                   </button>
                   <div className="flex items-center justify-between pt-4 pb-2 border-t">
                     <span className="text-sm text-muted-foreground">Theme</span>
@@ -112,13 +112,13 @@ export const Navigation = ({ onRequestAccess, onTryDemo, scrollToSection, onSche
                       setMobileMenuOpen(false);
                     }}>
                       <Calendar className="mr-2 h-4 w-4" />
-                      Schedule Demo
+                      Schedule demo
                     </Button>
                     <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>
                       <Button variant="outline" className="w-full">Log in</Button>
                     </Link>
                     <Link to="/auth?trial=true" onClick={() => setMobileMenuOpen(false)}>
-                      <Button className="btn-premium w-full">Start Free Trial</Button>
+                      <Button className="w-full">Start free trial</Button>
                     </Link>
                   </div>
                 </div>
