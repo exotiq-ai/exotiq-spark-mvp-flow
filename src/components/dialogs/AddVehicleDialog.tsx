@@ -50,7 +50,8 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit, onAddPhotos }: 
   const { generateHero, isGenerating } = useGenerateHeroImage();
   
   // Auto-set location when dialog opens or selectedLocationId changes
-  const effectiveLocationId = locationId || (selectedLocationId !== 'all' ? selectedLocationId : locations[0]?.id || '');
+  const defaultLocationId = locations.find((l: any) => l?.is_default)?.id || locations[0]?.id || '';
+  const effectiveLocationId = locationId || (selectedLocationId !== 'all' ? selectedLocationId : defaultLocationId);
 
   // Keep the mileage fields aligned with the tenant defaults while the dialog
   // is closed (team data can load after first mount).
@@ -101,8 +102,7 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit, onAddPhotos }: 
       () => validators.required(name, 'Vehicle name'),
       () => validators.required(make, 'Make'),
       () => validators.required(model, 'Model'),
-      () => validators.required(year, 'Year'),
-      () => validators.year(year),
+      () => (year ? validators.year(year) : null),
       () => validators.required(currentRate, 'Daily rate'),
       () => validators.positiveNumber(currentRate, 'Daily rate'),
     ]);
