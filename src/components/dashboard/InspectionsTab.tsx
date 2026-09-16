@@ -194,7 +194,7 @@ export const InspectionsTab = ({ vehicles }: InspectionsTabProps) => {
 
   const getVehicleDisplayName = (vehicle: { name?: string; make?: string; model?: string; year?: number } | null) => {
     if (!vehicle) return 'Unknown Vehicle';
-    return vehicle.name || `${vehicle.year} ${vehicle.make} ${vehicle.model}`;
+    return vehicle.name || [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ');
   };
 
   // If a vehicle is selected, show the InspectionWidget

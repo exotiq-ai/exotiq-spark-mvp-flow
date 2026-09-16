@@ -132,7 +132,7 @@ export function useRariContext() {
       const { type, data } = state.currentEntity;
       
       if (type === 'booking') {
-        const vehicleName = data.vehicles ? `${data.vehicles.year} ${data.vehicles.make} ${data.vehicles.model}` : 'Unknown Vehicle';
+        const vehicleName = data.vehicles ? [data.vehicles.year, data.vehicles.make, data.vehicles.model].filter(Boolean).join(' ') : 'Unknown Vehicle';
         const customerName = data.customers?.full_name || data.customer_name;
         parts.push(`Currently viewing booking for ${vehicleName} by ${customerName} from ${data.start_date} to ${data.end_date}. Daily rate: $${data.daily_rate}. Status: ${data.status}.`);
       } else if (type === 'customer') {
@@ -168,7 +168,7 @@ export function useRariContext() {
     } else if (type === 'customer') {
       return data.full_name;
     } else if (type === 'vehicle') {
-      return `${data.year} ${data.make} ${data.model}`;
+      return [data.year, data.make, data.model].filter(Boolean).join(' ');
     }
 
     return null;
@@ -219,7 +219,7 @@ export function useRariContext() {
           ? `${data.vehicles?.make || ''} ${data.vehicles?.model || ''} Booking`.trim()
           : type === 'customer'
           ? data.full_name
-          : `${data.year} ${data.make} ${data.model}`;
+          : [data.year, data.make, data.model].filter(Boolean).join(' ');
 
         setState(prev => ({
           ...prev,

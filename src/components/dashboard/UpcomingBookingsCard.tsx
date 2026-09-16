@@ -37,7 +37,7 @@ export const UpcomingBookingsCard = ({ bookings, vehicles, onBookingClick }: Upc
 
   const getVehicleDisplay = (booking: Booking) => {
     const vehicle = vehicles.find(v => v.id === booking.vehicle_id);
-    if (vehicle) return `${vehicle.year} ${vehicle.make} ${vehicle.model}`;
+    if (vehicle) return [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ');
     return booking.vehicle_name || 'Unknown Vehicle';
   };
 

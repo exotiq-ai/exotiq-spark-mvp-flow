@@ -329,7 +329,7 @@ export async function linkBookingsToExistingRecords(
     if (v.license_plate) vehicleByPlate.set(v.license_plate.toUpperCase(), v.id);
     if (v.name) vehicleByName.set(v.name.toLowerCase(), v.id);
     // Also create combined name
-    const combinedName = `${v.year} ${v.make} ${v.model}`.toLowerCase();
+    const combinedName = [v.year, v.make, v.model].filter(Boolean).join(' ').toLowerCase();
     vehicleByName.set(combinedName, v.id);
   });
 

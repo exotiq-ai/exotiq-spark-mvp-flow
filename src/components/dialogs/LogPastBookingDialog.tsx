@@ -215,7 +215,7 @@ export const LogPastBookingDialog = ({
               <SelectContent className="z-[60] max-h-64">
                 {vehicles.map(v => (
                   <SelectItem key={v.id} value={v.id}>
-                    {v.name || `${v.year} ${v.make} ${v.model}`}
+                    {v.name || [v.year, v.make, v.model].filter(Boolean).join(' ')}
                   </SelectItem>
                 ))}
               </SelectContent>

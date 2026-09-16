@@ -101,7 +101,7 @@ export const Vault = () => {
       
       return {
         document: doc.name,
-        vehicle: vehicle ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : 'N/A',
+        vehicle: vehicle ? [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ') : 'N/A',
         expires: `In ${daysUntil} days`,
         type: doc.type,
         priority: daysUntil < 7 ? 'high' : daysUntil < 14 ? 'medium' : 'low'
