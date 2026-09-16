@@ -13,6 +13,7 @@ import { useMoney } from "@/hooks/useMoney";
 import { useTeam } from "@/contexts/TeamContext";
 import { PermissionGuard } from "@/components/common/PermissionGuard";
 import { supabase } from "@/integrations/supabase/client";
+import { DefaultDepositCard } from "@/components/settings/DefaultDepositCard";
 import { Save, Building2, Clock, Bell, Loader2, DollarSign, Fuel, ShieldCheck, Gauge } from "lucide-react";
 
 interface TeamSettings {

@@ -22,6 +22,7 @@ import {
   getCountryDefaults,
 } from "@/lib/countryDefaults";
 import { formatMoney } from "@/lib/format";
+import { DefaultDepositCard } from "@/components/settings/DefaultDepositCard";
 import { Globe, Building2, Receipt, Save, Mail, Store } from "lucide-react";
 
 interface BusinessAddress {
