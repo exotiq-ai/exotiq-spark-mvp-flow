@@ -43,6 +43,8 @@ import { useGenerateHeroImage } from '@/hooks/useGenerateHeroImage';
 import { RECOMMENDED_ANGLES, ANGLE_LABELS, PHOTO_TYPE_LABELS, VehiclePhoto, DetectedAngle } from './types';
 import { toast } from 'sonner';
 import { PhotoEditorDialog } from './PhotoEditorDialog';
+import { useStudioHero, STUDIO_HERO_MAX_ATTEMPTS } from '@/hooks/useStudioHero';
+import { isFeatureEnabled } from '@/lib/featureFlags';
 
 interface VehiclePhotoManagerProps {
   vehicleId: string;
@@ -71,6 +73,17 @@ export const VehiclePhotoManager = ({
   const { photos, loading, refetch } = useVehiclePhotos({ vehicleId, realtime: true });
   const { setAsHero, deletePhoto, uploadAndAnalyze, reorderPhotos, replacePhotoFile } = usePhotoAnalysis();
   const { generateHeroWithToast, isGenerating } = useGenerateHeroImage();
+  const studioHeroEnabled = isFeatureEnabled('studioHeroAuto');
+  const {
+    attemptsUsed,
+    attemptsRemaining,
+    isEscalated,
+    hasPassed: hasStudioHero,
+    isActive: isStudioRendering,
+    isRendering: isStudioBusy,
+    renderStudioHero,
+  } = useStudioHero(vehicleId);
+  const studioBusy = isStudioRendering || isStudioBusy;
   const [editingPhoto, setEditingPhoto] = useState<VehiclePhoto | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
