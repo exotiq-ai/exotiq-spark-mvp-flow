@@ -1541,6 +1541,103 @@ export type Database = {
           },
         ]
       }
+      hero_render_jobs: {
+        Row: {
+          attempt_number: number
+          created_at: string
+          error: string | null
+          id: string
+          mirrored_source: boolean
+          prompt_used: string
+          prompt_version: string
+          qc_failure_reasons: string[] | null
+          qc_passed: boolean | null
+          render_photo_id: string | null
+          source_photo_id: string | null
+          status: string
+          team_id: string
+          updated_at: string
+          vehicle_id: string
+        }
+        Insert: {
+          attempt_number?: number
+          created_at?: string
+          error?: string | null
+          id?: string
+          mirrored_source?: boolean
+          prompt_used: string
+          prompt_version: string
+          qc_failure_reasons?: string[] | null
+          qc_passed?: boolean | null
+          render_photo_id?: string | null
+          source_photo_id?: string | null
+          status?: string
+          team_id: string
+          updated_at?: string
+          vehicle_id: string
+        }
+        Update: {
+          attempt_number?: number
+          created_at?: string
+          error?: string | null
+          id?: string
+          mirrored_source?: boolean
+          prompt_used?: string
+          prompt_version?: string
+          qc_failure_reasons?: string[] | null
+          qc_passed?: boolean | null
+          render_photo_id?: string | null
+          source_photo_id?: string | null
+          status?: string
+          team_id?: string
+          updated_at?: string
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hero_render_jobs_render_photo_id_fkey"
+            columns: ["render_photo_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_photos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hero_render_jobs_render_photo_id_fkey"
+            columns: ["render_photo_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_photos_with_vehicle"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hero_render_jobs_source_photo_id_fkey"
+            columns: ["source_photo_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_photos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hero_render_jobs_source_photo_id_fkey"
+            columns: ["source_photo_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_photos_with_vehicle"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hero_render_jobs_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hero_render_jobs_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       identity_verifications: {
         Row: {
           attempt_count: number
@@ -3951,6 +4048,7 @@ export type Database = {
           stripe_payouts_enabled: boolean
           stripe_subscription_id: string | null
           stripe_test_account_id: string | null
+          studio_hero_opt_out: boolean
           support_email: string | null
           support_phone: string | null
           tax_inclusive: boolean
@@ -4036,6 +4134,7 @@ export type Database = {
           stripe_payouts_enabled?: boolean
           stripe_subscription_id?: string | null
           stripe_test_account_id?: string | null
+          studio_hero_opt_out?: boolean
           support_email?: string | null
           support_phone?: string | null
           tax_inclusive?: boolean
@@ -4121,6 +4220,7 @@ export type Database = {
           stripe_payouts_enabled?: boolean
           stripe_subscription_id?: string | null
           stripe_test_account_id?: string | null
+          studio_hero_opt_out?: boolean
           support_email?: string | null
           support_phone?: string | null
           tax_inclusive?: boolean
