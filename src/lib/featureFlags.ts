@@ -85,6 +85,12 @@ export const featureFlags = {
   // team passes the checklist.
   marketplaceGateEnforced: false,
 
+  // Studio Hero photos (ARK-style AI studio renders)
+  // Master kill-switch for the automatic studio hero pipeline. When off,
+  // no renders are triggered and the Photos tab studio controls are hidden.
+  // Per-team override: teams.studio_hero_opt_out (set by Super Admin).
+  studioHeroAuto: true,
+
   // Multi-currency & VAT (Phase 1)
   // Master kill-switch for non-USD tenants. Default ON. If a regression hits
   // US tenants, flip OFF — every code path falls back to USD/`Tax`/0% and
