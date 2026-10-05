@@ -388,6 +388,65 @@ export const VehiclePhotoManager = ({
         </Card>
       )}
 
+      {/* Studio Hero (ARK-style AI studio render) */}
+      {studioHeroEnabled && photos.length > 0 && (
+        <Card className="border-border/60">
+          <CardContent className="py-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <Sparkles className="h-5 w-5 text-primary shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">Studio photo</p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {studioBusy
+                      ? 'Studio photo rendering…'
+                      : isEscalated
+                        ? 'Exotiq support is hand-finishing this photo'
+                        : hasStudioHero
+                          ? 'Studio finish applied to your hero photo'
+                          : 'Render your hero in our signature studio look'}
+                  </p>
+                </div>
+              </div>
+              {!isEscalated && (
+                <Button
+                  size="sm"
+                  variant={hasStudioHero ? 'outline' : 'default'}
+                  disabled={studioBusy || attemptsRemaining <= 0}
+                  onClick={async () => {
+                    const result = await renderStudioHero();
+                    if (result.success) await refetch();
+                  }}
+                  className="gap-2 shrink-0"
+                >
+                  {studioBusy ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                      Rendering…
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4" />
+                      {hasStudioHero || attemptsUsed > 0 ? 'Re-render' : 'Render studio photo'}
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+            {attemptsUsed > 0 && !isEscalated && (
+              <p className="text-xs text-muted-foreground mt-2">
+                {attemptsUsed} of {STUDIO_HERO_MAX_ATTEMPTS} renders used
+              </p>
+            )}
+            {isEscalated && (
+              <p className="text-xs text-muted-foreground mt-2">
+                Our team has been notified and will polish this shot for you.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Coverage Indicator */}
       <div className="space-y-2">
         <div className="flex items-center justify-between text-sm">
