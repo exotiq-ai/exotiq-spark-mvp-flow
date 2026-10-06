@@ -199,12 +199,17 @@ serve(async (req) => {
       quality_score: number | null; source: string | null;
       width: number | null; height: number | null;
     }>;
-    const landscape = photos.filter((p) => !p.width || !p.height || p.width >= p.height);
-    const pool = landscape.length > 0 ? landscape : photos;
-    const source =
-      pool.find((p) => p.detected_angle === "front_quarter") ??
-      pool.find((p) => p.detected_angle === "front") ??
-      pool[0];
+    const angleRank = (a: string | null) =>
+      a === "front_quarter" ? 0 : a === "front" ? 1 : 2;
+    // Known-landscape dims beat unknown dims; known-portrait ranks last.
+    const dimRank = (p: { width: number | null; height: number | null }) =>
+      p.width && p.height ? (p.width >= p.height ? 0 : 2) : 1;
+    const pool = [...photos].sort((a, b) =>
+      angleRank(a.detected_angle) - angleRank(b.detected_angle) ||
+      dimRank(a) - dimRank(b) ||
+      (b.quality_score ?? 0) - (a.quality_score ?? 0)
+    );
+    const source = pool[0];
     if (!source?.url) {
       return json(
         { success: false, error: "Add a 45° front driver-side photo first", needsSourcePhoto: true },
