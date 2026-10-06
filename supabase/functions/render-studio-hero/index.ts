@@ -161,7 +161,10 @@ serve(async (req) => {
       .eq("team_id", teamId)
       .eq("user_id", userId)
       .maybeSingle();
-    if (!membership) return json({ success: false, error: "Not a member of this team" }, 403);
+    if (!membership) {
+      const { data: isSa } = await supabase.rpc("is_super_admin", { check_user_id: userId });
+      if (isSa !== true) return json({ success: false, error: "Not a member of this team" }, 403);
+    }
 
     const { data: team } = await supabase
       .from("teams")
@@ -176,7 +179,8 @@ serve(async (req) => {
     const { count: attemptCount } = await supabase
       .from("hero_render_jobs")
       .select("id", { count: "exact", head: true })
-      .eq("vehicle_id", vehicleId);
+      .eq("vehicle_id", vehicleId)
+      .is("archived_at", null);
     const attempt = (attemptCount ?? 0) + 1;
     if (attempt > STUDIO_HERO_MAX_ATTEMPTS) {
       return json(
@@ -222,6 +226,7 @@ serve(async (req) => {
       .from("hero_render_jobs")
       .select("qc_failure_reasons")
       .eq("vehicle_id", vehicleId)
+      .is("archived_at", null)
       .eq("status", "failed");
     const priorFailures = new Set<string>();
     (priorJobs ?? []).forEach((j) => (j.qc_failure_reasons ?? []).forEach((f) => priorFailures.add(f)));
