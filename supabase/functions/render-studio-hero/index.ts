@@ -70,6 +70,29 @@ async function mirrorDataUrl(dataUrl: string): Promise<{ dataUrl: string; mirror
   }
 }
 
+// Pad a portrait (taller-than-wide) image onto a 3:2 landscape charcoal canvas
+// so the render model never inherits a portrait frame. No-op for landscape.
+async function padToLandscape(dataUrl: string): Promise<{ dataUrl: string; padded: boolean }> {
+  try {
+    const { Image } = await import("https://deno.land/x/imagescript@1.2.15/mod.ts");
+    const b64 = dataUrl.split(",")[1];
+    const img = await Image.decode(base64ToBytes(b64));
+    if (img.width >= img.height) return { dataUrl, padded: false };
+    const h = img.height;
+    const w = Math.round(h * 1.5);
+    const canvas = new Image(w, h);
+    canvas.fill(Image.rgbaToColor(28, 28, 30, 255));
+    canvas.composite(img, Math.round((w - img.width) / 2), 0);
+    const out = new Uint8Array(await canvas.encodeJPEG(92));
+    let bin = "";
+    for (let i = 0; i < out.length; i++) bin += String.fromCharCode(out[i]);
+    return { dataUrl: `data:image/jpeg;base64,${btoa(bin)}`, padded: true };
+  } catch (e) {
+    console.warn("pad failed, using original:", e);
+    return { dataUrl, padded: false };
+  }
+}
+
 interface QcResult {
   pass: boolean;
   failures: string[];
@@ -123,7 +146,10 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { vehicleId, teamId: bodyTeamId } = await req.json();
+    const { vehicleId, teamId: bodyTeamId, sourcePhotoId } = await req.json();
+    if (sourcePhotoId !== undefined && (typeof sourcePhotoId !== "string" || !/^[0-9a-f-]{36}$/i.test(sourcePhotoId))) {
+      return json({ success: false, error: "Invalid sourcePhotoId" }, 400);
+    }
     if (!vehicleId) return json({ success: false, error: "vehicleId is required" }, 400);
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
