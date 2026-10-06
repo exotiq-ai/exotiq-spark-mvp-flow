@@ -239,7 +239,14 @@ serve(async (req) => {
       dimRank(a) - dimRank(b) ||
       (b.quality_score ?? 0) - (a.quality_score ?? 0)
     );
-    const source = pool[0];
+    let source = pool[0];
+    if (sourcePhotoId) {
+      const { data: isSaOverride } = await supabase.rpc("is_super_admin", { check_user_id: userId });
+      if (isSaOverride !== true) return json({ success: false, error: "Only Exotiq support can pick a source photo" }, 403);
+      const picked = photos.find((p) => p.id === sourcePhotoId);
+      if (!picked) return json({ success: false, error: "Source photo not found on this vehicle" }, 400);
+      source = picked;
+    }
     if (!source?.url) {
       return json(
         { success: false, error: "Add a 45° front driver-side photo first", needsSourcePhoto: true },
@@ -290,6 +297,9 @@ serve(async (req) => {
       sourceDataUrl = m.dataUrl;
       mirrored = m.mirrored;
     }
+    const padRes = await padToLandscape(sourceDataUrl);
+    sourceDataUrl = padRes.dataUrl;
+    if (padRes.padded) console.log("source padded to landscape", { jobId: job.id });
 
     // Render via Nano Banana (edit-style: source photo as reference)
     const renderRes = await fetch(AI_GATEWAY, {
