@@ -50,6 +50,13 @@
       "when": 1791291408256,
       "tag": "0006_public_vehicle_photos_dedupe",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791316619582,
+      "tag": "0007_checkout_compliance_foundation",
+      "breakpoints": true
     }
   ]
 }
