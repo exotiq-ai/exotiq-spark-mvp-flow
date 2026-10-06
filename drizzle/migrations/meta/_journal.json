@@ -57,6 +57,13 @@
       "when": 1791316619582,
       "tag": "0007_checkout_compliance_foundation",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791317372219,
+      "tag": "0008_quote_v2_fields_and_protect_switch",
+      "breakpoints": true
     }
   ]
 }

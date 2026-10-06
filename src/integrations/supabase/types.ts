@@ -6861,6 +6861,7 @@ export type Database = {
         }[]
       }
       next_invoice_number: { Args: { p_team_id: string }; Returns: string }
+      protect_enabled: { Args: never; Returns: boolean }
       public_booking_by_ref: {
         Args: { _booking_ref: string; _token?: string }
         Returns: {
@@ -7028,7 +7029,9 @@ export type Database = {
           currency: string
           daily_rate_cents: number
           deposit_cents: number
+          deposit_hold_cents: number
           exotiq_total_cents: number
+          fuel_type: string
           grand_total_cents: number
           operator_tax_cents: number
           operator_tax_label: string
@@ -7037,15 +7040,18 @@ export type Database = {
           platform_fee_cents: number
           platform_fee_percent: number
           processing_fee_cents: number
+          protect_enabled: boolean
           protection_daily_cents: number
           protection_tier: string
           protection_total_cents: number
           rental_days: number
           rental_subtotal_cents: number
+          service_fee_cents: number
           state_code: string
           state_fee_cents: number
           state_fee_daily_cents: number
           state_fee_label: string
+          tax_lines: Json
         }[]
       }
       publish_eligible_team_vehicles: {
