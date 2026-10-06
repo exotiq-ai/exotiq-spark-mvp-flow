@@ -7,6 +7,7 @@
 - [x] MP-10: public_fleet_busy batched availability RPC (handoff docs/rent/LOVABLE_HANDOFF_FLEET_AVAILABILITY_2026-09-04.md)
 
 ## Remaining EBTB studio heroes — 2026-10-06
+- [ ] Refine black GLE Brabus with the same neutral charcoal studio backdrop and invisible lighting as the other photos
 - [ ] Verify references for Brabus G800 (GLE), red GT3, white R8, Rolls-Royce Dawn and blue G63 Brabus
 - [ ] Render/reframe, independently review and promote only approved replacements; preserve originals
 - [ ] Verify saved hero photos and renter storefront
