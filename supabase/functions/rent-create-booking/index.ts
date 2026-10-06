@@ -176,7 +176,9 @@ serve(async (req) => {
       // Fee snapshot — what rent-checkout charges as the Exotiq leg.
       // Shown == snapshot == charged; the webhook sums platform_fee +
       // protection + state_fee + processing_fee off the booking row.
-      _protection_tier: protection,
+      // Server Protect switch: the quote forces "decline" while Protect is off,
+      // so snapshot the tier the quote actually priced, not the request.
+      _protection_tier: String(quote.protection_tier ?? protection),
       _platform_fee_cents: Math.round(Number(quote.platform_fee_cents)),
       _protection_total_cents: Math.round(Number(quote.protection_total_cents)),
       _state_fee_cents: Math.round(Number(quote.state_fee_cents ?? 0)),
