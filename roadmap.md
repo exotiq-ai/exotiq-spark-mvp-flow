@@ -8,9 +8,10 @@
 
 ## Remaining EBTB studio heroes — 2026-10-06
 - [x] Refine black GLE Brabus with the same neutral charcoal studio backdrop and invisible lighting as the other photos
-- [ ] Verify references for Brabus G800 (GLE), red GT3, white R8, Rolls-Royce Dawn and blue G63 Brabus
-- [ ] Render/reframe, independently review and promote only approved replacements; preserve originals
-- [ ] Verify saved hero photos and renter storefront
+- [x] Verify references for Brabus G800 (GLE), red GT3, white R8, Rolls-Royce Dawn and blue G63 Brabus
+- [x] Render/reframe, independently review and promote approved replacements; preserve originals
+- [x] Verify five saved hero photos on live renter vehicle pages; all loaded with no page errors
+- [ ] Booking fleet overview still serves old photos despite updated public fleet response; requires renter-app cache refresh outside this project
 
 ## Reel 1 mobile-first rebuild — 2026-09-11
 - [x] Verify tenant safety; no isolated demo tenant existed, so use existing read-only proof data only
