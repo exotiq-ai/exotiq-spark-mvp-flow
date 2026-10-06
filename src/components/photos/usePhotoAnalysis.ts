@@ -211,7 +211,31 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
         .single();
 
       if (insertError) throw insertError;
-      
+
+      // Studio Hero auto-render: when a good 45° front-quarter photo lands and
+      // the vehicle has no studio hero yet, kick off a background render.
+      // Fire-and-forget — the raw photo displays until the render passes QC.
+      if (
+        isFeatureEnabled('studioHeroAuto') &&
+        analysis.angle === 'front_quarter' &&
+        photoData?.id
+      ) {
+        void (async () => {
+          try {
+            const { count } = await supabase
+              .from('hero_render_jobs')
+              .select('id', { count: 'exact', head: true })
+              .eq('vehicle_id', vehicleId);
+            if ((count ?? 0) > 0) return; // already rendered or in progress
+            await supabase.functions.invoke('render-studio-hero', {
+              body: { vehicleId },
+            });
+          } catch {
+            // Non-blocking: render failures surface in the Photos tab
+          }
+        })();
+      }
+
       return { path, url, analysis, photoId: photoData?.id };
     } else {
       const { error: unmatchedError } = await supabase
