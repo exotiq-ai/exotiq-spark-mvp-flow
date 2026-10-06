@@ -22,7 +22,9 @@
 
 ## Checkout compliance Track B — 2026-10-06
 - [x] ARK 6% tax, schema foundation, assent log + endpoint, handback note
-- [ ] Quote v2 fields + Protect kill switch (with renter MP-30)
-- [ ] Banned-words sweep, Stripe terms consent (needs Stripe Terms URL)
+- [x] Quote v2 fields (tax_lines, service_fee_cents, deposit_hold_cents, fuel_type, protect_enabled) + server Protect switch (public.protect_enabled(); flip with renter MP-30)
+- [x] Banned-words sweep + test (clean)
+- [ ] Stripe terms consent (blocked: platform Terms URL in Stripe settings + Terms v2)
+- [ ] "Service fee" Stripe/email wording (release day with v2 — Protect still charged until then)
 - [ ] Publish guardrails + 14-day notice flow
 - [ ] v2 split release (with MP-31)
