@@ -70,6 +70,29 @@ async function mirrorDataUrl(dataUrl: string): Promise<{ dataUrl: string; mirror
   }
 }
 
+// Pad a portrait (taller-than-wide) image onto a 3:2 landscape charcoal canvas
+// so the render model never inherits a portrait frame. No-op for landscape.
+async function padToLandscape(dataUrl: string): Promise<{ dataUrl: string; padded: boolean }> {
+  try {
+    const { Image } = await import("https://deno.land/x/imagescript@1.2.15/mod.ts");
+    const b64 = dataUrl.split(",")[1];
+    const img = await Image.decode(base64ToBytes(b64));
+    if (img.width >= img.height) return { dataUrl, padded: false };
+    const h = img.height;
+    const w = Math.round(h * 1.5);
+    const canvas = new Image(w, h);
+    canvas.fill(Image.rgbaToColor(28, 28, 30, 255));
+    canvas.composite(img, Math.round((w - img.width) / 2), 0);
+    const out = new Uint8Array(await canvas.encodeJPEG(92));
+    let bin = "";
+    for (let i = 0; i < out.length; i++) bin += String.fromCharCode(out[i]);
+    return { dataUrl: `data:image/jpeg;base64,${btoa(bin)}`, padded: true };
+  } catch (e) {
+    console.warn("pad failed, using original:", e);
+    return { dataUrl, padded: false };
+  }
+}
+
 interface QcResult {
   pass: boolean;
   failures: string[];
@@ -123,7 +146,10 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { vehicleId, teamId: bodyTeamId } = await req.json();
+    const { vehicleId, teamId: bodyTeamId, sourcePhotoId, mirrorSource } = await req.json();
+    if (sourcePhotoId !== undefined && (typeof sourcePhotoId !== "string" || !/^[0-9a-f-]{36}$/i.test(sourcePhotoId))) {
+      return json({ success: false, error: "Invalid sourcePhotoId" }, 400);
+    }
     if (!vehicleId) return json({ success: false, error: "vehicleId is required" }, 400);
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -213,7 +239,14 @@ serve(async (req) => {
       dimRank(a) - dimRank(b) ||
       (b.quality_score ?? 0) - (a.quality_score ?? 0)
     );
-    const source = pool[0];
+    let source = pool[0];
+    if (sourcePhotoId) {
+      const { data: isSaOverride } = await supabase.rpc("is_super_admin", { check_user_id: userId });
+      if (isSaOverride !== true) return json({ success: false, error: "Only Exotiq support can pick a source photo" }, 403);
+      const picked = photos.find((p) => p.id === sourcePhotoId);
+      if (!picked) return json({ success: false, error: "Source photo not found on this vehicle" }, 400);
+      source = picked;
+    }
     if (!source?.url) {
       return json(
         { success: false, error: "Add a 45° front driver-side photo first", needsSourcePhoto: true },
@@ -259,11 +292,14 @@ serve(async (req) => {
       return json({ success: false, error: "Could not load the source photo" }, 500);
     }
     let mirrored = false;
-    if (source.detected_angle === "rear_quarter" || source.detected_angle === "side_right") {
+    if ((sourcePhotoId && mirrorSource === true) || source.detected_angle === "rear_quarter" || source.detected_angle === "right_side") {
       const m = await mirrorDataUrl(sourceDataUrl);
       sourceDataUrl = m.dataUrl;
       mirrored = m.mirrored;
     }
+    const padRes = await padToLandscape(sourceDataUrl);
+    sourceDataUrl = padRes.dataUrl;
+    if (padRes.padded) console.log("source padded to landscape", { jobId: job.id });
 
     // Render via Nano Banana (edit-style: source photo as reference)
     const renderRes = await fetch(AI_GATEWAY, {
