@@ -370,6 +370,7 @@ serve(async (req) => {
         url: imageUrl,
         photo_type: "exterior",
         display_order: 90 + attempt,
+        is_visible: false,
         detected_angle: "front_quarter",
         source: "studio_render",
         generation_prompt: prompt,
@@ -432,6 +433,7 @@ serve(async (req) => {
     }
 
     // QC passed — promote this render to hero at display_order 0
+    await supabase.from("vehicle_photos").update({ photo_type: "exterior", is_visible: false }).eq("vehicle_id", vehicleId).eq("photo_type", "hero").eq("source", "studio_render");
     await supabase.from("vehicle_photos").update({ photo_type: "exterior" }).eq("vehicle_id", vehicleId).eq("photo_type", "hero");
     await supabase
       .from("vehicle_photos")
@@ -440,7 +442,7 @@ serve(async (req) => {
       .eq("display_order", 0);
     await supabase
       .from("vehicle_photos")
-      .update({ photo_type: "hero", display_order: 0 })
+      .update({ photo_type: "hero", display_order: 0, is_visible: true })
       .eq("id", photoRecord.id);
 
     await supabase.from("vehicles").update({ image_url: imageUrl }).eq("id", vehicleId);
