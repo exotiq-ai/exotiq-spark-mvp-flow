@@ -384,6 +384,7 @@ export type Database = {
           deposit_card_requested_at: string | null
           deposit_cents_snapshot: number
           deposit_hold_attempt: number
+          deposit_hold_cents: number | null
           discount_amount: number | null
           discount_reason: string | null
           dropoff_location: string | null
@@ -393,6 +394,7 @@ export type Database = {
           exotiq_leg_attempt: number
           exotiq_payment_intent_id: string | null
           expiry_warning_sent_at: string | null
+          fee_model_version: number
           gas_fee: number | null
           gas_fee_waived: boolean | null
           google_calendar_event_id: string | null
@@ -431,14 +433,17 @@ export type Database = {
           return_odometer: number | null
           security_deposit_amount: number | null
           security_deposit_status: string | null
+          service_fee_cents: number | null
           start_date: string
           state_fee_cents: number
           status: string | null
           subtotal: number
           tax_amount: number
           tax_inclusive: boolean
+          tax_lines: Json | null
           tax_rate_percent: number
           team_id: string | null
+          terms_consent_status: string | null
           total_value: number
           updated_at: string | null
           user_id: string
@@ -467,6 +472,7 @@ export type Database = {
           deposit_card_requested_at?: string | null
           deposit_cents_snapshot?: number
           deposit_hold_attempt?: number
+          deposit_hold_cents?: number | null
           discount_amount?: number | null
           discount_reason?: string | null
           dropoff_location?: string | null
@@ -476,6 +482,7 @@ export type Database = {
           exotiq_leg_attempt?: number
           exotiq_payment_intent_id?: string | null
           expiry_warning_sent_at?: string | null
+          fee_model_version?: number
           gas_fee?: number | null
           gas_fee_waived?: boolean | null
           google_calendar_event_id?: string | null
@@ -514,14 +521,17 @@ export type Database = {
           return_odometer?: number | null
           security_deposit_amount?: number | null
           security_deposit_status?: string | null
+          service_fee_cents?: number | null
           start_date: string
           state_fee_cents?: number
           status?: string | null
           subtotal?: number
           tax_amount?: number
           tax_inclusive?: boolean
+          tax_lines?: Json | null
           tax_rate_percent?: number
           team_id?: string | null
+          terms_consent_status?: string | null
           total_value: number
           updated_at?: string | null
           user_id: string
@@ -550,6 +560,7 @@ export type Database = {
           deposit_card_requested_at?: string | null
           deposit_cents_snapshot?: number
           deposit_hold_attempt?: number
+          deposit_hold_cents?: number | null
           discount_amount?: number | null
           discount_reason?: string | null
           dropoff_location?: string | null
@@ -559,6 +570,7 @@ export type Database = {
           exotiq_leg_attempt?: number
           exotiq_payment_intent_id?: string | null
           expiry_warning_sent_at?: string | null
+          fee_model_version?: number
           gas_fee?: number | null
           gas_fee_waived?: boolean | null
           google_calendar_event_id?: string | null
@@ -597,14 +609,17 @@ export type Database = {
           return_odometer?: number | null
           security_deposit_amount?: number | null
           security_deposit_status?: string | null
+          service_fee_cents?: number | null
           start_date?: string
           state_fee_cents?: number
           status?: string | null
           subtotal?: number
           tax_amount?: number
           tax_inclusive?: boolean
+          tax_lines?: Json | null
           tax_rate_percent?: number
           team_id?: string | null
+          terms_consent_status?: string | null
           total_value?: number
           updated_at?: string | null
           user_id?: string
@@ -1891,6 +1906,76 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      legal_assents: {
+        Row: {
+          accepted_at: string
+          booking_id: string | null
+          booking_ref: string | null
+          checkbox_text_hash: string
+          created_at: string
+          doc_id: string
+          doc_version: string
+          id: string
+          ip_address: string | null
+          renter_email: string
+          storefront_path: string | null
+          team_id: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          accepted_at?: string
+          booking_id?: string | null
+          booking_ref?: string | null
+          checkbox_text_hash: string
+          created_at?: string
+          doc_id: string
+          doc_version: string
+          id?: string
+          ip_address?: string | null
+          renter_email: string
+          storefront_path?: string | null
+          team_id?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          accepted_at?: string
+          booking_id?: string | null
+          booking_ref?: string | null
+          checkbox_text_hash?: string
+          created_at?: string
+          doc_id?: string
+          doc_version?: string
+          id?: string
+          ip_address?: string | null
+          renter_email?: string
+          storefront_path?: string | null
+          team_id?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legal_assents_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "booking_payment_summary"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "legal_assents_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "legal_assents_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "deposit_ledger"
+            referencedColumns: ["booking_id"]
+          },
+        ]
       }
       legal_document_versions: {
         Row: {
@@ -5593,6 +5678,7 @@ export type Database = {
           default_mileage_limit: number | null
           default_security_deposit: number
           deposit_override_cents: number | null
+          fuel_type: string | null
           id: string
           image_url: string | null
           last_known_name: string | null
@@ -5638,6 +5724,7 @@ export type Database = {
           default_mileage_limit?: number | null
           default_security_deposit?: number
           deposit_override_cents?: number | null
+          fuel_type?: string | null
           id?: string
           image_url?: string | null
           last_known_name?: string | null
@@ -5683,6 +5770,7 @@ export type Database = {
           default_mileage_limit?: number | null
           default_security_deposit?: number
           deposit_override_cents?: number | null
+          fuel_type?: string | null
           id?: string
           image_url?: string | null
           last_known_name?: string | null

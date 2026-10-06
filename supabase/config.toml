@@ -271,3 +271,6 @@ verify_jwt = false
 
 [functions.admin-card-capture-link]
 verify_jwt = true
+
+[functions.rent-log-assent]
+verify_jwt = false

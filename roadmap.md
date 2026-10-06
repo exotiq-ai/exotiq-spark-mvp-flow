@@ -19,3 +19,10 @@
 - [x] Build and inspect the silent mobile proof cut
 - [x] Generate seven separate Rari lines and render the final 9:16 reel
 - [x] Verify H.264/AAC output, 1080×1920 dimensions, scene readability, and zero data mutations
+
+## Checkout compliance Track B — 2026-10-06
+- [x] ARK 6% tax, schema foundation, assent log + endpoint, handback note
+- [ ] Quote v2 fields + Protect kill switch (with renter MP-30)
+- [ ] Banned-words sweep, Stripe terms consent (needs Stripe Terms URL)
+- [ ] Publish guardrails + 14-day notice flow
+- [ ] v2 split release (with MP-31)
