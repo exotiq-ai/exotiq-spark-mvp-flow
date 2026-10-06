@@ -146,7 +146,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { vehicleId, teamId: bodyTeamId, sourcePhotoId } = await req.json();
+    const { vehicleId, teamId: bodyTeamId, sourcePhotoId, mirrorSource } = await req.json();
     if (sourcePhotoId !== undefined && (typeof sourcePhotoId !== "string" || !/^[0-9a-f-]{36}$/i.test(sourcePhotoId))) {
       return json({ success: false, error: "Invalid sourcePhotoId" }, 400);
     }
@@ -292,7 +292,7 @@ serve(async (req) => {
       return json({ success: false, error: "Could not load the source photo" }, 500);
     }
     let mirrored = false;
-    if (source.detected_angle === "rear_quarter" || source.detected_angle === "side_right") {
+    if ((sourcePhotoId && mirrorSource === true) || source.detected_angle === "rear_quarter" || source.detected_angle === "right_side") {
       const m = await mirrorDataUrl(sourceDataUrl);
       sourceDataUrl = m.dataUrl;
       mirrored = m.mirrored;
