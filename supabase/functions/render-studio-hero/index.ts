@@ -299,8 +299,58 @@ serve(async (req) => {
       return json({ success: false, error: "No image generated" }, 500);
     }
 
+    // Save every render (pass or fail) so failed attempts are reviewable by
+    // support and included in the escalation trail. Failed renders stay
+    // non-hero; only a QC pass promotes to hero.
+    const [header, b64] = renderImageUrl.split(",");
+    const mime = header.match(/data:([^;]+)/)?.[1] || "image/png";
+    const ext = mime.split("/")[1] || "png";
+    const bytes = base64ToBytes(b64);
+    const storagePath = `${teamId}/vehicles/${vehicleId}/studio-hero-${Date.now()}.${ext}`;
+
+    const { error: upErr } = await supabase.storage
+      .from("vehicle-photos")
+      .upload(storagePath, bytes, { contentType: mime, cacheControl: "31536000", upsert: false });
+    if (upErr) {
+      await supabase.from("hero_render_jobs").update({ status: "failed", error: "storage_upload_failed" }).eq("id", job.id);
+      return json({ success: false, error: "Failed to save render" }, 500);
+    }
+
+    const { data: pub } = supabase.storage.from("vehicle-photos").getPublicUrl(storagePath);
+    const imageUrl = pub.publicUrl;
+
+    const { data: photoRecord, error: insErr } = await supabase
+      .from("vehicle_photos")
+      .insert({
+        vehicle_id: vehicleId,
+        user_id: userId,
+        team_id: teamId,
+        storage_path: storagePath,
+        url: imageUrl,
+        photo_type: "exterior",
+        display_order: 90 + attempt,
+        detected_angle: "front_quarter",
+        source: "studio_render",
+        generation_prompt: prompt,
+        is_vehicle_confirmed: true,
+        quality_score: 95,
+        quality_issues: [],
+        original_filename: `studio-hero-${vehicle.make}-${vehicle.model}-attempt${attempt}.${ext}`,
+        file_size_bytes: bytes.length,
+        mime_type: mime,
+        analyzed_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    if (insErr) {
+      console.error("insert error:", insErr);
+      await supabase.from("hero_render_jobs").update({ status: "failed", error: "db_insert_failed" }).eq("id", job.id);
+      return json({ success: false, error: "Failed to save photo record" }, 500);
+    }
+
     // QC gate
-    await supabase.from("hero_render_jobs").update({ status: "qc" }).eq("id", job.id);
+    await supabase.from("hero_render_jobs").update({ status: "qc", render_photo_id: photoRecord.id }).eq("id", job.id);
     const qc = await runQc(LOVABLE_API_KEY, sourceDataUrl, renderImageUrl);
     logTransfer({ team_id: teamId, user_id: userId, caller: "render-studio-hero-qc", model: QC_MODEL, provider: "Google (Gemini via Lovable AI Gateway)", provider_region: "United States / Global", response_bytes: 0, status: "ok" }).catch(() => {});
 
@@ -334,61 +384,17 @@ serve(async (req) => {
       });
     }
 
-    // QC passed — upload render and promote to hero
-    const [header, b64] = renderImageUrl.split(",");
-    const mime = header.match(/data:([^;]+)/)?.[1] || "image/png";
-    const ext = mime.split("/")[1] || "png";
-    const bytes = base64ToBytes(b64);
-    const storagePath = `${teamId}/vehicles/${vehicleId}/studio-hero-${Date.now()}.${ext}`;
-
-    const { error: upErr } = await supabase.storage
-      .from("vehicle-photos")
-      .upload(storagePath, bytes, { contentType: mime, cacheControl: "31536000", upsert: false });
-    if (upErr) {
-      await supabase.from("hero_render_jobs").update({ status: "failed", error: "storage_upload_failed" }).eq("id", job.id);
-      return json({ success: false, error: "Failed to save render" }, 500);
-    }
-
-    const { data: pub } = supabase.storage.from("vehicle-photos").getPublicUrl(storagePath);
-    const imageUrl = pub.publicUrl;
-
-    // Demote existing heroes, then insert the studio hero at display_order 0
+    // QC passed — promote this render to hero at display_order 0
     await supabase.from("vehicle_photos").update({ photo_type: "exterior" }).eq("vehicle_id", vehicleId).eq("photo_type", "hero");
     await supabase
       .from("vehicle_photos")
       .update({ display_order: 1 })
       .eq("vehicle_id", vehicleId)
       .eq("display_order", 0);
-
-    const { data: photoRecord, error: insErr } = await supabase
+    await supabase
       .from("vehicle_photos")
-      .insert({
-        vehicle_id: vehicleId,
-        user_id: userId,
-        team_id: teamId,
-        storage_path: storagePath,
-        url: imageUrl,
-        photo_type: "hero",
-        display_order: 0,
-        detected_angle: "front_quarter",
-        source: "studio_render",
-        generation_prompt: prompt,
-        is_vehicle_confirmed: true,
-        quality_score: 95,
-        quality_issues: [],
-        original_filename: `studio-hero-${vehicle.make}-${vehicle.model}.${ext}`,
-        file_size_bytes: bytes.length,
-        mime_type: mime,
-        analyzed_at: new Date().toISOString(),
-      })
-      .select()
-      .single();
-
-    if (insErr) {
-      console.error("insert error:", insErr);
-      await supabase.from("hero_render_jobs").update({ status: "failed", error: "db_insert_failed" }).eq("id", job.id);
-      return json({ success: false, error: "Failed to save photo record" }, 500);
-    }
+      .update({ photo_type: "hero", display_order: 0 })
+      .eq("id", photoRecord.id);
 
     await supabase.from("vehicles").update({ image_url: imageUrl }).eq("id", vehicleId);
     await supabase
