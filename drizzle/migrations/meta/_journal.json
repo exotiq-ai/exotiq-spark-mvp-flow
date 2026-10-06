@@ -15,6 +15,13 @@
       "when": 1791245076895,
       "tag": "0001_fix_s8_photo_angles",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791245193617,
+      "tag": "0002_reset_s8_test_render_jobs",
+      "breakpoints": true
     }
   ]
 }

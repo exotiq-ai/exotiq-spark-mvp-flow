@@ -438,7 +438,7 @@ async function escalate(
         type: "studio_hero_escalation",
         title: "Studio photo needs a hand",
         message: `${label} failed ${attempts} studio renders. Review and hand-finish the hero photo.`,
-        link: `/fleet/${vehicle.id}`,
+        ref: `/fleet/${vehicle.id}`,
       });
     }
   } catch (e) {
