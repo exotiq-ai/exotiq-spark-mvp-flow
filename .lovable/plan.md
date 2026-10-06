@@ -34,13 +34,13 @@ day        service fee only. Flipped together with renter app MP-31.
 
 Each step ships without changing what live renters pay until "Release day".
 
-## Questions to confirm (defaults in brackets)
+## Confirmed decisions
 
-1. ARK's Miami taxes: FL 6% sales tax, Miami-Dade 1% surtax, FL $2/day rental surcharge? [use these, operator can edit]
-2. Live listings that fail the new tax/deposit check: flag only, or unpublish? [flag only, 14-day notice]
-3. Service-fee recovery: exact gross-up on the Exotiq charge only? [yes]
-4. Assent log retention: how long? [7 years, matching booking records — needs Privacy Notice line from counsel]
-5. Rename of the "exotiq" demo operator: you're doing it, or should I? [you]
+1. ARK's Miami taxes: FL 6% sales tax plus FL $2/day rental surcharge (no separate county surtax line). Operator can edit.
+2. Live listings that fail the new tax/deposit check: go-ahead to enforce — flagged to operator and Super Admin, with a 14-day notice before unpublishing.
+3. Service-fee recovery: exact gross-up on the Exotiq charge only.
+4. Assent log retention: 7 years, matching booking records. A handback note for Claude Code lists the Privacy Notice additions needed (what's logged: IP, device, email, consent text version; why; retention; who sees it).
+5. Demo operator rename: already done ("Exotic Demo Fleet"). No action.
 
 ## Technical details
 
