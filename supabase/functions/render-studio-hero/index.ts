@@ -185,18 +185,26 @@ serve(async (req) => {
       );
     }
 
-    // Pick the best source photo: front_quarter first, highest quality
+    // Pick the best source photo: front_quarter first, highest quality.
+    // Landscape photos are strongly preferred — portrait shots and collages
+    // (taller than wide) make poor studio render sources.
     const { data: candidates } = await supabase
       .from("vehicle_photos")
-      .select("id, url, detected_angle, quality_score, source")
+      .select("id, url, detected_angle, quality_score, source, width, height")
       .eq("vehicle_id", vehicleId)
       .neq("source", "studio_render")
       .order("quality_score", { ascending: false });
-    const photos = candidates ?? [];
+    const photos = (candidates ?? []) as Array<{
+      id: string; url: string; detected_angle: string | null;
+      quality_score: number | null; source: string | null;
+      width: number | null; height: number | null;
+    }>;
+    const landscape = photos.filter((p) => !p.width || !p.height || p.width >= p.height);
+    const pool = landscape.length > 0 ? landscape : photos;
     const source =
-      photos.find((p) => p.detected_angle === "front_quarter") ??
-      photos.find((p) => p.detected_angle === "front") ??
-      photos[0];
+      pool.find((p) => p.detected_angle === "front_quarter") ??
+      pool.find((p) => p.detected_angle === "front") ??
+      pool[0];
     if (!source?.url) {
       return json(
         { success: false, error: "Add a 45° front driver-side photo first", needsSourcePhoto: true },
