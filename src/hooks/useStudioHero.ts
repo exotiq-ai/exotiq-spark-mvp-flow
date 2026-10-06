@@ -41,6 +41,7 @@ export const useStudioHero = (vehicleId: string | undefined) => {
         .from('hero_render_jobs')
         .select('id, vehicle_id, status, attempt_number, qc_failure_reasons, error, created_at')
         .eq('vehicle_id', vehicleId!)
+        .is('archived_at', null)
         .order('created_at', { ascending: false });
       if (error) throw error;
       return (data ?? []) as StudioHeroJob[];

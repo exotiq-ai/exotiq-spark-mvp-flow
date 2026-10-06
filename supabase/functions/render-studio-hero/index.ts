@@ -161,7 +161,10 @@ serve(async (req) => {
       .eq("team_id", teamId)
       .eq("user_id", userId)
       .maybeSingle();
-    if (!membership) return json({ success: false, error: "Not a member of this team" }, 403);
+    if (!membership) {
+      const { data: isSa } = await supabase.rpc("is_super_admin", { check_user_id: userId });
+      if (isSa !== true) return json({ success: false, error: "Not a member of this team" }, 403);
+    }
 
     const { data: team } = await supabase
       .from("teams")
@@ -176,7 +179,8 @@ serve(async (req) => {
     const { count: attemptCount } = await supabase
       .from("hero_render_jobs")
       .select("id", { count: "exact", head: true })
-      .eq("vehicle_id", vehicleId);
+      .eq("vehicle_id", vehicleId)
+      .is("archived_at", null);
     const attempt = (attemptCount ?? 0) + 1;
     if (attempt > STUDIO_HERO_MAX_ATTEMPTS) {
       return json(
@@ -222,6 +226,7 @@ serve(async (req) => {
       .from("hero_render_jobs")
       .select("qc_failure_reasons")
       .eq("vehicle_id", vehicleId)
+      .is("archived_at", null)
       .eq("status", "failed");
     const priorFailures = new Set<string>();
     (priorJobs ?? []).forEach((j) => (j.qc_failure_reasons ?? []).forEach((f) => priorFailures.add(f)));
@@ -352,6 +357,12 @@ serve(async (req) => {
     // QC gate
     await supabase.from("hero_render_jobs").update({ status: "qc", render_photo_id: photoRecord.id }).eq("id", job.id);
     const qc = await runQc(LOVABLE_API_KEY, sourceDataUrl, renderImageUrl);
+    // Deterministic orientation gate — the vision reviewer can miss portrait output.
+    const dims = imageDims(renderImageUrl);
+    if (dims && dims.h >= dims.w) {
+      qc.pass = false;
+      qc.failures = Array.from(new Set([...(qc.failures ?? []), "wrong_orientation"]));
+    }
     logTransfer({ team_id: teamId, user_id: userId, caller: "render-studio-hero-qc", model: QC_MODEL, provider: "Google (Gemini via Lovable AI Gateway)", provider_region: "United States / Global", response_bytes: 0, status: "ok" }).catch(() => {});
 
     if (!qc.pass) {
@@ -458,4 +469,26 @@ async function escalate(
   } catch (e) {
     console.error("escalation email failed:", e);
   }
+}
+
+// Reads width/height from a base64 PNG/JPEG/WebP data URL without decoding pixels.
+function imageDims(dataUrl: string): { w: number; h: number } | null {
+  try {
+    const b64 = dataUrl.split(",")[1];
+    if (!b64) return null;
+    const bin = atob(b64.slice(0, 200000));
+    const b = (i: number) => bin.charCodeAt(i);
+    if (b(0) === 0x89 && b(1) === 0x50) return { w: (b(16) << 24) | (b(17) << 16) | (b(18) << 8) | b(19), h: (b(20) << 24) | (b(21) << 16) | (b(22) << 8) | b(23) };
+    if (bin.slice(0, 4) === "RIFF" && bin.slice(12, 16) === "VP8X") return { w: 1 + (b(24) | (b(25) << 8) | (b(26) << 16)), h: 1 + (b(27) | (b(28) << 8) | (b(29) << 16)) };
+    if (b(0) === 0xff && b(1) === 0xd8) {
+      let i = 2;
+      while (i < bin.length) {
+        if (b(i) !== 0xff) return null;
+        const m = b(i + 1), len = (b(i + 2) << 8) | b(i + 3);
+        if (m >= 0xc0 && m <= 0xcf && m !== 0xc4 && m !== 0xc8 && m !== 0xcc) return { h: (b(i + 5) << 8) | b(i + 6), w: (b(i + 7) << 8) | b(i + 8) };
+        i += 2 + len;
+      }
+    }
+    return null;
+  } catch { return null; }
 }

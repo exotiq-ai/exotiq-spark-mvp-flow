@@ -1543,6 +1543,7 @@ export type Database = {
       }
       hero_render_jobs: {
         Row: {
+          archived_at: string | null
           attempt_number: number
           created_at: string
           error: string | null
@@ -1560,6 +1561,7 @@ export type Database = {
           vehicle_id: string
         }
         Insert: {
+          archived_at?: string | null
           attempt_number?: number
           created_at?: string
           error?: string | null
@@ -1577,6 +1579,7 @@ export type Database = {
           vehicle_id: string
         }
         Update: {
+          archived_at?: string | null
           attempt_number?: number
           created_at?: string
           error?: string | null
@@ -7133,6 +7136,20 @@ export type Database = {
       super_admin_has_permission: {
         Args: { check_user_id?: string; permission_name: string }
         Returns: boolean
+      }
+      super_admin_reset_studio_hero: {
+        Args: { _vehicle_id: string }
+        Returns: number
+      }
+      super_admin_studio_hero_status: {
+        Args: { _team_id: string }
+        Returns: {
+          attempts: number
+          label: string
+          last_at: string
+          last_status: string
+          vehicle_id: string
+        }[]
       }
       team_active_vehicle_count: { Args: { _team_id: string }; Returns: number }
       team_can_transact: { Args: { _team_id: string }; Returns: boolean }

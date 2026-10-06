@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Copy, Mail, Phone } from 'lucide-react';
 import { SuperAdminPeopleSection } from './SuperAdminPeopleSection';
 import { TenantLifecycleSection } from './TenantLifecycleSection';
+import { StudioHeroSupportSection } from './StudioHeroSupportSection';
 
 interface Props {
   teamId: string | null;
@@ -196,7 +197,7 @@ export const TenantDetailDrawer = ({ teamId, onClose }: Props) => {
                 billingStatus={(detail as any).billing_status ?? null}
               />
 
-
+              <StudioHeroSupportSection teamId={teamId as string} />
 
               <div className="flex gap-2 pt-2">
                 <Button variant="outline" size="sm" onClick={copySummary} className="gap-2">
