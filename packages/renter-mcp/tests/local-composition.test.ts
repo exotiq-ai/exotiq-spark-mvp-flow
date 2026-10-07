@@ -7,8 +7,8 @@ import {Client,StreamableHTTPClientTransport} from '@modelcontextprotocol/client
 import {createMcpApplication} from '../src/server.ts';
 import {createNodeServer} from '../src/node-http.ts';
 import type {AuthConfig} from '../src/auth.ts';
-import {normalizeAuthority,canonicalQuoteWindow,stableJson,createQuote,SupabaseQuoteStore,type QuoteSnapshot} from '../../../supabase/functions/_shared/external-booking/quotes.ts';
-import {quoteResultFromSnapshot,quoteResponse} from '../../../supabase/functions/_shared/external-booking/quote-routes.ts';
+import {quoteResponse} from '../../../supabase/functions/_shared/external-booking/quote-routes.ts';
+import {record} from '../src/http.ts';
 
 const issuer='https://composition-id.example.test';
 const mcpResource='https://composition-mcp.example.test/mcp';
@@ -106,11 +106,10 @@ describe.skipIf(!manifest)('owned local SQL → production API → production MC
   let as:Awaited<ReturnType<typeof localAuthorizationServer>>;
   let listener:ReturnType<typeof createNodeServer>,local:string;
   let runtime:ReturnType<typeof createRuntime>;
-  let lab:{rpc(name:string,args:Record<string,unknown>):Promise<{data:unknown;error:unknown}>;setFixtureAdmission(enabled:boolean):Promise<void>;evidence:Record<string,unknown>};
+  let lab:{rpc(name:string,args:Record<string,unknown>):Promise<{data:unknown;error:unknown}>;setFixtureAdmission(enabled:boolean):Promise<void>;setFixtureGlobalAdmission(enabled:boolean):Promise<void>;evidence:Record<string,unknown>};
   const bridgeKey=new Uint8Array(32).fill(27);
   const rpcNames:string[]=[];
   const rpcFailures:Array<{name:string;error:unknown}>=[];
-  const quoteTiming:unknown[]=[];
   const apiObservations:Array<{method:string;status:number;duration_ms:number}>=[];
   const supabase='https://abcdefghijklmnopqrst.supabase.co';
   const agentScopes='catalog:read quotes:create rental_requests:create rental_requests:read';
@@ -130,20 +129,6 @@ describe.skipIf(!manifest)('owned local SQL → production API → production MC
       const name=target.pathname.split('/').at(-1)!;rpcNames.push(name);
       const reply=await lab.rpc(name,JSON.parse(String(init.body)));
       if(reply.error)rpcFailures.push({name,error:reply.error});
-      if(name==='external_create_quote'&&reply.data&&typeof reply.data==='object'){
-        const row=(Array.isArray(reply.data)?reply.data[0]:reply.data) as Record<string,unknown>;
-        const authority=row.authority as Record<string,unknown>|undefined;
-        const args=JSON.parse(String(init.body));
-        const diagnostic:Record<string,unknown>={created_at:row.created_at,expires_at:row.expires_at,availability_checked_at:authority?.availability_checked_at,current_time:new Date().toISOString(),keys:Object.keys(row),principalMatches:['subject','customer_id','issuer','audience','client_id'].map(key=>row[key]===args['_'+key]),hashShapes:['pricing_version','terms_version','terms_hash'].map(key=>typeof row[key]==='string'&&/^[a-f0-9]{64}$/.test(String(row[key])))};
-        try{
-          const normalized=normalizeAuthority(authority);diagnostic.normalized=true;
-          const input={operator_id:args._operator_id,vehicle_id:args._vehicle_id,pickup_at:args._pickup_at,return_at:args._return_at,timezone:args._timezone,selected_options:args._selected_options};
-          diagnostic.windowMatches=stableJson(normalized.window)===stableJson(canonicalQuoteWindow(input));
-          try{await createQuote(input,{subject:args._subject,customerId:args._customer_id,issuer:args._issuer,audience:args._audience,clientId:args._client_id,scopes:['quotes:create']},new SupabaseQuoteStore({rpc:async()=>reply}),Date.now());diagnostic.guard=true;}catch{diagnostic.guard=false;}
-          try{quoteResultFromSnapshot({...row,authority:normalized,principal:{subject:row.subject,customerId:row.customer_id,issuer:row.issuer,audience:row.audience,clientId:row.client_id}} as unknown as QuoteSnapshot,customerOrigin,Date.now());diagnostic.projected=true;}catch{diagnostic.projected=false;}
-        }catch{diagnostic.normalized=false;}
-        quoteTiming.push(diagnostic);
-      }
       return Response.json(reply.error??reply.data,{status:reply.error?400:200});
     };
     runtime=createRuntime(config,apiFetch,{keyResolver:createRemoteJWKSet(new URL(issuer+'/jwks'),{[customFetch]:as.fetch})});
@@ -187,11 +172,11 @@ describe.skipIf(!manifest)('owned local SQL → production API → production MC
   for(const [market,era,operatorIndex,vehicleIndex]of profiles)it(market+' × '+era+' creates through hosted consent, replays and retains disabled-write continuity',async()=>{
     const clientId=era+'-'+market,subject='synthetic-'+clientId+'-'+run,email=clientId+'-'+run+'@example.invalid';
     const operator='a1200000-0000-4000-8000-'+String(operatorIndex).padStart(12,'0'),vehicle='b1200000-0000-4000-8000-'+String(vehicleIndex).padStart(12,'0');
-    const window={operator_id:operator,vehicle_id:vehicle,pickup_at:'2035-01-01T10:00:00-05:00',return_at:'2035-01-03T10:00:00-05:00',timezone:'America/New_York'};
+    const window={operator_id:operator,vehicle_id:vehicle,pickup_at:'2035-02-01T10:00:00-05:00',return_at:'2035-02-03T10:00:00-05:00',timezone:'America/New_York'};
     const bearer=await as.token(clientId,subject,mcpResource,agentScopes);
     const client=new Client({name:'local-'+clientId,version:'1.0.0'},{versionNegotiation:{mode:era==='modern'?{pin:'2026-07-28'}:'legacy'}});
     await client.connect(new StreamableHTTPClientTransport(new URL(mcpResource),{fetch:clientFetch,requestInit:{headers:{authorization:'Bearer '+bearer}},onInsufficientScope:'throw'}));
-    async function tool(name:string,args:Record<string,unknown>){const response=await client.callTool({name,arguments:args});expect(response.isError,JSON.stringify({tool:name,code:response.structuredContent?.code,rpcFailures,quoteTiming,apiObservations})).not.toBe(true);return response.structuredContent as Record<string,unknown>;}
+    async function tool(name:string,args:Record<string,unknown>){const response=await client.callTool({name,arguments:args});expect(response.isError,JSON.stringify({tool:name,code:record(response.structuredContent)?response.structuredContent.code:undefined,rpcFailures,apiObservations})).not.toBe(true);return response.structuredContent as Record<string,unknown>;}
     try{
       expect(client.getProtocolEra()).toBe(era);
       const onboard=await hosted(subject,email,'/v1/customers/operator-links','POST',{operator_id:operator,full_name:'Synthetic local renter',phone:'2025550101',consented:true});expect(onboard.status,JSON.stringify(rpcFailures)).toBe(201);
@@ -202,13 +187,19 @@ describe.skipIf(!manifest)('owned local SQL → production API → production MC
       expect(await tool('submit_rental_request',args)).toMatchObject({status:'awaiting_customer_consent'});
       const review=await hosted(subject,email,'/v1/quotes/'+quote.quote_id,'GET');expect(review.status).toBe(200);expect((await review.json() as {quote:{terms_hash:string}}).quote.terms_hash).toBe(quote.terms_hash);
       const consent=await hosted(subject,email,'/v1/quotes/'+quote.quote_id+'/consents','POST',{terms_hash:quote.terms_hash,action:'rental_requests:create',action_scopes:['rental_requests:read']});expect(consent.status).toBe(201);expect(await consent.json()).not.toHaveProperty('consent_receipt_id');
+      const laterWindow={...window,pickup_at:'2035-02-10T10:00:00-05:00',return_at:'2035-02-12T10:00:00-05:00'},laterQuote=await tool('create_quote',{...laterWindow,selected_options:['premium']});
+      const laterConsent=await hosted(subject,email,'/v1/quotes/'+laterQuote.quote_id+'/consents','POST',{terms_hash:laterQuote.terms_hash,action:'rental_requests:create',action_scopes:['rental_requests:read']});expect(laterConsent.status).toBe(201);expect(await laterConsent.json()).not.toHaveProperty('consent_receipt_id');
       const created=await tool('submit_rental_request',args);expect(created).toMatchObject({status:'pending_documents',next_action:'verify_identity'});expect(created).not.toHaveProperty('consent_receipt_id');
+      await lab.setFixtureGlobalAdmission(false);
+      const globalDenied=await client.callTool({name:'create_quote',arguments:{...laterWindow,selected_options:['premium']}});expect(globalDenied.isError).toBe(true);expect(globalDenied.structuredContent).toMatchObject({code:'external_writes_disabled'});
+      const requestDenied=await client.callTool({name:'submit_rental_request',arguments:{quote_id:laterQuote.quote_id,idempotency_key:key+'.new'}});expect(requestDenied.isError).toBe(true);expect(requestDenied.structuredContent).toMatchObject({code:'external_writes_disabled'});
       await lab.setFixtureAdmission(false);
-      const denied=await client.callTool({name:'create_quote',arguments:{...window,selected_options:['premium']}});expect(denied.isError).toBe(true);expect(denied.structuredContent).toMatchObject({code:'external_writes_disabled'});
+      const denied=await client.callTool({name:'create_quote',arguments:{...window,selected_options:['premium']}});expect(denied.isError).toBe(true);expect(denied.structuredContent).toMatchObject({code:'not_found'});
+      expect(await tool('search_vehicles',{operator_id:operator})).toMatchObject({items:[]});
       expect(await tool('submit_rental_request',args)).toEqual(created);
       const status=await tool('get_request_status',{ref:created.ref});expect(status).toMatchObject({status:'pending_documents',next_action:'verify_identity',links:{customer_account:customerOrigin+'/agent/account/'+operator+'?ref='+created.ref}});
       expect((status.links as Record<string,unknown>).identity).toBeUndefined();expect((status.links as Record<string,unknown>).checkout_handoff).toBeUndefined();
-      expect(rpcNames).toContain('external_hosted_authorize_quote');expect(rpcNames).toContain('external_submit_rental_request_result');
+      expect(rpcNames).toContain('external_hosted_authorize_quote_scopes');expect(rpcNames).toContain('external_submit_rental_request_result_customer');
     }finally{await lab.setFixtureAdmission(true);await client.close();}
   },180000);
 });
