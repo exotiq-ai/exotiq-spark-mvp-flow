@@ -35,6 +35,11 @@ export function createHandoffExtension(deps:HandoffDependencies){
   }
   if(match[2]==='review'){const result=await store.review(principal,hash);if(!validateContract('CustomerHandoffReviewResult',result).ok)throw new BookingApiError('upstream_unavailable');return jsonResponse(result);}
   if(!deps.provider)throw new BookingApiError('configuration_unavailable');
+  // Determine the persisted action before acquiring a mutable lease. The
+  // current provider must authorize that action, not just a status read.
+  const reviewed=await store.review(principal,hash);
+  if(!validateContract('CustomerHandoffReviewResult',reviewed).ok)throw new BookingApiError('upstream_unavailable');
+  await deps.auth.requirePrincipal(request,reviewed.action==='identity'?'identity:handoff':'checkout:handoff');
   const raw=await store.claim(principal,hash);
   if(raw.nonce_hash!==hash||!['identity','checkout'].includes(String(raw.action))||!['test','live'].includes(String(raw.mode))||typeof raw.claim_token!=='string'||typeof raw.confirmation_token!=='string'||typeof raw.booking_ref!=='string'||typeof raw.provider_attempt_key!=='string')throw new BookingApiError('upstream_unavailable');
   const claim=raw as unknown as ProviderClaim,provider=await deps.provider.resolve(claim),url=safeProviderUrl(provider.url,claim.action);
