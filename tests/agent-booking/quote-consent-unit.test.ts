@@ -54,7 +54,7 @@ describe('immutable persisted quote boundary', () => {
     const calls: unknown[] = [];
     const store = new SupabaseQuoteStore({ rpc: async (name, args) => { calls.push({ name, args }); return { data: null, error: { message: 'secret' } }; } });
     await expect(createQuote(request, principal, store, now)).rejects.toMatchObject({ code: 'upstream_unavailable' });
-    expect(calls[0].name).toBe('external_create_quote');
+    expect((calls[0] as { name: string }).name).toBe('external_create_quote');
     expect(JSON.stringify(calls)).not.toContain('total_cents');
   });
 });

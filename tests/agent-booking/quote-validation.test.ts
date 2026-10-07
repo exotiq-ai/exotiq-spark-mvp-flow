@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { validateQuoteForRequest } from '../../supabase/functions/_shared/external-booking/quote-validation';
-import { normalizeAuthority } from '../../supabase/functions/_shared/external-booking/quotes';
+import { normalizeAuthority, type QuoteAuthority } from '../../supabase/functions/_shared/external-booking/quotes';
 // Keep synthetic fixtures independent of the consent-unit suite's registration.
 const now = Date.parse('2026-10-07T12:00:00Z');
 const principal = { subject: 'synthetic-subject', customerId: '40000000-0000-4000-8000-000000000001', issuer: 'https://issuer.example.invalid', audience: 'exotiq-external', clientId: 'synthetic-client', scopes: ['rental_requests:create'] };
@@ -15,7 +15,7 @@ describe('quote request preconditions', () => {
     const refreshed = current(); refreshed.availability_checked_at = new Date(now + 1000).toISOString();
     const result = await validateQuoteForRequest(original, refreshed, principal, consent(), now + 1000);
     expect(result.outcome).toBe('valid');
-    expect(result.snapshot).toBe(original);
+    expect('snapshot' in result && result.snapshot).toBe(original);
   });
   it.each(['subject', 'customerId', 'issuer', 'audience', 'clientId'])('rejects different principal %s', async (key) => {
     expect((await validateQuoteForRequest(snapshot(), current(), { ...principal, [key]: 'other' }, consent(), now)).outcome).toBe('consent_mismatch');
@@ -30,14 +30,15 @@ describe('quote request preconditions', () => {
     expect((await validateQuoteForRequest(snapshot(), current(), principal, { ...consent(), expires_at: new Date(now).toISOString() }, now)).outcome).toBe('consent_mismatch');
   });
   it('detects any changed cent, price label, terms, options or rental window', async () => {
-    for (const update of [
+    const updates: ((authority: QuoteAuthority) => void)[] = [
       (a) => { a.pricing.deposit_cents = 1; },
       (a) => { a.pricing.daily_rate_cents = 10001; },
       (a) => { a.pricing.operator_tax_label = 'Changed tax'; },
       (a) => { a.terms.mileage_limit = 50; },
       (a) => { a.terms.cancellation_policy = 'Nonrefundable'; },
       (a) => { a.window.return_at = '2026-11-04T15:00:00.000Z'; },
-    ]) {
+    ];
+    for (const update of updates) {
       const changed = current(); update(changed);
       expect((await validateQuoteForRequest(snapshot(), changed, principal, consent(), now)).outcome).toBe('quote_changed');
     }
@@ -47,7 +48,7 @@ describe('quote request preconditions', () => {
     expect((await validateQuoteForRequest(snapshot(), { ...current(), availability: 'UNKNOWN' }, principal, consent(), now)).outcome).toBe('upstream_unavailable');
     expect((await validateQuoteForRequest(snapshot(), current(), principal, consent(), now + 31000)).outcome).toBe('upstream_unavailable');
     expect((await validateQuoteForRequest(snapshot(), current(), principal, consent(), NaN)).outcome).toBe('upstream_unavailable');
-    expect((await validateQuoteForRequest({ ...snapshot(), authority: null }, current(), principal, consent(), now)).outcome).toBe('upstream_unavailable');
+    expect((await validateQuoteForRequest({ ...snapshot(), authority: null as unknown as QuoteAuthority }, current(), principal, consent(), now)).outcome).toBe('upstream_unavailable');
     expect((await validateQuoteForRequest({ ...snapshot(), terms_hash: 'malformed' }, current(), principal, consent(), now)).outcome).toBe('upstream_unavailable');
   });
 });
