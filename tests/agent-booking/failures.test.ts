@@ -78,7 +78,7 @@ describe('safe availability and actual runtime quote composition',()=>{
   ])('checks fresh authoritative flags before quote persistence %j',async(options)=>{
     const {handler,calls}=runtime(options);
     const response=await handler(new Request('https://api.example.invalid/v1/quotes',{method:'POST',headers:{authorization:`Bearer ${await token()}`,'content-type':'application/json'},body:JSON.stringify(input)}));
-    expect(response.status).toBe(503);expect((await response.json()).error.code).toBe(options.code);
+    expect(response.status).toBe(503);expect((await response.json()).code).toBe(options.code);
     expect(calls.some(call=>call.name==='external_create_quote')).toBe(false);
     expect(calls.filter(call=>call.name==='external_read_operation_flags')).toHaveLength(1);
   });
