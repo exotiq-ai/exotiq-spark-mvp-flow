@@ -69,6 +69,21 @@ BEGIN
  PERFORM public.external_record_checkout_customer(bid,body->>'attempt_key','cus_synthetic');
  PERFORM public.external_record_checkout_session(bid,body->>'attempt_key','cs_test_synthetic');
  PERFORM public.external_record_handoff_provider_session(repeat('e',64),(claim->>'claim_token')::uuid,'checkout','cs_test_synthetic','test');
+ -- A paid-near-deadline session can have NO webhook evidence yet. Direct
+ -- expiration/cancellation must preserve occupancy for issued AND unknown
+ -- checkout attempts, independent of a running scheduler or grace interval.
+ UPDATE public.bookings SET status='payment_expired' WHERE id=bid;
+ IF (SELECT status FROM public.bookings WHERE id=bid)<>'pending_payment' THEN RAISE EXCEPTION 'issued checkout released inventory before provider reconciliation';END IF;
+ UPDATE public.bookings SET status='cancelled' WHERE id=bid;
+ IF (SELECT status FROM public.bookings WHERE id=bid)<>'pending_payment' THEN RAISE EXCEPTION 'issued checkout cancellation released inventory';END IF;
+ IF NOT EXISTS(SELECT FROM public.external_lifecycle_reconciliation_queue WHERE booking_id=bid AND reason='ambiguous_charge') THEN RAISE EXCEPTION 'unresolved checkout missing manual review';END IF;
+ -- Even a lost provider response with only the durable reservation is enough
+ -- to preserve the hold. Elapsed provider lifetime is not unpaid proof.
+ UPDATE public.bookings SET rental_checkout_session_ref=NULL,payment_due_at=clock_timestamp()-interval '1 minute' WHERE id=bid;
+ PERFORM public.external_queue_unresolved_checkout_batch(1);
+ UPDATE public.bookings SET status='payment_expired' WHERE id=bid;
+ IF (SELECT status FROM public.bookings WHERE id=bid)<>'pending_payment' THEN RAISE EXCEPTION 'unknown checkout attempt released inventory';END IF;
+ UPDATE public.bookings SET rental_checkout_session_ref='cs_test_synthetic',payment_due_at=clock_timestamp()+interval '2 hours' WHERE id=bid;
  UPDATE public.bookings SET operator_payment_intent_id='pi_partial' WHERE id=bid;
  BEGIN PERFORM public.external_complete_customer_handoff(iss,'renter','hosted',aud,repeat('e',64),(claim->>'claim_token')::uuid,'cs_test_synthetic');RAISE EXCEPTION 'partial payment fresh checkout allowed';EXCEPTION WHEN raise_exception THEN IF SQLERRM<>'forbidden' THEN RAISE;END IF;END;
  -- Legacy eight-argument consent still grants exactly its historical two scopes.
