@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { guardEnvironment, validateManifest } from '../../scripts/agent-booking/guard-environment.mjs';
-import { applyManifest, teardownManifest } from '../../scripts/agent-booking/seed-staging.mjs';
+import { applyManifest, teardownManifest, createRestAdapter } from '../../scripts/agent-booking/seed-staging.mjs';
 import { suiteFiles } from '../../scripts/agent-booking/test-suites.mjs';
 
 const now = Date.parse('2026-10-07T12:00:00Z');
@@ -79,6 +79,25 @@ describe('manifest-scoped seed and teardown', () => {
     const adapter = { insert: vi.fn(), deleteExact: vi.fn(), readExact: vi.fn(async () => ({ id: manifest().rows[0].id, full_name: 'real customer' })) };
     await expect(teardownManifest(fixture(), manifest(), adapter, { now })).rejects.toThrow();
     expect(adapter.deleteExact).not.toHaveBeenCalled();
+  });
+  it('REST adapter refuses nonsynthetic or cross-project access before fetch', async () => {
+    const credential = `fixture.${Buffer.from(JSON.stringify({ role: 'service_role', iss: 'supabase' })).toString('base64url')}.fixture`;
+    const fetcher = vi.fn(async () => Response.json([]));
+    const adapter = createRestAdapter(fixture(), credential, { manifest: manifest(), fetcher, now });
+    await expect(adapter.insert('customers', { ...manifest().rows[0].data, full_name: 'real customer' })).rejects.toThrow();
+    await expect(adapter.readExact('bookings', manifest().rows[0].id)).rejects.toThrow();
+    expect(fetcher).not.toHaveBeenCalled();
+    const productionCredential = `fixture.${Buffer.from(JSON.stringify({ role: 'service_role', iss: 'supabase', ref: 'jlgwbbqydjeokypoenoc' })).toString('base64url')}.fixture`;
+    expect(() => createRestAdapter(fixture(), productionCredential, { manifest: manifest(), fetcher, now })).toThrow();
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+  it('REST deletion binds the UUID and original marker in the same request', async () => {
+    const credential = `fixture.${Buffer.from(JSON.stringify({ role: 'service_role', iss: 'supabase' })).toString('base64url')}.fixture`;
+    const fetcher = vi.fn(async () => Response.json([]));
+    const adapter = createRestAdapter(fixture(), credential, { manifest: manifest(), fetcher, now });
+    await adapter.deleteExact('customers', manifest().rows[0].id);
+    expect(fetcher.mock.calls[0][0]).toContain(`?id=eq.${manifest().rows[0].id}&full_name=eq.agent-test-customer`);
+    expect(fetcher.mock.calls[0][1]).toMatchObject({ method: 'DELETE', redirect: 'error' });
   });
 });
 
