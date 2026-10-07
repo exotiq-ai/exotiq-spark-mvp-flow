@@ -307,6 +307,9 @@ serve(async (req) => {
         // Terminal-state guard: auto-refund with reverse_transfer so the
         // operator's connected account is also debited, then alert ops.
         if (bookingRow.status !== "pending_payment" && bookingRow.status !== "confirmed" && !(bookingRow.status==="pending_documents" && bookingRow.paid_at)) {
+          // A late capture stays durably visible even if refund transport or
+          // best-effort telemetry fails. Terminal rows are not scheduler candidates.
+          await reconcileBooking(db, bookingRef, mode);
           await opsAlert(db, bookingRef, "renter_payment_after_terminal_state", {
             status: bookingRow.status,
             operatorPi,
@@ -322,6 +325,7 @@ serve(async (req) => {
               operatorPi,
               detail: refundErr instanceof Error ? refundErr.message : String(refundErr),
             });
+            throw refundErr;
           }
           break;
         }
