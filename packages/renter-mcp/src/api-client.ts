@@ -28,7 +28,7 @@ export function createApiClient(config:ApiClientConfig,apiToken:string,fetcher:t
       const u=new URL(value);
       // One canonical, non-credential query is permitted for customer continuity.
       // The API supplies its owned operator UUID; the result's ref binds the link.
-      return u.search==='?ref='+ref&&u.href===value&&ownedUrl(value.slice(0,value.indexOf('?')),customer.origin,account);
+      return !u.hash&&u.search==='?ref='+ref&&u.href===value&&ownedUrl(value.slice(0,value.indexOf('?')),customer.origin,account);
     }catch{return false;}
   }
   function validateOwnedLinks(contract:ContractName,body:Record<string,unknown>,path:string) {

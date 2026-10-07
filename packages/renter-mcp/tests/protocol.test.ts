@@ -33,7 +33,8 @@ beforeAll(async()=> {
       else if(req.url==='/api/v1/availability')res.end(JSON.stringify({...meta,...JSON.parse(raw),availability:'UNKNOWN',buffer_policy_version:null,reason_code:'upstream_unavailable',retry_after_seconds:5}));
       else if(req.url==='/api/v1/quotes')res.end(JSON.stringify({...meta,...JSON.parse(raw),quote_id:quote,principal_scope:{subject:'owned-customer',operator_id:operator},expires_at:new Date(Date.now()+900000).toISOString(),pricing_version:'source-price-v1',terms_version:'source-terms-v1',terms_hash:'0'.repeat(64),terms:{cancellation_policy:'No refund within24hours.',pickup_address:null,pickup_instructions:null,mileage_limit:200,mileage_overage_rate_usd:'0.5',deposit_disclosure:'Separate refundable deposit.'},pricing_details:{rental_days:1,daily_rate_cents:10000,protection_tier:'decline',protection_daily_cents:0,state_code:'FL',state_fee_label:'State fee',state_fee_daily_cents:0,operator_tax_label:'Sales tax',operator_tax_rate_percent:'0',platform_fee_percent:'10'},currency:'USD',itemization:{rental_subtotal_cents:10000,operator_tax_cents:0,operator_tax_inclusive:false,platform_fee_cents:1000,protection_total_cents:0,state_fee_cents:0,processing_fee_cents:500,deposit_cents:50000},operator_total_cents:10000,exotiq_total_cents:1500,total_cents:11500,payment_schedule:[{payee:'operator',amount_cents:10000,due:'after_operator_approval'},{payee:'exotiq',amount_cents:1500,due:'after_operator_charge'}],availability_checked_at:meta.source_checked_at,holds_inventory:false,consent_url:unsafeQuoteConsent??customer+'/agent/consent/'+quote}));
       else if(req.url===`/api/v1/quotes/${quote}/consent-result`){res.statusCode=202;res.end(JSON.stringify({...meta,quote_id:quote,state:'waiting',expires_at:new Date(Date.now()+300000).toISOString()}));}
-      else if(req.url==='/api/v1/rental-requests/identity-ref')res.end(JSON.stringify({...meta,ref:'identity-ref',status:'pending_documents',next_action:'verify_identity',hold_expires_at:null,payment_due_at:null,inventory_blocked:true,poll_after_seconds:5,links:{status:api+'/v1/rental-requests/identity-ref',identity:api+'/v1/rental-requests/identity-ref/identity-handoff'}}));
+      else if(req.url==='/api/v1/rental-requests/identity-ref')res.end(JSON.stringify({...meta,ref:'identity-ref',status:'pending_documents',next_action:'verify_identity',hold_expires_at:null,payment_due_at:null,inventory_blocked:true,poll_after_seconds:5,links:{status:api+'/v1/rental-requests/identity-ref',customer_account:customer+'/agent/account/'+operator+'?ref=identity-ref',identity:api+'/v1/rental-requests/identity-ref/identity-handoff'}}));
+      else if(req.url==='/api/v1/rental-requests/account-ref')res.end(JSON.stringify({...meta,ref:'account-ref',status:'pending_documents',next_action:'verify_identity',hold_expires_at:null,payment_due_at:null,inventory_blocked:true,poll_after_seconds:5,links:{status:api+'/v1/rental-requests/account-ref',customer_account:customer+'/agent/account/'+operator+'?ref=account-ref'}}));
       else if(req.url==='/api/v1/rental-requests/identity-ref/identity-handoff'){
         if(identityDenied){res.statusCode=403;res.end(JSON.stringify({code:'forbidden',message:'Grant did not select identity.',request_id:'synthetic_request_123',retryable:false}));}
         else res.end(JSON.stringify({...meta,customer_url:customer+'/agent/handoff/'+'a'.repeat(43),expires_at:new Date(Date.now()+300000).toISOString(),state:'pending_documents',next_action:'verify_identity'}));
@@ -91,6 +92,7 @@ describe('official Streamable HTTP client profiles over loopback',()=> {
       const {c}=await client('profile-a',scopes+(scenario==='absent'?'':' identity:handoff'));
       try{const before=calls.length;const result=await c.callTool({name:'get_request_status',arguments:{ref:'identity-ref'}});
         expect(result.isError).not.toBe(true);expect(result.structuredContent).toMatchObject({status:'pending_documents',next_action:'verify_identity'});
+        expect(result.structuredContent).toMatchObject({links:{customer_account:customer+'/agent/account/'+operator+'?ref=identity-ref'}});
         const observed=calls.slice(before);expect(observed.filter(c=>c.path.endsWith('/identity-handoff'))).toHaveLength(['granted','grant-denied'].includes(scenario)?1:0);
         if(scenario==='granted'){
           expect(result.structuredContent).toMatchObject({links:{identity:customer+'/agent/handoff/'+'a'.repeat(43)}});
@@ -98,6 +100,16 @@ describe('official Streamable HTTP client profiles over loopback',()=> {
         }else expect((result.structuredContent as {links:unknown}).links).not.toHaveProperty('identity');
         expect(JSON.stringify(result)).not.toContain('/identity-handoff');expect(observed.some(c=>/provider|approve|charge/.test(c.path))).toBe(false);
       }finally{await c.close();stripExchangedIdentity=false;identityDenied=false;}
+    }
+  });
+  it('both profiles retain customer-owned completion with absent or granted agent handoff scopes',async()=>{
+    for(const profile of ['profile-a','profile-b'])for(const scope of ['rental_requests:read','rental_requests:read identity:handoff checkout:handoff']){
+      const {c}=await client(profile,scope);
+      try{const before=calls.length;const result=await c.callTool({name:'get_request_status',arguments:{ref:'account-ref'}});
+        expect(result.isError).not.toBe(true);expect(result.structuredContent).toMatchObject({links:{customer_account:customer+'/agent/account/'+operator+'?ref=account-ref'}});
+        expect(calls.slice(before).map(c=>c.path)).toEqual(['/api/v1/rental-requests/account-ref']);
+        expect((result.structuredContent as {links:unknown}).links).not.toHaveProperty('identity');
+      }finally{await c.close();}
     }
   });
 });
