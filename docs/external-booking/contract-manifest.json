@@ -1,0 +1,60 @@
+{
+  "api_version": "v1",
+  "canonical_source": "supabase/functions/_shared/external-booking/contracts.ts",
+  "source_sha256": "0ba5c227790181f76b02f515abfcb3e03e4d15373ca1d229e91893ff4af4dd6c",
+  "examples_sha256": "c05c1a6871b42e5f2c800b3c7cb351d0e59c4f4e436d69d162080fe0207409f1",
+  "operations": {
+    "/v1/operators": {
+      "get": "listOperators"
+    },
+    "/v1/vehicles": {
+      "get": "listVehicles"
+    },
+    "/v1/availability": {
+      "post": "checkAvailability"
+    },
+    "/v1/quotes": {
+      "post": "createQuote"
+    },
+    "/v1/quotes/{quote_id}": {
+      "get": "reviewQuote"
+    },
+    "/v1/quotes/{quote_id}/consents": {
+      "post": "authorizeQuote"
+    },
+    "/v1/quotes/{quote_id}/consent-result": {
+      "get": "getQuoteConsentResult"
+    },
+    "/v1/customers/operator-links": {
+      "post": "linkOperatorCustomer"
+    },
+    "/v1/grant-renewals": {
+      "post": "beginGrantRenewal"
+    },
+    "/v1/grant-renewals/{renewal_id}": {
+      "get": "getGrantRenewal"
+    },
+    "/v1/grant-renewals/{renewal_id}/review": {
+      "post": "bindGrantRenewalReview"
+    },
+    "/v1/grant-renewals/{renewal_id}/complete": {
+      "post": "completeGrantRenewal"
+    },
+    "/v1/grants/{grant_id}/revoke": {
+      "post": "revokeGrant"
+    },
+    "/v1/rental-requests/{ref}/grant-renewals": {
+      "post": "beginRequestGrantRenewal"
+    },
+    "/v1/rental-requests": {
+      "post": "submitRentalRequest"
+    },
+    "/v1/rental-requests/{ref}": {
+      "get": "getRentalRequest"
+    },
+    "/v1/rental-requests/{ref}/checkout-handoff": {
+      "post": "createCheckoutHandoff"
+    }
+  },
+  "provider_acceptance": "unverified"
+}

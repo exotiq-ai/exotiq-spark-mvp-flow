@@ -1,6 +1,7 @@
 import {readFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
 import {describe,expect,it} from 'vitest';
-import {generateOpenApi,schemas} from '../../supabase/functions/_shared/external-booking/contracts';
+import {generateOpenApi,schemas,validateContract} from '../../supabase/functions/_shared/external-booking/contracts';
 const required = {
  '/v1/quotes/{quote_id}':'get', '/v1/quotes/{quote_id}/consents':'post',
  '/v1/quotes/{quote_id}/consent-result':'get', '/v1/customers/operator-links':'post',
@@ -25,4 +26,19 @@ describe('published API contract',()=>{
   }
  });
  it('publishes exactly the generated artifact',()=>expect(JSON.parse(readFileSync('docs/external-booking/openapi.yaml','utf8'))).toEqual(generateOpenApi()));
+ it('validates documented examples and rejects changed monetary authority',()=>{
+  const examples=JSON.parse(readFileSync('docs/external-booking/examples.json','utf8'));
+  for(const example of examples)expect(validateContract(example.contract,example.value).ok,example.description).toBe(true);
+  const quote=examples.find((example:any)=>example.contract==='QuoteResult');
+  expect(quote,'Published itemized quote example').toBeDefined();
+  expect(validateContract('QuoteResult',{...quote.value,total_cents:quote.value.total_cents+1}).ok).toBe(false);
+ });
+ it('records exact canonical and example provenance without claiming hosted acceptance',()=>{
+  const digest=(text:string)=>createHash('sha256').update(text).digest('hex');
+  const manifest=JSON.parse(readFileSync('docs/external-booking/contract-manifest.json','utf8'));
+  expect(manifest.source_sha256).toBe(digest(readFileSync('supabase/functions/_shared/external-booking/contracts.ts','utf8')));
+  expect(manifest.examples_sha256).toBe(digest(JSON.stringify(JSON.parse(readFileSync('docs/external-booking/examples.json','utf8')))));
+  expect(manifest.provider_acceptance).toBe('unverified');
+  expect(manifest.operations).toEqual(Object.fromEntries(Object.entries(generateOpenApi().paths).map(([path,methods])=>[path,Object.fromEntries(Object.entries(methods).map(([method,operation])=>[method,operation.operationId]))])));
+ });
 });

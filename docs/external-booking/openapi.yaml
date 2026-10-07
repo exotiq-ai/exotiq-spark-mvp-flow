@@ -1439,7 +1439,7 @@
     "/v1/grant-renewals/{renewal_id}": {
       "get": {
         "operationId": "getGrantRenewal",
-        "description": "Original agent receives rendezvous state. Hosted customer BFF requires proof and receives safe GrantRenewalReviewResult. No bearer or receipt is returned. Monthly and near-72-hour holds retain ownership continuity.",
+        "description": "Original agent receives rendezvous state. Hosted customer BFF requires proof and receives safe GrantRenewalReviewResult. No bearer or receipt is returned. 25h/71h holds retain ownership continuity.",
         "security": [
           {
             "customerOAuth": [
@@ -2224,7 +2224,7 @@
               "type": "string",
               "minLength": 16,
               "maxLength": 128,
-              "pattern": "^[A-Za-z0-9_-]+$"
+              "pattern": "^[A-Za-z0-9._:-]+$"
             }
           }
         ],
@@ -2423,7 +2423,14 @@
               },
               "Cache-Control": {
                 "schema": {
-                  "const": "private, no-cache"
+                  "const": "no-store"
+                }
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 5,
+                  "maximum": 60
                 }
               }
             }
@@ -2481,11 +2488,20 @@
             }
           },
           "409": {
-            "description": "Structured error (409); no private booking existence or exception disclosure.",
+            "description": "Verified owner only: grant_expired or grant_revoked. Link rel=grant-renewal points to the fixed ref recovery route; another principal gets404.",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "Link": {
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048
                 }
               }
             }
@@ -4295,8 +4311,8 @@
           },
           "poll_after_seconds": {
             "type": "integer",
-            "minimum": 1,
-            "maximum": 3600
+            "minimum": 5,
+            "maximum": 60
           }
         },
         "required": [
@@ -5329,6 +5345,10 @@
               "quote_expired",
               "consent_expired",
               "payment_window_expired",
+              "grant_expired",
+              "grant_revoked",
+              "configuration_unavailable",
+              "external_writes_disabled",
               "rate_limited",
               "upstream_unavailable"
             ]

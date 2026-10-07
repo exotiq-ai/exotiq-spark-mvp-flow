@@ -1,0 +1,150 @@
+[
+  {
+    "contract": "QuoteRequest",
+    "description": "Synthetic request; amounts never supplied by caller.",
+    "value": {
+      "operator_id": "10000000-0000-4000-8000-000000000001",
+      "vehicle_id": "20000000-0000-4000-8000-000000000001",
+      "pickup_at": "2028-11-01T10:00:00-04:00",
+      "return_at": "2028-11-03T10:00:00-04:00",
+      "timezone": "America/New_York",
+      "selected_options": [
+        "decline"
+      ]
+    }
+  },
+  {
+    "contract": "QuoteResult",
+    "description": "Synthetic itemized authority fixture; exact cents match isolated SQL quote proof, not a live price or terms offer.",
+    "value": {
+      "operator_id": "10000000-0000-4000-8000-000000000001",
+      "vehicle_id": "20000000-0000-4000-8000-000000000001",
+      "pickup_at": "2028-11-01T10:00:00-04:00",
+      "return_at": "2028-11-03T10:00:00-04:00",
+      "timezone": "America/New_York",
+      "api_version": "v1",
+      "source_checked_at": "2026-10-07T12:00:00Z",
+      "quote_id": "30000000-0000-4000-8000-000000000001",
+      "principal_scope": {
+        "subject": "synthetic-customer",
+        "operator_id": "10000000-0000-4000-8000-000000000001"
+      },
+      "expires_at": "2026-10-07T12:15:00Z",
+      "pricing_version": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "terms_version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "terms_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "selected_options": [
+        "premium"
+      ],
+      "terms": {
+        "cancellation_policy": "Synthetic fixture: cancel at least 72 hours before pickup.",
+        "pickup_address": null,
+        "pickup_instructions": null,
+        "mileage_limit": 100,
+        "mileage_overage_rate_usd": "3.50",
+        "deposit_disclosure": "Separate deposit; no authorization created by this quote."
+      },
+      "pricing_details": {
+        "rental_days": 2,
+        "daily_rate_cents": 10000,
+        "protection_tier": "premium",
+        "protection_daily_cents": 28900,
+        "state_code": "FL",
+        "state_fee_label": "State rental fee",
+        "state_fee_daily_cents": 200,
+        "operator_tax_label": "Tax",
+        "operator_tax_rate_percent": "6",
+        "platform_fee_percent": "10"
+      },
+      "currency": "USD",
+      "itemization": {
+        "rental_subtotal_cents": 20000,
+        "operator_tax_cents": 1200,
+        "operator_tax_inclusive": false,
+        "platform_fee_cents": 2000,
+        "protection_total_cents": 57800,
+        "state_fee_cents": 400,
+        "processing_fee_cents": 2187,
+        "deposit_cents": 0
+      },
+      "operator_total_cents": 21200,
+      "exotiq_total_cents": 62387,
+      "total_cents": 83587,
+      "payment_schedule": [
+        {
+          "payee": "operator",
+          "amount_cents": 21200,
+          "due": "after_operator_approval"
+        },
+        {
+          "payee": "exotiq",
+          "amount_cents": 62387,
+          "due": "after_operator_charge"
+        }
+      ],
+      "availability_checked_at": "2026-10-07T12:00:00Z",
+      "holds_inventory": false,
+      "consent_url": "https://rent.example.invalid/agent/consent/30000000-0000-4000-8000-000000000001"
+    }
+  },
+  {
+    "contract": "AvailabilityResult",
+    "description": "Unknown read creates no availability promise.",
+    "value": {
+      "api_version": "v1",
+      "source_checked_at": "2026-10-07T12:00:00Z",
+      "operator_id": "10000000-0000-4000-8000-000000000001",
+      "vehicle_id": "20000000-0000-4000-8000-000000000001",
+      "pickup_at": "2028-11-01T10:00:00-04:00",
+      "return_at": "2028-11-03T10:00:00-04:00",
+      "timezone": "America/New_York",
+      "availability": "UNKNOWN",
+      "buffer_policy_version": null,
+      "reason_code": "upstream_unavailable",
+      "retry_after_seconds": 30
+    }
+  },
+  {
+    "contract": "RentalRequestInput",
+    "description": "Server-to-server API body only; these UUIDs are fictional. MCP tool never accepts a receipt.",
+    "value": {
+      "quote_id": "30000000-0000-4000-8000-000000000001",
+      "consent_receipt_id": "40000000-0000-4000-8000-000000000001"
+    }
+  },
+  {
+    "contract": "RentalRequestResult",
+    "description": "A request remains pending operator approval.",
+    "value": {
+      "api_version": "v1",
+      "source_checked_at": "2026-10-07T12:00:00Z",
+      "ref": "agent-test-request-001",
+      "status": "requested",
+      "next_action": "await_operator",
+      "hold_expires_at": "2026-10-10T12:00:00Z",
+      "links": {
+        "status": "https://api.example.invalid/external-booking-api/v1/rental-requests/agent-test-request-001"
+      }
+    }
+  },
+  {
+    "contract": "ApiError",
+    "description": "Changing quoted terms requires new review.",
+    "value": {
+      "code": "quote_changed",
+      "message": "The quote or terms changed. Review a new quote.",
+      "request_id": "agent-test-error-001",
+      "retryable": false
+    }
+  },
+  {
+    "contract": "ApiError",
+    "description": "Expired quote is not a request.",
+    "value": {
+      "code": "quote_expired",
+      "message": "The quote expired. Review a new quote.",
+      "request_id": "agent-test-error-002",
+      "retryable": false
+    }
+  }
+]
