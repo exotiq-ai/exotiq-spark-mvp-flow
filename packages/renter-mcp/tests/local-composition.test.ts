@@ -149,6 +149,14 @@ describe.skipIf(!manifest)('owned local SQL → production API → production MC
     });
   };
   const profiles=[['miami','legacy',1,1],['miami','modern',1,2],['tampa','legacy',2,3],['tampa','modern',2,4]] as const;
+  it('the actual persisted limiter denies calls after its configured capacity',async()=>{
+    const observations=[];
+    for(let i=0;i<4;i++){
+      const response=await lab.rpc('check_rate_limit',{_bucket:'external:composition:limiter:'+run,_limit:2,_window_seconds:3600});
+      expect(response.error).toBeNull();observations.push(response.data);
+    }
+    expect(observations).toEqual([true,true,false,false]);
+  },30000);
   for(const [market,era,operatorIndex,vehicleIndex]of profiles)it(market+' × '+era+' creates through hosted consent, replays and retains disabled-write continuity',async()=>{
     const clientId=era+'-'+market,subject='synthetic-'+clientId+'-'+run,email=clientId+'-'+run+'@example.invalid';
     const operator='a1200000-0000-4000-8000-'+String(operatorIndex).padStart(12,'0'),vehicle='b1200000-0000-4000-8000-'+String(vehicleIndex).padStart(12,'0');
