@@ -281,3 +281,10 @@ verify_jwt = false
 # reject that invocation before the worker can verify its own fixed secret.
 [functions.external-booking-worker]
 verify_jwt = false
+
+# Existing administrative functions retain the platform's default JWT gate.
+[functions.rari-selftest]
+verify_jwt = true
+
+[functions.super-admin-set-team-role]
+verify_jwt = true

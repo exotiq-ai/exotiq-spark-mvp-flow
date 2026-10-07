@@ -176,8 +176,9 @@ describe("calculateRentalDays edge cases", () => {
   });
 
   it("across daylight saving time boundary — calendar days (not hours)", () => {
-    // Mar 8 2026 is US DST change day (spring forward) — should still be 1 calendar day apart
-    expect(calculateRentalDays("2026-03-08T06:00:00Z", "2026-03-09T06:00:00Z")).toBe(1);
+    // The legacy helper counts local calendar days. Local midnights avoid
+    // accidentally spanning two Denver dates when fixed UTC instants cross DST.
+    expect(calculateRentalDays(new Date(2026, 2, 8), new Date(2026, 2, 9))).toBe(1);
   });
 });
 
