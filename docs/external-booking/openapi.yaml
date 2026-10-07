@@ -1883,6 +1883,153 @@
         ],
         "additionalProperties": false
       },
+      "QuoteTerms": {
+        "type": "object",
+        "properties": {
+          "cancellation_policy": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8000
+          },
+          "pickup_address": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4096
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pickup_instructions": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4096
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mileage_limit": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mileage_overage_rate_usd": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 24,
+                "pattern": "^(?:0|[1-9]\\d{0,12})(?:\\.\\d{1,8})?$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "deposit_disclosure": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "cancellation_policy",
+          "pickup_address",
+          "pickup_instructions",
+          "mileage_limit",
+          "mileage_overage_rate_usd",
+          "deposit_disclosure"
+        ],
+        "additionalProperties": false
+      },
+      "QuotePricingDetails": {
+        "type": "object",
+        "properties": {
+          "rental_days": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 365
+          },
+          "daily_rate_cents": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "protection_tier": {
+            "type": "string",
+            "enum": [
+              "premium",
+              "standard",
+              "decline"
+            ]
+          },
+          "protection_daily_cents": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "state_code": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 2,
+            "pattern": "^[A-Z]{2}$"
+          },
+          "state_fee_label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "state_fee_daily_cents": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "operator_tax_label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "operator_tax_rate_percent": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 24,
+            "pattern": "^(?:0|[1-9]\\d{0,12})(?:\\.\\d{1,8})?$"
+          },
+          "platform_fee_percent": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 24,
+            "pattern": "^(?:0|[1-9]\\d{0,12})(?:\\.\\d{1,8})?$"
+          }
+        },
+        "required": [
+          "rental_days",
+          "daily_rate_cents",
+          "protection_tier",
+          "protection_daily_cents",
+          "state_code",
+          "state_fee_label",
+          "state_fee_daily_cents",
+          "operator_tax_label",
+          "operator_tax_rate_percent",
+          "platform_fee_percent"
+        ],
+        "additionalProperties": false
+      },
       "QuoteResult": {
         "type": "object",
         "properties": {
@@ -1992,6 +2139,153 @@
             "minItems": 1,
             "uniqueItems": true,
             "description": "Current backend protection IDs. No unrecognized add-ons or client amounts."
+          },
+          "terms": {
+            "type": "object",
+            "properties": {
+              "cancellation_policy": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 8000
+              },
+              "pickup_address": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4096
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "pickup_instructions": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4096
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "mileage_limit": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "mileage_overage_rate_usd": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 24,
+                    "pattern": "^(?:0|[1-9]\\d{0,12})(?:\\.\\d{1,8})?$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "deposit_disclosure": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000
+              }
+            },
+            "required": [
+              "cancellation_policy",
+              "pickup_address",
+              "pickup_instructions",
+              "mileage_limit",
+              "mileage_overage_rate_usd",
+              "deposit_disclosure"
+            ],
+            "additionalProperties": false
+          },
+          "pricing_details": {
+            "type": "object",
+            "properties": {
+              "rental_days": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 365
+              },
+              "daily_rate_cents": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "protection_tier": {
+                "type": "string",
+                "enum": [
+                  "premium",
+                  "standard",
+                  "decline"
+                ]
+              },
+              "protection_daily_cents": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "state_code": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 2,
+                "pattern": "^[A-Z]{2}$"
+              },
+              "state_fee_label": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 160
+              },
+              "state_fee_daily_cents": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "operator_tax_label": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 160
+              },
+              "operator_tax_rate_percent": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 24,
+                "pattern": "^(?:0|[1-9]\\d{0,12})(?:\\.\\d{1,8})?$"
+              },
+              "platform_fee_percent": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 24,
+                "pattern": "^(?:0|[1-9]\\d{0,12})(?:\\.\\d{1,8})?$"
+              }
+            },
+            "required": [
+              "rental_days",
+              "daily_rate_cents",
+              "protection_tier",
+              "protection_daily_cents",
+              "state_code",
+              "state_fee_label",
+              "state_fee_daily_cents",
+              "operator_tax_label",
+              "operator_tax_rate_percent",
+              "platform_fee_percent"
+            ],
+            "additionalProperties": false
           },
           "currency": {
             "type": "string",
@@ -2140,6 +2434,8 @@
           "terms_version",
           "terms_hash",
           "selected_options",
+          "terms",
+          "pricing_details",
           "currency",
           "itemization",
           "operator_total_cents",
