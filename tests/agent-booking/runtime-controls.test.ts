@@ -26,6 +26,11 @@ describe('production operation controls and safe outcomes',()=>{
   expect(JSON.stringify(stored)).not.toMatch(/private|secret|receipt|provider_url/);
   expect(response.bodyUsed).toBe(false);
  });
+ it.each([{path:'/v1/rental-requests',body:{ref:'synthetic'},action:'request:replay',outcome:'replay'},{path:'/v1/availability',body:{availability:'UNKNOWN'},action:'availability:read',outcome:'unknown'}])('records authoritative replay and UNKNOWN without copying payload %j',async(sample)=>{
+  let stored:unknown;const response=Response.json(sample.body,{headers:{'X-Request-Id':'synthetic_request_150001'}});
+  await emitRuntimeOutcome({rpc:{rpc:async(_name,args)=>{stored=args._event;return {data:true,error:null};}},secret:new Uint8Array(32).fill(7),path:sample.path,method:'POST',response,latencyMs:2});
+  expect(stored).toMatchObject({action:sample.action,outcome:sample.outcome});expect(response.bodyUsed).toBe(false);
+ });
  it('contains optional logging failure after success',async()=>{
   const response=new Response(null,{status:201,headers:{'X-Request-Id':'synthetic_request_150001'}});
   expect(await emitRuntimeOutcome({rpc:{rpc:async()=>{throw Error('private sink outage');}},secret:new Uint8Array(32).fill(7),path:'/v1/rental-requests',method:'POST',response,latencyMs:1})).toBe(false);
