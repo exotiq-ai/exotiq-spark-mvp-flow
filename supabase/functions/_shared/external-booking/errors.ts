@@ -9,6 +9,7 @@ const policies: Record<ErrorCode, { status: number; message: string; retryable: 
   dates_unavailable: { status: 409, message: 'The requested dates are unavailable.', retryable: false },
   quote_changed: { status: 409, message: 'The quote or terms changed. Review a new quote.', retryable: false },
   idempotency_conflict: { status: 409, message: 'This retry key was used for a different request.', retryable: false },
+  request_in_flight: { status: 409, message: 'This request is still being processed. Retry with the same key.', retryable: true },
   consent_mismatch: { status: 409, message: 'Customer consent does not match this request.', retryable: false },
   quote_expired: { status: 410, message: 'The quote expired. Review a new quote.', retryable: false },
   consent_expired: { status: 410, message: 'Customer consent expired. Authorize again.', retryable: false },
@@ -42,7 +43,8 @@ export function safeApiError(error: unknown, requestId?: string): SafeError {
   if (error instanceof BookingApiError && fields.includes(error.details?.field)) details.field = error.details!.field;
   if (policy.retryable) {
     const delay = error instanceof BookingApiError ? error.details?.retry_after_seconds : undefined;
-    details.retry_after_seconds = Number.isInteger(delay) && delay! >= 1 && delay! <= 3600 ? delay : 30;
+    const maxDelay = code === 'request_in_flight' ? 5 : 3600;
+    details.retry_after_seconds = Number.isInteger(delay) && delay! >= 1 && delay! <= maxDelay ? delay : (code === 'request_in_flight' ? 2 : 30);
   }
   const body: SafeError['body'] = { code, message: policy.message, request_id, retryable: policy.retryable, ...(Object.keys(details).length ? { details } : {}) };
   if (!validateContract('ApiError', body).ok) throw new Error('Internal error policy violates canonical contract');

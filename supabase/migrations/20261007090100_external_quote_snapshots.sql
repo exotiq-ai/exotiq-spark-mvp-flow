@@ -115,6 +115,9 @@ BEGIN
     'mileage_limit',coalesce(v.default_mileage_limit,t.default_mileage_limit),
     'mileage_overage_rate',coalesce(v.mileage_overage_rate,t.default_mileage_overage_rate)::text,
     'currency',q->>'currency',
+    -- Preserve numeric declaration text across JSON decoders without rounding.
+    'operator_tax_rate_percent',q->>'operator_tax_rate',
+    'platform_fee_percent',q->>'platform_fee_percent',
     'rental_buffer_minutes',coalesce(t.rental_buffer_minutes,60),
     'operator_approval_required',true,
     'payment_schedule',jsonb_build_array(
@@ -123,6 +126,21 @@ BEGIN
     'deposit_disclosure','Security deposit is separate from rental charges. This quote does not create a card authorization.'
   );
   IF terms->>'cancellation_policy' IS NULL THEN RAISE EXCEPTION 'upstream_unavailable'; END IF;
+  -- Contract-supported shape must be proven BEFORE INSERT. Conservative UTF8
+  -- byte bounds are narrower than JSON Schema codepoint bounds and also avoid
+  -- astral Unicode/UTF16 reader disagreement without truncating customer terms.
+  IF octet_length(terms->>'cancellation_policy') NOT BETWEEN 1 AND 8000 OR
+    octet_length(terms->>'pickup_address') NOT BETWEEN 1 AND 4096 OR
+    octet_length(terms->>'pickup_instructions') NOT BETWEEN 1 AND 4096 OR
+    octet_length(terms->>'deposit_disclosure') NOT BETWEEN 1 AND 2000 OR
+    octet_length(q->>'operator_tax_label') NOT BETWEEN 1 AND 160 OR
+    octet_length(q->>'state_fee_label') NOT BETWEEN 1 AND 160 OR
+    q->>'state_code' !~ '^[A-Z]{2}$' OR (q->>'rental_days')::integer NOT BETWEEN 1 AND 365 OR
+    q->>'operator_tax_rate' !~ '^(0|[1-9][0-9]{0,12})(\.[0-9]{1,8})?$' OR
+    q->>'platform_fee_percent' !~ '^(0|[1-9][0-9]{0,12})(\.[0-9]{1,8})?$' OR
+    (terms->>'mileage_overage_rate' IS NOT NULL AND terms->>'mileage_overage_rate' !~ '^(0|[1-9][0-9]{0,12})(\.[0-9]{1,8})?$') THEN
+    RAISE EXCEPTION 'upstream_unavailable';
+  END IF;
   -- Validate supported precision, never round or derive substitute pricing.
   FOREACH cent_field IN ARRAY ARRAY['daily_rate_cents','rental_subtotal_cents','deposit_cents',
     'operator_total_cents','platform_fee_cents','protection_daily_cents','protection_total_cents',
@@ -132,6 +150,12 @@ BEGIN
       (q->>cent_field)::numeric > 9007199254740991 THEN RAISE EXCEPTION 'upstream_unavailable'; END IF;
   END LOOP;
   IF (q->>'operator_total_cents')::bigint + (q->>'exotiq_total_cents')::bigint <> (q->>'grand_total_cents')::bigint OR
+    (q->>'operator_total_cents')::bigint <> (q->>'rental_subtotal_cents')::bigint +
+      (CASE WHEN (terms->>'operator_tax_inclusive')::boolean THEN 0 ELSE (q->>'operator_tax_cents')::bigint END) OR
+    (q->>'exotiq_total_cents')::bigint <> (q->>'platform_fee_cents')::bigint + (q->>'protection_total_cents')::bigint +
+      (q->>'state_fee_cents')::bigint + (q->>'processing_fee_cents')::bigint OR
+    ((terms->>'operator_tax_inclusive')::boolean AND (q->>'operator_tax_cents')::bigint > (q->>'rental_subtotal_cents')::bigint) OR
+    (q->>'rental_days')::int <> local_end-local_start OR
     coalesce(v.default_mileage_limit,t.default_mileage_limit) < 0 OR
     coalesce(v.mileage_overage_rate,t.default_mileage_overage_rate) < 0 THEN RAISE EXCEPTION 'upstream_unavailable'; END IF;
   -- Window uses UTC instants internally. API maps into tenant offset timestamps;
@@ -156,7 +180,8 @@ BEGIN
     length(_subject) NOT BETWEEN 1 AND 500 OR length(_issuer) NOT BETWEEN 1 AND 500 OR
     length(_audience) NOT BETWEEN 1 AND 500 OR length(_client_id) NOT BETWEEN 1 AND 500 OR
     _ttl_seconds IS NULL OR _ttl_seconds NOT BETWEEN 1 AND 900 THEN RAISE EXCEPTION 'invalid_input'; END IF;
-  IF NOT EXISTS (SELECT 1 FROM public.customers WHERE id = _customer_id AND team_id = _operator_id) THEN
+  PERFORM 1 FROM public.customers WHERE id = _customer_id AND team_id = _operator_id FOR SHARE;
+  IF NOT FOUND THEN
     RAISE EXCEPTION 'not_found';
   END IF;
   PERFORM 1 FROM public.external_customer_links WHERE issuer = _issuer AND subject = _subject

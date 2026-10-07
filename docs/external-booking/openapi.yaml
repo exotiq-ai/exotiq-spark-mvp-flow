@@ -2946,6 +2946,7 @@
               "dates_unavailable",
               "quote_changed",
               "idempotency_conflict",
+              "request_in_flight",
               "consent_mismatch",
               "quote_expired",
               "consent_expired",

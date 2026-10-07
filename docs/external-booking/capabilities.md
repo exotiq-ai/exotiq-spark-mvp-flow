@@ -120,7 +120,7 @@ Only dedicated synthetic staging can prove role denial, transactional concurrenc
 | Identity | Last source definition | Definer | Default arguments | Privileges/deployment |
 |---|---|---|---|---|
 | public.agent_inventory_available(uuid,timestamptz,timestamptz) | supabase/migrations/20261007090300_inventory_policy_read_parity.sql:7 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
-| public.agent_inventory_blocked_guard() | supabase/migrations/20261007090200_shared_inventory_guard.sql:94 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
+| public.agent_inventory_blocked_guard() | supabase/migrations/20261007090200_shared_inventory_guard.sql:105 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
 | public.agent_inventory_booking_guard() | supabase/migrations/20261007090200_shared_inventory_guard.sql:52 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
 | public.booking_has_captured_leg(public.bookings) | supabase/migrations/20260725045744_fa25b9ea-3209-4ab2-bade-3d1744f0b5b2.sql:6 | false |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
 | public.can_access_entity(uuid,text,uuid) | supabase/migrations/20260627203747_8d7bb02a-dc52-4ebe-a4b4-35d222235278.sql:3 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
