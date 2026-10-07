@@ -1,6 +1,8 @@
 import {describe,expect,it} from 'vitest';
 import { readRuntimeConfig } from '../src/runtime.ts';
 import { boundedJson } from '../src/http.ts';
+import { createNodeServer } from '../src/node-http.ts';
+import { request as httpRequest } from 'node:http';
 
 describe('runtime configuration and bounded remote transport',()=> {
   it('has no default enabled server, provider or permissive fallback',()=>{
@@ -25,5 +27,14 @@ describe('runtime configuration and bounded remote transport',()=> {
     await expect(boundedJson(async(_url,init)=>{signal=init?.signal as AbortSignal;return new Response('{}',{headers:{'content-type':'application/json','content-length':'100000'}});},'https://fixed.test',{},100)).rejects.toThrow('remote_unavailable');
     expect(signal?.aborted).toBe(true);
     expect((await boundedJson(async()=>new Response('{"keys":[]}',{headers:{'content-type':'application/jwk-set+json'}}),'https://fixed.test')).body).toEqual({keys:[]});
+  });
+  it('actual HTTP client disconnect cancels response instead of waiting forever for drain',async()=>{
+    let cancelled!:()=>void;const cancellation=new Promise<void>(r=>{cancelled=r;});
+    const server=createNodeServer({fetch:async()=>new Response(new ReadableStream<Uint8Array>({pull(controller){controller.enqueue(new Uint8Array(32768));},cancel(){cancelled();}}))},'https://mcp.example.test/mcp');
+    await new Promise<void>(r=>server.listen(0,'127.0.0.1',r));const port=(server.address() as {port:number}).port;
+    try{
+      await new Promise<void>((resolve,reject)=>{const req=httpRequest(`http://127.0.0.1:${port}/mcp`,{headers:{Host:'mcp.example.test'}},res=>res.once('data',()=>{req.destroy();resolve();}));req.on('error',reject);req.end();});
+      const result=await Promise.race([cancellation.then(()=>true),new Promise<boolean>(r=>setTimeout(()=>r(false),1000))]);expect(result).toBe(true);
+    }finally{server.closeAllConnections();await new Promise<void>(r=>server.close(()=>r()));}
   });
 });
