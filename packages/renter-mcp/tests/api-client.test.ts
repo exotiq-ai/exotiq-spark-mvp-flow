@@ -80,4 +80,15 @@ describe('API client bounded fixed resources',()=>{
     const client=createApiClient({apiResource:'https://api.example.test',customerOrigin:'https://customer.example.test',apiScopes:['identity:handoff']},'synthetic',async(input)=>String(input).endsWith('/identity-handoff')?Response.json({code:'forbidden',message:'Grant did not select identity.',request_id:'synthetic_request_123',retryable:false},{status:403}):Response.json({...meta,ref:'owned-ref',status:'pending_documents',next_action:'verify_identity',hold_expires_at:null,payment_due_at:null,inventory_blocked:true,poll_after_seconds:5,links:{status:'https://api.example.test/v1/rental-requests/owned-ref',identity:'https://api.example.test/v1/rental-requests/owned-ref/identity-handoff'}}));
     const result=await client.status({ref:'owned-ref'});expect(result.next_action).toBe('verify_identity');expect(result.links).not.toHaveProperty('identity');
   });
+  it('requires the status action and rejects poisoned identity handoff URLs',async()=>{
+    const meta={api_version:'v1',source_checked_at:new Date().toISOString()};
+    const status={...meta,ref:'owned-ref',status:'pending_documents',next_action:'verify_identity',hold_expires_at:null,payment_due_at:null,inventory_blocked:true,poll_after_seconds:5,links:{status:'https://api.example.test/edge/v1/rental-requests/owned-ref'}};
+    const paths:string[]=[];
+    const absent=createApiClient({apiResource:'https://api.example.test/edge',customerOrigin:'https://customer.example.test',apiScopes:['identity:handoff']},'synthetic',async(input)=>{paths.push(String(input));return Response.json(status);});
+    expect((await absent.status({ref:'owned-ref'})).links).toEqual(status.links);expect(paths).toHaveLength(1);
+    for(const url of ['https://attacker.example.test/agent/handoff/'+'a'.repeat(43),'https://customer.example.test/agent/handoff/'+'a'.repeat(43)+'?%74oken=secret','https://customer.example.test/admin/'+'a'.repeat(43)]){
+      const client=createApiClient({apiResource:'https://api.example.test/edge',customerOrigin:'https://customer.example.test',apiScopes:['identity:handoff']},'synthetic',async(input)=>String(input).endsWith('/identity-handoff')?Response.json({...meta,customer_url:url,expires_at:new Date(Date.now()+300000).toISOString(),state:'pending_documents',next_action:'verify_identity'}):Response.json({...status,links:{...status.links,identity:'https://api.example.test/edge/v1/rental-requests/owned-ref/identity-handoff'}}));
+      await expect(client.status({ref:'owned-ref'})).rejects.toMatchObject({status:503,body:{code:'upstream_unavailable'}});
+    }
+  });
 });
