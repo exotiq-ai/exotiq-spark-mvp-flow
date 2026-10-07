@@ -97,6 +97,10 @@ BEGIN
  IF EXISTS(SELECT FROM public.external_request_idempotency WHERE booking_id=legacy_bid) THEN RAISE EXCEPTION 'legacy delete fixture incorrectly has ledger';END IF;
  BEGIN DELETE FROM public.bookings WHERE id=legacy_bid;RAISE EXCEPTION 'legacy issued checkout deleted';EXCEPTION WHEN check_violation THEN IF SQLERRM<>'checkout_reservation_immutable' THEN RAISE;END IF;END;
  IF NOT EXISTS(SELECT FROM public.bookings WHERE id=legacy_bid AND public.agent_inventory_blocking(status)) THEN RAISE EXCEPTION 'legacy deletion lost occupied inventory';END IF;
+ legacy_bid:=gen_random_uuid();
+ INSERT INTO public.bookings SELECT (jsonb_populate_record(NULL::public.bookings,to_jsonb(b)||jsonb_build_object('id',legacy_bid,'booking_ref','LEGACYDELETE002','confirmation_token',gen_random_uuid(),'vehicle_id','b1400000-0000-4000-8000-000000000002','start_date','2035-04-01T15:00:00Z','end_date','2035-04-03T16:00:00Z','rental_checkout_attempt_key',NULL,'rental_checkout_session_ref',NULL))).* FROM public.bookings b WHERE b.id=bid;
+ DELETE FROM public.bookings WHERE id=legacy_bid;
+ IF EXISTS(SELECT FROM public.bookings WHERE id=legacy_bid) THEN RAISE EXCEPTION 'unreserved legacy delete incorrectly refused';END IF;
  UPDATE public.bookings SET operator_payment_intent_id='pi_partial' WHERE id=bid;
  BEGIN PERFORM public.external_complete_customer_handoff(iss,'renter','hosted',aud,repeat('e',64),(claim->>'claim_token')::uuid,'cs_test_synthetic');RAISE EXCEPTION 'partial payment fresh checkout allowed';EXCEPTION WHEN raise_exception THEN IF SQLERRM<>'forbidden' THEN RAISE;END IF;END;
  -- Legacy eight-argument consent still grants exactly its historical two scopes.
