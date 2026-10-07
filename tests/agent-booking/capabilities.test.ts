@@ -3,6 +3,13 @@ import { readFileSync } from 'node:fs';
 import { auditSource, assertAuditMatches, inspectSource } from '../../scripts/agent-booking/audit-source.mjs';
 
 describe('capability provenance', () => {
+  it('includes inventory trigger functions that modify OLD/NEW without naming the table in their body', () => {
+    const actual = auditSource(process.cwd());
+    expect(actual.finalFunctions.map((entry) => entry.identity)).toEqual(expect.arrayContaining([
+      'public.external_preserve_financial_hold()',
+      'public.external_checkout_reservation_immutable()',
+    ]));
+  });
   it('captures direct/operator insert, blocked-date edit, SQL writer, overload and grants', () => {
     const inspected = inspectSource('supabase/migrations/test.sql', `
       CREATE FUNCTION public.create_marketplace_booking(_id uuid, _note text DEFAULT NULL)
