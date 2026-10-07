@@ -66,4 +66,18 @@ describe('API client bounded fixed resources',()=>{
       if(poisoned)await expect(status.status({ref:'owned-ref'})).rejects.toMatchObject({status:503});else expect((await status.status({ref:'owned-ref'})).links).toEqual(links);
     }
   });
+  it('mints identity browser rendezvous only with existing API capability and action link',async()=>{
+    const meta={api_version:'v1',source_checked_at:new Date().toISOString()};
+    const status={...meta,ref:'owned-ref',status:'pending_documents',next_action:'verify_identity',hold_expires_at:new Date(Date.now()+300000).toISOString(),payment_due_at:null,inventory_blocked:true,poll_after_seconds:5,links:{status:'https://api.example.test/v1/rental-requests/owned-ref',identity:'https://api.example.test/v1/rental-requests/owned-ref/identity-handoff'}};
+    for(const scopes of [[],['identity:handoff']]){const paths:string[]=[];const client=createApiClient({apiResource:'https://api.example.test',customerOrigin:'https://customer.example.test',apiScopes:scopes},'synthetic',async(input,init)=>{const path=new URL(String(input)).pathname;paths.push(path);if(path.endsWith('/identity-handoff')){expect(init?.method).toBe('POST');expect(init?.body).toBe('{}');return Response.json({...meta,customer_url:'https://customer.example.test/agent/handoff/'+'a'.repeat(43),expires_at:new Date(Date.now()+300000).toISOString(),state:'pending_documents',next_action:'verify_identity'});}return Response.json(status);});
+      const result=await client.status({ref:'owned-ref'});expect(result.status).toBe('pending_documents');
+      if(scopes.length){expect(paths).toHaveLength(2);expect(result.links).toMatchObject({identity:'https://customer.example.test/agent/handoff/'+'a'.repeat(43)});}else{expect(paths).toHaveLength(1);expect(result.links).not.toHaveProperty('identity');}
+      expect(JSON.stringify(result)).not.toContain('provider_url');
+    }
+  });
+  it('identity grant denial preserves owned status without inventing a browser landing',async()=>{
+    const meta={api_version:'v1',source_checked_at:new Date().toISOString()};
+    const client=createApiClient({apiResource:'https://api.example.test',customerOrigin:'https://customer.example.test',apiScopes:['identity:handoff']},'synthetic',async(input)=>String(input).endsWith('/identity-handoff')?Response.json({code:'forbidden',message:'Grant did not select identity.',request_id:'synthetic_request_123',retryable:false},{status:403}):Response.json({...meta,ref:'owned-ref',status:'pending_documents',next_action:'verify_identity',hold_expires_at:null,payment_due_at:null,inventory_blocked:true,poll_after_seconds:5,links:{status:'https://api.example.test/v1/rental-requests/owned-ref',identity:'https://api.example.test/v1/rental-requests/owned-ref/identity-handoff'}}));
+    const result=await client.status({ref:'owned-ref'});expect(result.next_action).toBe('verify_identity');expect(result.links).not.toHaveProperty('identity');
+  });
 });
