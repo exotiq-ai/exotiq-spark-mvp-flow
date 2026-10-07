@@ -8,7 +8,7 @@ ALTER TABLE public.external_grant_renewals ADD CONSTRAINT external_grant_renewal
 
 CREATE TABLE public.external_customer_handoffs(
  nonce_hash text PRIMARY KEY CHECK(nonce_hash~'^[a-f0-9]{64}$'),issuer text NOT NULL,subject text NOT NULL,client_id text NOT NULL,audience text NOT NULL,
- customer_id uuid NOT NULL,operator_id uuid NOT NULL,booking_id uuid NOT NULL,grant_id uuid,
+ customer_id uuid NOT NULL REFERENCES public.customers(id),operator_id uuid NOT NULL REFERENCES public.teams(id),booking_id uuid NOT NULL REFERENCES public.bookings(id),grant_id uuid,
  authority text NOT NULL DEFAULT 'agent_grant' CHECK(authority IN('agent_grant','customer_session')),
  CHECK((authority='agent_grant' AND grant_id IS NOT NULL) OR (authority='customer_session' AND grant_id IS NULL)),
  action text NOT NULL CHECK(action IN('identity','checkout')),mode text NOT NULL CHECK(mode IN('test','live')),
