@@ -27,13 +27,13 @@ export class SupabaseRequestStore implements RequestStore {
     for (let attempt = 0; attempt < 5; attempt++) {
       const { data, error } = await this.client.rpc('external_submit_rental_request', args);
       if (!error) return Array.isArray(data) && data.length === 1 ? data[0] : data;
-      if (object(error) && error.code === '40001' && attempt < 4) {
+      if (object(error) && ['40001','55P03'].includes(String(error.code)) && attempt < 4) {
         const delay = 25 * 2 ** attempt + Math.floor((this.retry.random?.() ?? Math.random()) * 25);
         await (this.retry.sleep?.(delay) ?? new Promise((resolve) => setTimeout(resolve, delay)));
         continue;
       }
       if (object(error) && ['invalid_input', 'not_found', 'dates_unavailable', 'quote_changed', 'quote_expired', 'consent_mismatch', 'consent_expired', 'idempotency_conflict', 'forbidden'].includes(String(error.message))) throw new BookingApiError(error.message as 'invalid_input');
-      if (object(error) && error.code === '40001') throw new BookingApiError('request_in_flight', {retry_after_seconds: 1});
+      if (object(error) && ['40001','55P03'].includes(String(error.code))) throw new BookingApiError('request_in_flight', {retry_after_seconds: 1});
       throw new BookingApiError('upstream_unavailable');
     }
     throw new BookingApiError('upstream_unavailable');

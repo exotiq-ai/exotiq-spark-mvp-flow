@@ -4,6 +4,8 @@ import { errorResponse, BookingApiError } from '../_shared/external-booking/erro
 import { authenticationChallenge, createResourceAuthenticator, protectedResourceMetadata, type ProviderConfiguration, type AuthDependencies } from '../_shared/external-booking/auth.ts';
 import { SupabaseQuoteStore, hashCanonical, type QuoteStore, type QuoteRpcClient } from '../_shared/external-booking/quotes.ts';
 import {createConsentExtension} from '../_shared/external-booking/consent-routes.ts';
+import {createRequestExtension,type RequestDependencies} from '../_shared/external-booking/request-routes.ts';
+import type {Scope} from '../_shared/external-booking/auth.ts';
 import type {HostedProofConfiguration} from '../_shared/external-booking/hosted-proof.ts';
 import { createRemoteJWKSet } from 'jose';
 
@@ -36,6 +38,13 @@ function routePath(url: URL,resource?:string): string {
   if (url.searchParams.has('access_token') || url.pathname.includes('%') || /\/\//.test(url.pathname)) throw new BookingApiError('invalid_input');
   return url.pathname.replace(/^\/functions\/v1\/external-booking-api(?=\/)/, '').replace(/^\/external-booking-api(?=\/)/, '');
 }
+function operationScope(path:string,method:string):Scope{
+ if(path==='/v1/quotes'||/^\/v1\/quotes\/[^/]+(?:\/consents)?$/.test(path)||path==='/v1/customers/operator-links')return 'quotes:create';
+ if(path==='/v1/rental-requests'&&method==='POST'||path.endsWith('/consent-result'))return 'rental_requests:create';
+ if(path.endsWith('/checkout-handoff'))return 'checkout:handoff';
+ if(path.startsWith('/v1/rental-requests/')||path.startsWith('/v1/grants/')||path.startsWith('/v1/grant-renewals'))return 'rental_requests:read';
+ return 'catalog:read';
+}
 /** Pure HTTP factory also used by the actual runtime composition below. */
 export function createApiHandler(deps: ApiDependencies): (request: Request) => Promise<Response> {
   return async (request) => {
@@ -65,13 +74,14 @@ export function createApiHandler(deps: ApiDependencies): (request: Request) => P
       }
       if (!response.headers.has('X-Request-Id')) response.headers.set('X-Request-Id', requestId);
       response.headers.set('Cache-Control', 'no-store');
-      if (response.status===401 && deps.provider) for(const [key,value] of Object.entries(authenticationChallenge(deps.provider,path==='/v1/quotes'?'quotes:create':'catalog:read'))) response.headers.set(key,value);
+      if (response.status===401 && deps.provider) for(const [key,value] of Object.entries(authenticationChallenge(deps.provider,operationScope(path,request.method)))) response.headers.set(key,value);
       return response;
     } catch (error) {
       if(request.body&&!request.bodyUsed)void request.body.cancel().catch(()=>undefined);
       const response = errorResponse(error, requestId);
       if (response.status === 401 && deps.provider) {
-        const challenge = authenticationChallenge(deps.provider, routePath(new URL(request.url),deps.provider?.resource) === '/v1/quotes' ? 'quotes:create' : 'catalog:read');
+        let path='/v1/';try{path=routePath(new URL(request.url),deps.provider?.resource);}catch{/* malformed paths must not break safe error handling */}
+        const challenge = authenticationChallenge(deps.provider,operationScope(path,request.method));
         for (const [key,value] of Object.entries(challenge)) response.headers.set(key,value);
       }
       return response;
@@ -171,7 +181,7 @@ export async function introspectToken(config: RuntimeConfig, token: string, iden
 }
 /** Actual production dependencies are composed here, not just injected scaffolds.
  * Request-local auth closes over its token; no token/claims live in global state. */
-export function createRuntime(config: RuntimeConfig, fetcher: Fetcher = fetch, additions?: { keyResolver?: AuthDependencies['keyResolver']; now?: () => number; extension?: ApiDependencies['extension'] }): (request: Request) => Promise<Response> {
+export function createRuntime(config: RuntimeConfig, fetcher: Fetcher = fetch, additions?: { keyResolver?: AuthDependencies['keyResolver']; now?: () => number; extension?: ApiDependencies['extension']; handoff?:RequestDependencies['handoff'] }): (request: Request) => Promise<Response> {
   protectedResourceMetadata(config.provider);
   const keyResolver = additions?.keyResolver ?? createRemoteJWKSet(new URL(config.provider.jwksUri), { timeoutDuration: 3000, cooldownDuration: 1000, cacheMaxAge: 300000 });
   const rpc = new HttpSupabaseRpcClient(config.supabaseUrl, config.serviceKey, fetcher);
@@ -197,7 +207,8 @@ export function createRuntime(config: RuntimeConfig, fetcher: Fetcher = fetch, a
     };
     const auth = createResourceAuthenticator(config.provider, dependencies);
     const consent=createConsentExtension({auth,rpc,hosted:config.hosted??null,consentOrigin:config.consentOrigin,now});
-    const extension:ApiDependencies['extension']=async(req,path,body)=>await consent(req,path,body)??await additions?.extension?.(req,path,body)??null;
+    const requests=createRequestExtension({auth,rpc,publicOrigin:config.provider.resource,customerOrigin:config.consentOrigin,now,handoff:additions?.handoff});
+    const extension:ApiDependencies['extension']=async(req,path,body)=>await consent(req,path,body)??await requests(req,path,body)??await additions?.extension?.(req,path,body)??null;
     return createApiHandler({ catalog, cursorKey: config.cursorKey, browseEnabled: config.browseEnabled,
       boundaryLimit: async () => limit('external:boundary:global', 600), now, auth,
       quoteStore: new SupabaseQuoteStore(rpc), consentOrigin: config.consentOrigin, provider: config.provider, extension })(request);

@@ -60,7 +60,7 @@ BEGIN
     OR _idempotency_key IS NULL OR _idempotency_key !~ '^[A-Za-z0-9._:-]{16,128}$'
     OR _issuer IS NULL OR length(_issuer) NOT BETWEEN 1 AND 500 OR _subject IS NULL OR length(_subject) NOT BETWEEN 1 AND 256
     OR _client_id IS NULL OR length(_client_id) NOT BETWEEN 1 AND 500 OR _audience IS NULL OR length(_audience) NOT BETWEEN 1 AND 2048
-    OR _public_origin IS NULL OR _public_origin !~ '^https://[A-Za-z0-9.-]+(:443)?$' THEN RAISE EXCEPTION 'invalid_input'; END IF;
+    OR _public_origin IS NULL OR length(_public_origin)>2048 OR _public_origin !~ '^https://[A-Za-z0-9.-]+(:443)?(/[A-Za-z0-9_-]+)*$' THEN RAISE EXCEPTION 'invalid_input'; END IF;
   -- Both root API composition and customer linkage are verified before this RPC.
   PERFORM 1 FROM public.external_customer_links WHERE issuer=_issuer AND subject=_subject AND customer_id=_customer_id AND operator_id=_operator_id AND revoked_at IS NULL FOR SHARE;
   IF NOT FOUND THEN RAISE EXCEPTION 'not_found'; END IF;
