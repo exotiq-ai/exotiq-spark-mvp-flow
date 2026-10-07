@@ -94,4 +94,26 @@ describe('shared inventory guard on actual isolated PostgreSQL', () => {
       ${bookingInsert(vehicle(22),'2030-01-03 10:00Z','2030-01-04 10:00Z')} COMMIT;`);
     expect(buffer.error).toMatch(/22023/);
   });
+  it('serializes blocked UPDATE with booking creation and validates blocked vehicle moves',async()=>{
+    expect((await sql(`INSERT INTO public.vehicle_blocked_dates(team_id,vehicle_id,start_date,end_date) VALUES('${testTeam}','${vehicle(23)}','2030-01-03 10:00Z','2030-01-04 10:00Z');`)).ok).toBe(true);
+    const results=await Promise.all([
+      sql(`BEGIN; UPDATE public.vehicle_blocked_dates SET start_date='2030-01-01 10:00Z',end_date='2030-01-02 10:00Z' WHERE vehicle_id='${vehicle(23)}'; SELECT pg_sleep(0.3); COMMIT;`),
+      sql(`BEGIN; ${bookingInsert(vehicle(23),'2030-01-01 10:00Z','2030-01-02 10:00Z')} SELECT pg_sleep(0.3); COMMIT;`),
+    ]);
+    expect(results.filter((r)=>r.ok)).toHaveLength(1); expect(results.find((r)=>!r.ok)?.error).toMatch(/40001|23P01/);
+    expect((await sql(`${bookingInsert(vehicle(24),'2030-01-01 10:00Z','2030-01-02 10:00Z')}
+      INSERT INTO public.vehicle_blocked_dates(team_id,vehicle_id,start_date,end_date) VALUES('${testTeam}','${vehicle(25)}','2030-01-01 10:00Z','2030-01-02 10:00Z');`)).ok).toBe(true);
+    expect((await sql(`UPDATE public.vehicle_blocked_dates SET vehicle_id='${vehicle(24)}' WHERE vehicle_id='${vehicle(25)}';`)).error).toMatch(/23P01/);
+  });
+  it('locks blocked DELETE and both old/new vehicle keys during reservation moves',async()=>{
+    expect((await sql(`INSERT INTO public.vehicle_blocked_dates(team_id,vehicle_id,start_date,end_date) VALUES('${testTeam}','${vehicle(26)}','2030-01-01 10:00Z','2030-01-02 10:00Z');`)).ok).toBe(true);
+    const deleting=sql(`BEGIN; DELETE FROM public.vehicle_blocked_dates WHERE vehicle_id='${vehicle(26)}'; SELECT pg_sleep(0.4); COMMIT;`);
+    const insertion=sql(`SELECT pg_sleep(0.1); ${bookingInsert(vehicle(26),'2030-01-01 10:00Z','2030-01-02 10:00Z')}`);
+    const results=await Promise.all([deleting,insertion]);expect(results[0].ok).toBe(true);expect(results[1].error).toMatch(/40001/);
+    expect((await sql(bookingInsert(vehicle(27),'2030-01-01 10:00Z','2030-01-02 10:00Z'))).ok).toBe(true);
+    const moving=sql(`BEGIN; UPDATE public.bookings SET vehicle_id='${vehicle(28)}' WHERE vehicle_id='${vehicle(27)}'; SELECT pg_sleep(0.4); COMMIT;`);
+    const oldAttempt=sql(`SELECT pg_sleep(0.1); ${bookingInsert(vehicle(27),'2030-01-01 10:00Z','2030-01-02 10:00Z')}`);
+    const newAttempt=sql(`SELECT pg_sleep(0.1); ${bookingInsert(vehicle(28),'2030-01-01 10:00Z','2030-01-02 10:00Z')}`);
+    const moveResults=await Promise.all([moving,oldAttempt,newAttempt]);expect(moveResults[0].ok).toBe(true);expect(moveResults[1].error).toMatch(/40001/);expect(moveResults[2].error).toMatch(/40001/);
+  });
 });
