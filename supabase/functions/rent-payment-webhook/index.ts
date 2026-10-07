@@ -8,9 +8,8 @@
 //   - payment_intent.payment_failed
 //
 // State rule (Lovable flag #6): 'confirmed' fires ONLY when both legs have
-// succeeded, evaluated from the booking row — never from a single event —
-// so redelivery and reordering are harmless. Events dedupe via the
-// stripe_webhook_events table.
+// succeeded against the immutable rental snapshot. Completion and retries use
+// the durable external lifecycle ledger; references alone cannot confirm.
 //
 // Partial failure (rental paid, Exotiq leg declined): the booking STAYS
 // pending_payment with an ops alert in user_activity_log; the renter
@@ -355,7 +354,7 @@ serve(async (req) => {
         const paymentMethod = typeof rentalPi.payment_method === "string"
           ? rentalPi.payment_method
           : rentalPi.payment_method?.id;
-        const customer = typeof session.customer === "string" ? session.customer : session.customer?.id;
+        const customer = typeof rentalPi.customer === "string" ? rentalPi.customer : rentalPi.customer?.id;
         if (!paymentMethod || !customer) {
           await opsAlert(db, bookingRef, "renter_payment_partial_failure", {
             reason: "saved payment method or customer missing for the Exotiq leg",
@@ -363,10 +362,12 @@ serve(async (req) => {
           break;
         }
 
-        // Attempt-scoped idempotency key so a fresh card can retry after a
-        // decline (M6 flag #9).
+        // Analytics attempts do not change charge identity or provider parameters.
+        // Ambiguous failures reuse one durable key within its bounded lifetime.
         const attempt = ((bookingRow.exotiq_leg_attempt as number | null) ?? 0) + 1;
         await db.from("bookings").update({ exotiq_leg_attempt: attempt }).eq("id", bookingRow.id);
+        const {data:chargeClaim,error:chargeClaimError}=await db.rpc("external_claim_exotiq_charge",{_booking_ref:bookingRef,_operator_intent_id:operatorPi});
+        if(chargeClaimError||chargeClaim?.state!=="ready"||typeof chargeClaim.idempotency_key!=="string")throw new Error("Charge reconciliation required");
 
         try {
           const exotiqPi = await stripe.paymentIntents.create(
@@ -379,9 +380,9 @@ serve(async (req) => {
               confirm: true,
               statement_descriptor_suffix: "EXOTIQ RENT",
               description: `Exotiq booking fee + protection — ${bookingRef}`,
-              metadata: { booking_ref: bookingRef, leg: "exotiq_fee_protection", stripe_mode: mode, attempt: String(attempt) },
+              metadata: { booking_ref: bookingRef, leg: "exotiq_fee_protection", stripe_mode: mode },
             },
-            { idempotencyKey: `exotiq-event-${event.id}` },
+            { idempotencyKey: chargeClaim.idempotency_key },
           );
           await db
             .from("bookings")

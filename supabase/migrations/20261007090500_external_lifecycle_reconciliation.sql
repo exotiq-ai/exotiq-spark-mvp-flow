@@ -18,12 +18,20 @@ CREATE TABLE public.external_lifecycle_reconciliation_queue (
   reason text NOT NULL CHECK(reason IN('partial_payment','duplicate_settlement','terminal_payment','identity_required','ambiguous_charge','snapshot_mismatch')),
   updated_at timestamptz NOT NULL DEFAULT clock_timestamp()
 );
+CREATE TABLE public.external_exotiq_charge_attempts (
+ booking_id uuid PRIMARY KEY REFERENCES public.bookings(id),operator_intent_id text NOT NULL,
+ first_seen_at timestamptz NOT NULL DEFAULT clock_timestamp(),idempotency_key text NOT NULL UNIQUE
+);
 ALTER TABLE public.identity_verifications ADD COLUMN external_last_event_created bigint NOT NULL DEFAULT 0;
+ALTER TABLE public.bookings ADD COLUMN external_reconciliation_checked_at timestamptz;
 ALTER TABLE public.external_payment_settlements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.external_lifecycle_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.external_lifecycle_reconciliation_queue ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.external_exotiq_charge_attempts ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.external_payment_settlements,public.external_lifecycle_events,public.external_lifecycle_reconciliation_queue FROM PUBLIC,anon,authenticated,service_role;
 GRANT SELECT ON public.external_payment_settlements,public.external_lifecycle_events,public.external_lifecycle_reconciliation_queue TO service_role;
+REVOKE ALL ON public.external_exotiq_charge_attempts FROM PUBLIC,anon,authenticated,service_role;
+GRANT SELECT ON public.external_exotiq_charge_attempts TO service_role;
 
 CREATE FUNCTION public.external_lifecycle_financial_authority(_booking uuid)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $$
@@ -152,6 +160,9 @@ CREATE OR REPLACE FUNCTION public.guard_marketplace_confirm_transition()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $$
 BEGIN
  IF NEW.booking_source='marketplace' AND NEW.status='confirmed' AND OLD.status IS DISTINCT FROM 'confirmed' THEN
+  IF (NEW.team_id,NEW.vehicle_id,NEW.customer_id,NEW.start_date,NEW.end_date,NEW.protection_tier,NEW.total_value,NEW.platform_fee_cents,NEW.protection_total_cents,NEW.state_fee_cents,NEW.processing_fee_cents)
+   IS DISTINCT FROM (OLD.team_id,OLD.vehicle_id,OLD.customer_id,OLD.start_date,OLD.end_date,OLD.protection_tier,OLD.total_value,OLD.platform_fee_cents,OLD.protection_total_cents,OLD.state_fee_cents,OLD.processing_fee_cents)
+   THEN RAISE EXCEPTION 'marketplace_confirmation_snapshot_changed' USING ERRCODE='23514';END IF;
   IF OLD.status NOT IN('pending_payment','pending_documents') OR NOT coalesce(public.external_lifecycle_fully_settled(OLD.id,NEW.payment_stripe_mode),false) OR NOT public.external_lifecycle_identity_cleared(NEW.customer_id,NEW.end_date,NEW.team_id,NEW.id) THEN RAISE EXCEPTION 'marketplace_confirmation_prerequisites_missing' USING ERRCODE='23514'; END IF;
  END IF;
  RETURN NEW;
@@ -163,8 +174,10 @@ RETURNS integer LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,pub
 DECLARE item record; count integer:=0;
 BEGIN
  IF _limit NOT BETWEEN 1 AND 100 THEN RAISE EXCEPTION 'invalid_input'; END IF;
- FOR item IN SELECT booking_ref,payment_stripe_mode mode FROM public.bookings WHERE booking_source='marketplace' AND status IN('pending_payment','pending_documents') ORDER BY updated_at,id LIMIT _limit LOOP
-  PERFORM public.external_reconcile_booking(item.booking_ref,item.mode);count:=count+1;
+ FOR item IN SELECT id,booking_ref,payment_stripe_mode mode FROM public.bookings WHERE booking_source='marketplace' AND status IN('pending_payment','pending_documents') ORDER BY external_reconciliation_checked_at NULLS FIRST,id LIMIT _limit LOOP
+  PERFORM public.external_reconcile_booking(item.booking_ref,item.mode);
+  UPDATE public.bookings SET external_reconciliation_checked_at=clock_timestamp() WHERE id=item.id;
+  count:=count+1;
  END LOOP;
  RETURN count;
 END $$;
@@ -180,6 +193,27 @@ BEGIN
  IF item.lease_until>clock_timestamp() THEN RETURN jsonb_build_object('state','busy'); END IF;
  UPDATE public.external_lifecycle_events SET lease_until=clock_timestamp()+interval '5 minutes',claim_token=gen_random_uuid() WHERE consumer='rent' AND event_id=_event_id RETURNING * INTO item;
  RETURN jsonb_build_object('state','claimed','claim_token',item.claim_token);
+END $$;
+CREATE FUNCTION public.external_claim_exotiq_charge(_booking_ref text,_operator_intent_id text)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $$
+DECLARE b public.bookings%ROWTYPE; attempt public.external_exotiq_charge_attempts%ROWTYPE;
+BEGIN
+ SELECT * INTO b FROM public.bookings WHERE booking_ref=_booking_ref FOR UPDATE;
+ IF NOT FOUND OR b.status<>'pending_payment' OR coalesce(b.exotiq_payment_intent_id,'')<>''
+ OR b.operator_payment_intent_id IS DISTINCT FROM _operator_intent_id OR NOT public.external_lifecycle_financial_authority(b.id)
+ OR NOT EXISTS(SELECT FROM public.external_payment_settlements s WHERE s.booking_id=b.id AND s.intent_id=_operator_intent_id AND s.leg='operator'
+   AND s.mode=b.payment_stripe_mode AND s.amount_cents=b.total_value*100)
+ OR (SELECT count(*) FROM public.external_payment_settlements s WHERE s.booking_id=b.id AND s.leg='operator')<>1
+ THEN RAISE EXCEPTION 'settlement_mismatch';END IF;
+ INSERT INTO public.external_exotiq_charge_attempts(booking_id,operator_intent_id,idempotency_key)
+ VALUES(b.id,_operator_intent_id,'exotiq-rental-'||b.id::text||'-'||_operator_intent_id) ON CONFLICT(booking_id) DO NOTHING;
+ SELECT * INTO attempt FROM public.external_exotiq_charge_attempts WHERE booking_id=b.id;
+ IF attempt.operator_intent_id IS DISTINCT FROM _operator_intent_id THEN RAISE EXCEPTION 'settlement_mismatch';END IF;
+ IF attempt.first_seen_at<clock_timestamp()-interval '23 hours' THEN
+   INSERT INTO public.external_lifecycle_reconciliation_queue VALUES(b.id,'ambiguous_charge',clock_timestamp()) ON CONFLICT(booking_id) DO UPDATE SET reason=excluded.reason,updated_at=excluded.updated_at;
+   RETURN jsonb_build_object('state','reconciliation_required');
+ END IF;
+ RETURN jsonb_build_object('state','ready','idempotency_key',attempt.idempotency_key);
 END $$;
 CREATE FUNCTION public.external_finish_rent_event(_event_id text,_claim_token uuid,_completed boolean)
 RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $$
@@ -205,3 +239,5 @@ REVOKE ALL ON FUNCTION public.external_claim_rent_event(text),public.external_fi
 GRANT EXECUTE ON FUNCTION public.external_claim_rent_event(text),public.external_finish_rent_event(text,uuid,boolean) TO service_role;
 REVOKE ALL ON FUNCTION public.external_lifecycle_financial_authority(uuid) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.external_lifecycle_financial_authority(uuid) TO service_role;
+REVOKE ALL ON FUNCTION public.external_claim_exotiq_charge(text,text) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.external_claim_exotiq_charge(text,text) TO service_role;
