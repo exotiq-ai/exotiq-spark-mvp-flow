@@ -55,15 +55,16 @@ describe('staging guard', () => {
 
 describe('manifest-scoped seed and teardown', () => {
   it('checks all rows before the first operation and rejects mixed nonsynthetic rows', async () => {
-    const adapter = { insert: vi.fn(), deleteExact: vi.fn() };
+    const adapter = { insert: vi.fn(), deleteExact: vi.fn(), readExact: vi.fn(async () => null) };
     const input = manifest(); input.rows.push({ ...input.rows[0], syntheticLabel: 'real-person' });
     await expect(applyManifest(fixture(), input, adapter, { now })).rejects.toThrow();
     expect(adapter.insert).not.toHaveBeenCalled();
   });
   it('only deletes exact manifest IDs, in reverse dependency order', async () => {
-    const adapter = { insert: vi.fn(), deleteExact: vi.fn() };
+    const adapter = { insert: vi.fn(), deleteExact: vi.fn(), readExact: vi.fn(async () => null) };
     await applyManifest(fixture(), manifest(), adapter, { now });
     expect(adapter.insert).toHaveBeenCalledWith('customers', manifest().rows[0].data);
+    adapter.readExact.mockResolvedValue(manifest().rows[0].data);
     await teardownManifest(fixture(), manifest(), adapter, { now });
     expect(adapter.deleteExact).toHaveBeenCalledExactlyOnceWith('customers', manifest().rows[0].id);
   });
