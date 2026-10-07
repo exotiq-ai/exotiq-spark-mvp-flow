@@ -100,7 +100,16 @@ export function auditSource(root) {
   const final = new Map();
   const events = [...report.functions.map((entry) => ({ ...entry, action: 'create' })), ...report.drops.map((entry) => ({ ...entry, action: 'drop' }))].sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
   for (const event of events) { if (event.action === 'drop') final.delete(event.identity); else final.set(event.identity, event); }
-  report.finalFunctions = [...final.values()].filter((entry) => entry.touchesInventory || /public_(?:vehicle|fleet|booking|team|marketplace)|is_marketplace|rent_/.test(entry.name)).sort((a, b) => a.identity.localeCompare(b.identity));
+  // Trigger guards may reference only OLD/NEW in their bodies. Include their
+  // zero-argument function identities through inventory-table trigger wiring,
+  // even when declaration and trigger live in different migration files.
+  const inventoryTriggerFunctions = new Set();
+  for (const trigger of report.triggers) {
+    if (!/\bON\s+(?:ONLY\s+)?(?:public\.)?"?(?:bookings|vehicle_blocked_dates)"?\b/i.test(trigger.evidence)) continue;
+    const target = /\bEXECUTE\s+(?:FUNCTION|PROCEDURE)\s+([\w."]+)\s*\(/i.exec(trigger.evidence);
+    if (target) inventoryTriggerFunctions.add(identity(target[1], ''));
+  }
+  report.finalFunctions = [...final.values()].filter((entry) => entry.touchesInventory || inventoryTriggerFunctions.has(entry.identity) || /public_(?:vehicle|fleet|booking|team|marketplace)|is_marketplace|rent_/.test(entry.name)).sort((a, b) => a.identity.localeCompare(b.identity));
   report.states = stateNames.map((state) => ({ state, evidence: report.states.filter((entry) => entry.state === state) })).filter((entry) => entry.evidence.length);
   return report;
 }

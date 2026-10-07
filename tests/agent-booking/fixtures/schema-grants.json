@@ -789,6 +789,23 @@
   ],
   "functions": [
     {
+      "file": "supabase/migrations/20260310002057_42f9f8a9-71ba-478d-a5ce-a7c73f7ee7b5.sql",
+      "line": 13,
+      "evidence": "CREATE OR REPLACE FUNCTION generate_booking_ref(",
+      "sha256": "969f7205c46d0eb523533f4189bdb40213397c3f98b34cd92e702f09cd805fec",
+      "name": "generate_booking_ref",
+      "identity": "generate_booking_ref()",
+      "arguments": [],
+      "defaults": [],
+      "securityDefiner": false,
+      "bodySha256": "41339c43dedf8d27e368e8d409a41efcd402493306b292633072dd420b47f4ad",
+      "bodyEndLine": 20,
+      "touchesInventory": false,
+      "lifecycleStates": [],
+      "deployment": "unverified",
+      "action": "create"
+    },
+    {
       "file": "supabase/migrations/20261007090300_inventory_policy_read_parity.sql",
       "line": 7,
       "evidence": "CREATE FUNCTION public.agent_inventory_available(",
@@ -1000,6 +1017,25 @@
       "action": "create"
     },
     {
+      "file": "supabase/migrations/20261007090710_external_admission_audit.sql",
+      "line": 51,
+      "evidence": "CREATE FUNCTION public.external_audit_authoritative_transition(",
+      "sha256": "40ebf0e4fc6f7011bb7768fcdfde04c25189bebfc8c18eba62a8095bb1400f47",
+      "name": "public.external_audit_authoritative_transition",
+      "identity": "public.external_audit_authoritative_transition()",
+      "arguments": [],
+      "defaults": [],
+      "securityDefiner": true,
+      "bodySha256": "ebe3d9388fac9bd24fb559cd5e7e3d473a10534b6296ef199d609c69a0b97ed8",
+      "bodyEndLine": 77,
+      "touchesInventory": false,
+      "lifecycleStates": [
+        "confirmed"
+      ],
+      "deployment": "unverified",
+      "action": "create"
+    },
+    {
       "file": "supabase/migrations/20261007090600_customer_handoff_nonces.sql",
       "line": 365,
       "evidence": "CREATE FUNCTION public.external_booking_state_evidence(",
@@ -1014,6 +1050,23 @@
       "bodySha256": "0db27f533112ca1f7e803fa91a7031ba48e30cc69f6a4b8e5552f05d6ed675cb",
       "bodyEndLine": 384,
       "touchesInventory": true,
+      "lifecycleStates": [],
+      "deployment": "unverified",
+      "action": "create"
+    },
+    {
+      "file": "supabase/migrations/20261007090730_preserve_unresolved_checkout_inventory.sql",
+      "line": 26,
+      "evidence": "CREATE FUNCTION public.external_checkout_reservation_immutable(",
+      "sha256": "1769b8dc06326335c2efa1784e8ea8160b66f21c6e37abe3b39d999e165ae7f9",
+      "name": "public.external_checkout_reservation_immutable",
+      "identity": "public.external_checkout_reservation_immutable()",
+      "arguments": [],
+      "defaults": [],
+      "securityDefiner": false,
+      "bodySha256": "d2be66ad440505aabe5255a7d183ea86a2d084380eb387bd69003c5c4a6020c2",
+      "bodyEndLine": 40,
+      "touchesInventory": false,
       "lifecycleStates": [],
       "deployment": "unverified",
       "action": "create"
@@ -1264,6 +1317,28 @@
       "bodyEndLine": 65,
       "touchesInventory": true,
       "lifecycleStates": [],
+      "deployment": "unverified",
+      "action": "create"
+    },
+    {
+      "file": "supabase/migrations/20261007090730_preserve_unresolved_checkout_inventory.sql",
+      "line": 7,
+      "evidence": "CREATE OR REPLACE FUNCTION public.external_preserve_financial_hold(",
+      "sha256": "1769b8dc06326335c2efa1784e8ea8160b66f21c6e37abe3b39d999e165ae7f9",
+      "name": "public.external_preserve_financial_hold",
+      "identity": "public.external_preserve_financial_hold()",
+      "arguments": [],
+      "defaults": [],
+      "securityDefiner": true,
+      "bodySha256": "edd7af6d2be621a1c44b595fa6b6e76d281e516ca8bdea1d3496d4c31cb47253",
+      "bodyEndLine": 23,
+      "touchesInventory": false,
+      "lifecycleStates": [
+        "pending_documents",
+        "requested",
+        "pending_payment",
+        "cancelled"
+      ],
       "deployment": "unverified",
       "action": "create"
     },
@@ -1670,6 +1745,45 @@
     },
     {
       "file": "supabase/migrations/20260529001701_fd9f98c5-3ca0-4862-9ccf-07d536d9aaee.sql",
+      "line": 11,
+      "evidence": "CREATE OR REPLACE FUNCTION public.fn_generate_partner_payout(",
+      "sha256": "76df318faed749b18bdd2c4a18a6abf866f0d4451d22856681cb228b26c0b25d",
+      "name": "public.fn_generate_partner_payout",
+      "identity": "public.fn_generate_partner_payout()",
+      "arguments": [],
+      "defaults": [],
+      "securityDefiner": true,
+      "bodySha256": "3e18a39aa846a60324febf24e7405d4ca52ebc23a886d73a17228006c5f79d77",
+      "bodyEndLine": 93,
+      "touchesInventory": false,
+      "lifecycleStates": [
+        "pending",
+        "completed"
+      ],
+      "deployment": "unverified",
+      "action": "create"
+    },
+    {
+      "file": "supabase/migrations/20260525225536_8cf480fd-aae4-4741-91c0-10e8e3ffaf1a.sql",
+      "line": 37,
+      "evidence": "CREATE OR REPLACE FUNCTION public.fn_snapshot_platform_fee(",
+      "sha256": "ab4f65783cb25f8ddf058ea559b58870e3fbcd2579378a5e988dd89addef5b47",
+      "name": "public.fn_snapshot_platform_fee",
+      "identity": "public.fn_snapshot_platform_fee()",
+      "arguments": [],
+      "defaults": [],
+      "securityDefiner": true,
+      "bodySha256": "754980a99ee03530e68e5c2c0ae6f8867ac1adaa09653ae3323d72d4d0f5e1c4",
+      "bodyEndLine": 74,
+      "touchesInventory": false,
+      "lifecycleStates": [
+        "completed"
+      ],
+      "deployment": "unverified",
+      "action": "create"
+    },
+    {
+      "file": "supabase/migrations/20260529001701_fd9f98c5-3ca0-4862-9ccf-07d536d9aaee.sql",
       "line": 96,
       "evidence": "CREATE OR REPLACE FUNCTION public.fn_transition_payout(",
       "sha256": "76df318faed749b18bdd2c4a18a6abf866f0d4451d22856681cb228b26c0b25d",
@@ -1721,6 +1835,43 @@
         "active",
         "completed"
       ],
+      "deployment": "unverified",
+      "action": "create"
+    },
+    {
+      "file": "supabase/migrations/20260525225536_8cf480fd-aae4-4741-91c0-10e8e3ffaf1a.sql",
+      "line": 150,
+      "evidence": "CREATE OR REPLACE FUNCTION public.fn_void_partner_payout(",
+      "sha256": "ab4f65783cb25f8ddf058ea559b58870e3fbcd2579378a5e988dd89addef5b47",
+      "name": "public.fn_void_partner_payout",
+      "identity": "public.fn_void_partner_payout()",
+      "arguments": [],
+      "defaults": [],
+      "securityDefiner": true,
+      "bodySha256": "a8a7a1bcdd705f94dcb9fe0a03a2d7a4449435f1dc4e5789f66da362d991c1ac",
+      "bodyEndLine": 166,
+      "touchesInventory": false,
+      "lifecycleStates": [
+        "cancelled",
+        "completed"
+      ],
+      "deployment": "unverified",
+      "action": "create"
+    },
+    {
+      "file": "scripts/rls-verify/test_m5_booking_writes.sql",
+      "line": 59,
+      "evidence": "CREATE OR REPLACE FUNCTION public.generate_booking_ref(",
+      "sha256": "5d283c3ddf4096206209d457136759f518811762df45e9e2821175a1abdcb4cd",
+      "name": "public.generate_booking_ref",
+      "identity": "public.generate_booking_ref()",
+      "arguments": [],
+      "defaults": [],
+      "securityDefiner": false,
+      "bodySha256": "22e8a76ffb25f65343d0fc4dfd5f10fbdfc845303466b1c11745bc69a1350b56",
+      "bodyEndLine": 64,
+      "touchesInventory": false,
+      "lifecycleStates": [],
       "deployment": "unverified",
       "action": "create"
     },
@@ -1878,6 +2029,27 @@
       "action": "create"
     },
     {
+      "file": "supabase/migrations/20261007090500_external_lifecycle_reconciliation.sql",
+      "line": 159,
+      "evidence": "CREATE OR REPLACE FUNCTION public.guard_marketplace_confirm_transition(",
+      "sha256": "3b5e8ce7cbe39eb77eed55a22fbe9d5deb794c9f3230d46d195ac9736b2d39e1",
+      "name": "public.guard_marketplace_confirm_transition",
+      "identity": "public.guard_marketplace_confirm_transition()",
+      "arguments": [],
+      "defaults": [],
+      "securityDefiner": true,
+      "bodySha256": "7d64fc37e82a5ecb62009f212914800619d48287a707ccd029d72ed74178bba4",
+      "bodyEndLine": 169,
+      "touchesInventory": false,
+      "lifecycleStates": [
+        "pending_documents",
+        "pending_payment",
+        "confirmed"
+      ],
+      "deployment": "unverified",
+      "action": "create"
+    },
+    {
       "file": "supabase/migrations/20260721232856_542fce1e-1f93-4fe3-9344-c363ed48f7bd.sql",
       "line": 24,
       "evidence": "CREATE OR REPLACE FUNCTION public.is_marketplace_team(",
@@ -1928,6 +2100,40 @@
       "bodySha256": "e39a388faf3eaf3186c9180774c92a0d2b82b28b8d17f75c447e96f158807bdd",
       "bodyEndLine": 215,
       "touchesInventory": true,
+      "lifecycleStates": [],
+      "deployment": "unverified",
+      "action": "create"
+    },
+    {
+      "file": "supabase/migrations/20260208224404_510922e8-1aad-4fbb-848a-74abb2ae8dec.sql",
+      "line": 40,
+      "evidence": "CREATE OR REPLACE FUNCTION public.notify_booking_status_change(",
+      "sha256": "47742600f4d1927064222c3fc3631fe89c3bd730e3d10d5e029e0722319fc892",
+      "name": "public.notify_booking_status_change",
+      "identity": "public.notify_booking_status_change()",
+      "arguments": [],
+      "defaults": [],
+      "securityDefiner": true,
+      "bodySha256": "5659526c6698b2eecfe5d5ccb0aedc62fadd3ce92fd9647c553aba222900ba81",
+      "bodyEndLine": 76,
+      "touchesInventory": false,
+      "lifecycleStates": [],
+      "deployment": "unverified",
+      "action": "create"
+    },
+    {
+      "file": "supabase/migrations/20260208224404_510922e8-1aad-4fbb-848a-74abb2ae8dec.sql",
+      "line": 3,
+      "evidence": "CREATE OR REPLACE FUNCTION public.notify_new_booking(",
+      "sha256": "47742600f4d1927064222c3fc3631fe89c3bd730e3d10d5e029e0722319fc892",
+      "name": "public.notify_new_booking",
+      "identity": "public.notify_new_booking()",
+      "arguments": [],
+      "defaults": [],
+      "securityDefiner": true,
+      "bodySha256": "4c927687e11fbcf01af1e0bcc4a4b5f16ab4a4f4654604e96e5e8cf25a89ffaa",
+      "bodyEndLine": 37,
+      "touchesInventory": false,
       "lifecycleStates": [],
       "deployment": "unverified",
       "action": "create"
@@ -2157,6 +2363,25 @@
       "action": "create"
     },
     {
+      "file": "supabase/migrations/20260725135723_55e56812-5660-4871-b28f-0eebb1053389.sql",
+      "line": 14,
+      "evidence": "CREATE OR REPLACE FUNCTION public.set_payment_due_at(",
+      "sha256": "3618e2c10a1a2424bce6679b11ed8839afaa4cf8a82c709afb200009bb416a09",
+      "name": "public.set_payment_due_at",
+      "identity": "public.set_payment_due_at()",
+      "arguments": [],
+      "defaults": [],
+      "securityDefiner": false,
+      "bodySha256": "733732913824b66df56cab663db54d09d49f68b3f7677e2cb34b05974aa6858d",
+      "bodyEndLine": 30,
+      "touchesInventory": false,
+      "lifecycleStates": [
+        "pending_payment"
+      ],
+      "deployment": "unverified",
+      "action": "create"
+    },
+    {
       "file": "supabase/migrations/20260527223011_1c12cfb6-0778-424d-8580-94b266a4844d.sql",
       "line": 125,
       "evidence": "CREATE OR REPLACE FUNCTION public.trash_vehicle(",
@@ -2176,6 +2401,23 @@
         "active",
         "pending"
       ],
+      "deployment": "unverified",
+      "action": "create"
+    },
+    {
+      "file": "supabase/migrations/20260627195957_cb815b79-dd08-4a5b-8369-3bd863ae3ed5.sql",
+      "line": 172,
+      "evidence": "CREATE OR REPLACE FUNCTION public.update_updated_at_column(",
+      "sha256": "159bf6aef1ebf450b20aa3ad131074f4e747b06805349b590ce25c24d905054e",
+      "name": "public.update_updated_at_column",
+      "identity": "public.update_updated_at_column()",
+      "arguments": [],
+      "defaults": [],
+      "securityDefiner": false,
+      "bodySha256": "58e2231d2afa0031ec0e6f4a12a3e5299cc89b3fa2b0f4a1d547315fa1a2b69b",
+      "bodyEndLine": 178,
+      "touchesInventory": false,
+      "lifecycleStates": [],
       "deployment": "unverified",
       "action": "create"
     },
