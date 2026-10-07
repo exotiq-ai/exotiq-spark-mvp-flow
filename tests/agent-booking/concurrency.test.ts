@@ -5,6 +5,8 @@ describe('shared inventory guard on actual isolated PostgreSQL', () => {
   let sql: ReturnType<typeof inventorySql>;
   beforeAll(async () => {
     sql = inventorySql();
+    const ids=Array.from({length:20},(_,i)=>`'${vehicle(i+1)}'`).join(',');
+    expect((await sql(`DELETE FROM public.vehicle_blocked_dates WHERE team_id='${testTeam}' AND vehicle_id IN(${ids}); DELETE FROM public.bookings WHERE team_id='${testTeam}' AND vehicle_id IN(${ids});`)).ok).toBe(true);
     expect((await sql(`INSERT INTO public.teams(id,name,owner_id,slug,marketplace_visible,marketplace_request_status) VALUES('${testTeam}','agent-test-inventory','${testTeam}','agent-test-inventory',true,'approved') ON CONFLICT DO NOTHING;
       INSERT INTO public.vehicles(id,team_id,name,slug,marketplace_visible) SELECT ('20000000-0000-4000-8000-'||lpad(i::text,12,'0'))::uuid,'${testTeam}','agent-test-inventory','agent-test-'||i,true FROM generate_series(1,40) i ON CONFLICT DO NOTHING;`)).ok).toBe(true);
   });
@@ -55,5 +57,25 @@ describe('shared inventory guard on actual isolated PostgreSQL', () => {
   it('does not expose safety-definer helpers to public roles', async () => {
     const result = await sql(`SELECT bool_and(NOT has_function_privilege('anon',p.oid,'EXECUTE') AND NOT has_function_privilege('authenticated',p.oid,'EXECUTE')) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND p.proname IN('agent_inventory_lock','agent_inventory_booking_guard','agent_inventory_blocked_guard');`);
     expect(result.output).toMatch(/\nt$/);
+  });
+  it('rolls back an entire multi-row INSERT and repeated same-transaction overlaps', async () => {
+    const insert = bookingInsert(vehicle(18),'2030-01-01 10:00Z','2030-01-02 10:00Z');
+    const result = await sql(`BEGIN; ${insert} ${insert} COMMIT;`);
+    expect(result.error).toMatch(/23P01/);
+    expect((await sql(`SELECT count(*) FROM public.bookings WHERE vehicle_id='${vehicle(18)}';`)).output).toMatch(/\n0$/);
+    const many = await sql(`INSERT INTO public.bookings(vehicle_id,team_id,customer_name,pickup_location,daily_rate,total_value,start_date,end_date,status,booking_source)
+      SELECT '${vehicle(19)}','${testTeam}','agent-test-inventory','synthetic',100,100,'2030-01-01 10:00Z'::timestamptz,'2030-01-02 10:00Z'::timestamptz,'requested','import' FROM generate_series(1,2);`);
+    expect(many.error).toMatch(/23P01/);
+    expect((await sql(`SELECT count(*) FROM public.bookings WHERE vehicle_id='${vehicle(19)}';`)).output).toMatch(/\n0$/);
+  });
+  it('rejects competing updates without a row-lock/advisory-lock cycle', async () => {
+    expect((await sql(`${bookingInsert(vehicle(20),'2030-01-01 10:00Z','2030-01-02 10:00Z')}${bookingInsert(vehicle(20),'2030-01-03 10:00Z','2030-01-04 10:00Z')}`)).ok).toBe(true);
+    const results = await Promise.all([
+      sql(`BEGIN; UPDATE public.bookings SET status='pending' WHERE vehicle_id='${vehicle(20)}' AND start_date='2030-01-01 10:00Z'; SELECT pg_sleep(0.3); UPDATE public.bookings SET status='pending' WHERE vehicle_id='${vehicle(20)}' AND start_date='2030-01-03 10:00Z'; COMMIT;`),
+      sql(`BEGIN; SELECT pg_sleep(0.1); UPDATE public.bookings SET status='confirmed' WHERE vehicle_id='${vehicle(20)}' AND start_date='2030-01-03 10:00Z'; COMMIT;`),
+    ]);
+    expect(results.filter((r) => r.ok)).toHaveLength(1);
+    expect(results.find((r) => !r.ok)?.error).toMatch(/40001/);
+    expect(results.some((r) => /40P01|57014/.test(r.error))).toBe(false);
   });
 });
