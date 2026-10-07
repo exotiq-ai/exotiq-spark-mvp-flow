@@ -56,6 +56,17 @@ AS $$
 DECLARE old_vehicle uuid; span tstzrange; expected_buffer integer;
 BEGIN
   IF TG_OP <> 'INSERT' THEN old_vehicle:=OLD.vehicle_id; END IF;
+  -- Metadata and changes between equally blocking statuses do not change
+  -- inventory. AFTER repeats this test against the final row, so a later
+  -- BEFORE trigger changing dates/vehicle/buffer/blocking still gets checked.
+  IF TG_OP='UPDATE'
+      AND NEW.vehicle_id IS NOT DISTINCT FROM OLD.vehicle_id
+      AND NEW.start_date IS NOT DISTINCT FROM OLD.start_date
+      AND NEW.end_date IS NOT DISTINCT FROM OLD.end_date
+      AND NEW.inventory_buffer_minutes IS NOT DISTINCT FROM OLD.inventory_buffer_minutes
+      AND public.agent_inventory_blocking(NEW.status)=public.agent_inventory_blocking(OLD.status) THEN
+    RETURN NEW;
+  END IF;
   IF TG_OP='DELETE' THEN
     PERFORM public.agent_inventory_lock(old_vehicle,NULL);
     RETURN OLD;

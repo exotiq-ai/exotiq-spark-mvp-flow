@@ -101,6 +101,14 @@ describe('shared inventory guard on actual isolated PostgreSQL', () => {
       ${bookingInsert(vehicle(22),'2030-01-03 10:00Z','2030-01-04 10:00Z')} COMMIT;`);
     expect(buffer.error).toMatch(/22023/);
   });
+  it('rechecks metadata updates when a later trigger changes inventory',async()=>{
+    expect((await sql(`${bookingInsert(vehicle(22),'2030-01-01 10:00Z','2030-01-02 10:00Z')}${bookingInsert(vehicle(22),'2030-01-03 10:00Z','2030-01-04 10:00Z')}`)).ok).toBe(true);
+    const rewritten=await sql(`BEGIN;
+      CREATE FUNCTION public.agent_test_late() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN NEW.start_date='2030-01-01 10:00Z'; NEW.end_date='2030-01-02 10:00Z'; RETURN NEW; END $$;
+      CREATE TRIGGER b_agent_test_late BEFORE UPDATE ON public.bookings FOR EACH ROW EXECUTE FUNCTION public.agent_test_late();
+      UPDATE public.bookings SET customer_phone='+15550000123' WHERE vehicle_id='${vehicle(22)}' AND start_date='2030-01-03 10:00Z'; COMMIT;`);
+    expect(rewritten.ok).toBe(false); expect(rewritten.error).toMatch(/23P01/);
+  });
   it('serializes blocked UPDATE with booking creation and validates blocked vehicle moves',async()=>{
     expect((await sql(`INSERT INTO public.vehicle_blocked_dates(team_id,vehicle_id,start_date,end_date) VALUES('${testTeam}','${vehicle(23)}','2030-01-03 10:00Z','2030-01-04 10:00Z');`)).ok).toBe(true);
     const results=await Promise.all([
