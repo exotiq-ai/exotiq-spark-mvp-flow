@@ -37,8 +37,9 @@ export function createAuthenticator(config:AuthConfig,fetcher:typeof fetch=fetch
     return Response.json(result.body);
   }});
   const verify=async(token:string,audience:string)=> {
-    const result=await jwtVerify(token,jwks,{issuer:config.issuer,audience,algorithms:['ES256','RS256','PS256','EdDSA'],typ:'at+jwt',requiredClaims:['iss','aud','sub','iat','nbf','exp','jti','client_id','scope'],clockTolerance:0});
-    return principal(result.payload,config,audience);
+    try{const result=await jwtVerify(token,jwks,{issuer:config.issuer,audience,algorithms:['ES256','RS256','PS256','EdDSA'],typ:'at+jwt',requiredClaims:['iss','aud','sub','iat','nbf','exp','jti','client_id','scope'],clockTolerance:0});
+      return principal(result.payload,config,audience);
+    }catch{throw new AuthFailure(401);}
   };
   const credentials='Basic '+Buffer.from(encodeURIComponent(config.exchangeClientId)+':'+encodeURIComponent(config.exchangeClientSecret)).toString('base64');
   return {
@@ -51,6 +52,10 @@ export function createAuthenticator(config:AuthConfig,fetcher:typeof fetch=fetch
         if(url.origin!==resource.origin||url.protocol!=='https:'||url.searchParams.has('access_token'))throw new AuthFailure(401);
         const header=request.headers.get('authorization');if(!header||!/^Bearer [A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(header)||header.length>16384)throw new AuthFailure(401);
         const mcpToken=header.slice(7);const p=await verify(mcpToken,config.resource);
+        // Provider metadata is checked against configured endpoints; never used to choose egress.
+        const discovery=await boundedJson(fetcher,config.metadataUri,{headers:{Accept:'application/json'}});
+        const m=discovery.body;const supports=(key:string,value:string)=>record(m)&&Array.isArray(m[key])&&m[key].length<=64&&(m[key] as unknown[]).includes(value);
+        if(discovery.status!==200||!record(m)||m.issuer!==config.issuer||m.jwks_uri!==config.jwksUri||m.token_endpoint!==config.tokenUri||m.introspection_endpoint!==config.introspectionUri||!supports('code_challenge_methods_supported','S256')||!supports('grant_types_supported','urn:ietf:params:oauth:grant-type:token-exchange')||!supports('token_endpoint_auth_methods_supported','client_secret_basic'))throw new AuthFailure(503);
         const checked=await boundedJson(fetcher,config.introspectionUri,{method:'POST',headers:{Authorization:credentials,'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({token:mcpToken,token_type_hint:'access_token'}).toString()});
         const i=checked.body;
         if(checked.status!==200||!record(i)||i.active!==true||i.iss!==p.issuer||i.sub!==p.subject||i.jti!==p.tokenId||i.exp!==p.expiresAt||i.client_id!==p.clientId||i.aud!==config.resource||typeof i.scope!=='string'||i.scope.split(' ').sort().join(' ')!==[...p.scopes].sort().join(' '))throw new AuthFailure(401);
@@ -61,7 +66,7 @@ export function createAuthenticator(config:AuthConfig,fetcher:typeof fetch=fetch
         const delegated=await verify(e.access_token,config.apiResource);
         if(delegated.issuer!==p.issuer||delegated.subject!==p.subject||delegated.clientId!==p.clientId||delegated.scopes.some(s=>!p.scopes.includes(s))||requiredScope&&!delegated.scopes.includes(requiredScope)||Date.now()-started>15000)throw new AuthFailure(401);
         return {principal:p,apiToken:e.access_token,mcpToken};
-      }catch(error){if(error instanceof AuthFailure)throw error;throw new AuthFailure(401);}
+      }catch(error){if(error instanceof AuthFailure)throw error;throw new AuthFailure(503);}
       finally{inflight--;}
     },
     challenge(error:AuthFailure){const kind=error.status===403?'insufficient_scope':'invalid_token';const headers:Record<string,string>={'Cache-Control':'no-store'};
