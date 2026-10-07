@@ -201,8 +201,8 @@ serve(async (req) => {
             stripe_mode: mode,
           },
         },
-        success_url: `${returnBase}&payment=success`,
-        cancel_url: `${returnBase}&payment=cancelled`,
+        success_url: internal?returnBase:`${returnBase}&payment=success`,
+        cancel_url: internal?returnBase:`${returnBase}&payment=cancelled`,
         metadata: {
           booking_ref: booking.booking_ref,
           leg: "operator_rental",
