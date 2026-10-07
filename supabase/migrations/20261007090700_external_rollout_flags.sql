@@ -7,6 +7,16 @@ CREATE TABLE public.external_api_runtime_settings (
  updated_at timestamptz NOT NULL DEFAULT clock_timestamp(),updated_by uuid
 );
 INSERT INTO public.external_api_runtime_settings(singleton) VALUES(true);
+-- Global rollout authority is independently reviewed and seeded only by a
+-- trusted database administrator. No email inference or public/service setter
+-- can grant this binding; an editable source super_admins row is insufficient.
+CREATE TABLE public.external_rollout_admins (
+ user_id uuid PRIMARY KEY REFERENCES auth.users(id),active boolean NOT NULL DEFAULT true,
+ reviewed_at timestamptz NOT NULL DEFAULT clock_timestamp()
+);
+ALTER TABLE public.external_rollout_admins ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.external_rollout_admins FROM PUBLIC,anon,authenticated,service_role;
+GRANT SELECT ON public.external_rollout_admins TO service_role;
 CREATE TABLE public.external_flag_audit (
  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),actor_id uuid NOT NULL,
  operator_id uuid REFERENCES public.teams(id),
@@ -41,7 +51,8 @@ $$;
 CREATE FUNCTION public.external_verified_flag_admin(_actor uuid)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $$
  SELECT public.external_verified_flag_actor(_actor) AND EXISTS(
-  SELECT FROM public.super_admins sa WHERE sa.user_id=_actor AND sa.is_active IS TRUE)
+  SELECT FROM public.super_admins sa JOIN public.external_rollout_admins rollout ON rollout.user_id=sa.user_id
+  WHERE sa.user_id=_actor AND sa.is_active IS TRUE AND rollout.active IS TRUE)
 $$;
 CREATE FUNCTION public.external_set_global_new_writes(_enabled boolean)
 RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public SET lock_timeout='500ms' SET statement_timeout='4s' AS $$
