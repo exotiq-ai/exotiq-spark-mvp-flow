@@ -2,6 +2,7 @@ import {describe,it,expect} from 'vitest';
 import {readFileSync} from 'node:fs';
 import {transpileModule,ModuleKind,ScriptTarget} from 'typescript';
 import {settlementEvidence,applyIdentityEvent,reconcileBooking,recordSettlement,sourceAmountCents,snapshotFeeCents} from '../../supabase/functions/_shared/external-booking/lifecycle';
+import {readSourceRawBody} from '../../supabase/functions/_shared/external-booking/source-body.ts';
 const expected={bookingRef:'agent-test-booking',leg:'operator' as const,mode:'test' as const,amountCents:10000,currency:'usd',operatorAccount:'acct_synthetic'};
 const intent=()=>({id:'pi_synthetic',status:'succeeded',amount:10000,amount_received:10000,currency:'usd',livemode:false,metadata:{booking_ref:expected.bookingRef,leg:'operator_rental',stripe_mode:'test'},transfer_data:{destination:'acct_synthetic'}});
 /** Execute the actual edge handler source with offline SDK/transport doubles.
@@ -10,6 +11,7 @@ function edgeHandler(path:string,db:unknown,stripe:unknown){
  let handler:((request:Request)=>Promise<Response>)|undefined;
  const output=transpileModule(readFileSync(path,'utf8'),{compilerOptions:{module:ModuleKind.CommonJS,target:ScriptTarget.ES2022}}).outputText;
  const fakeRequire=(name:string)=>{
+  if(name.includes('source-body'))return {readSourceRawBody};
   if(name.includes('/http/server'))return {serve:(callback:typeof handler)=>{handler=callback;}};
   if(name.includes('esm.sh/stripe'))return {default:function StripeFixture(){return stripe;}};
   if(name.includes('esm.sh/@supabase'))return {createClient:()=>db};

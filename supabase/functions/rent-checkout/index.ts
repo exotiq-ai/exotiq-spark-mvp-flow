@@ -23,6 +23,7 @@
 // config.toml: verify_jwt = false (guest checkout; anon key passes gateway).
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import {readSourceHandoffBody} from '../_shared/external-booking/source-body.ts';
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.77.0";
 import { resolveStripeMode, teamConnectedAccountId } from "../_shared/stripeMode.ts";
@@ -66,7 +67,8 @@ serve(async (req) => {
   }
 
   try {
-    const body = await req.json().catch(() => ({}));
+    let body:Record<string,any>;
+    try{body=await readSourceHandoffBody(req);}catch{return json({error:'Invalid request body'},400);}
     const internal=Object.prototype.hasOwnProperty.call(body,'external_handoff');
     if(internal){
       try{await verifyInternalHandoff(req,'rent-checkout',body,Deno.env.get('EXTERNAL_API_HANDOFF_KEY'));}

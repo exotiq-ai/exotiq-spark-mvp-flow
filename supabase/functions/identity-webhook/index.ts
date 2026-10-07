@@ -10,6 +10,7 @@
 // config.toml: verify_jwt = false (Stripe calls this; auth is the signature).
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import {readSourceRawBody} from '../_shared/external-booking/source-body.ts';
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.77.0";
 
@@ -45,7 +46,7 @@ serve(async (req) => {
   let event: Stripe.Event;
   try {
     event = await stripe.webhooks.constructEventAsync(
-      await req.text(),
+      await readSourceRawBody(req),
       signature,
       webhookSecret,
     );

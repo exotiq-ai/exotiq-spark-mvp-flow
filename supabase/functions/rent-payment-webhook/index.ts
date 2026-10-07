@@ -18,6 +18,7 @@
 // config.toml: verify_jwt = false (Stripe calls this, not a user).
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import {readSourceRawBody} from '../_shared/external-booking/source-body.ts';
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.77.0";
 import { recordSettlement, reconcileBooking, sourceAmountCents, snapshotFeeCents } from "../_shared/external-booking/lifecycle.ts";
@@ -231,7 +232,8 @@ serve(async (req) => {
 
   const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, { apiVersion: "2025-08-27.basil" });
   const signature = req.headers.get("stripe-signature") ?? "";
-  const payload = await req.text();
+  let payload:string;
+  try{payload=await readSourceRawBody(req);}catch{return new Response('Invalid request body',{status:400});}
 
   let event: Stripe.Event;
   try {

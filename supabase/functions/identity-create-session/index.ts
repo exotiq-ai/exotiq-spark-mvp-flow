@@ -14,6 +14,7 @@
 // ever written to our DB (DPA 3.8).
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import {readSourceHandoffBody} from '../_shared/external-booking/source-body.ts';
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.77.0";
 import { checkRateLimit, clientIp } from "../_shared/rateLimit.ts";
@@ -61,7 +62,8 @@ serve(async (req) => {
   if (!allowed) return json({ error: "Too many requests" }, 429);
 
   try {
-    const body = await req.json().catch(() => ({}));
+    let body:Record<string,any>;
+    try{body=await readSourceHandoffBody(req);}catch{return json({error:'Invalid request body'},400);}
     const internal = Object.prototype.hasOwnProperty.call(body,'external_handoff');
     if(internal){
       try{await verifyInternalHandoff(req,'identity-create-session',body,Deno.env.get('EXTERNAL_API_HANDOFF_KEY'));}

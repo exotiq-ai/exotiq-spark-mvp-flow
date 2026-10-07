@@ -3,6 +3,7 @@ import {readFileSync} from 'node:fs';
 import {transpileModule,ModuleKind,ScriptTarget} from 'typescript';
 import {verifyInternalHandoff,signInternalHandoff} from '../../supabase/functions/_shared/external-booking/internal-handoff.ts';
 import * as bridge from '../../supabase/functions/_shared/external-booking/provider-handoff.ts';
+import {readSourceHandoffBody} from '../../supabase/functions/_shared/external-booking/source-body.ts';
 // Execute actual source handlers with offline SDK transport. No provider proof.
 function sourceHandler(path:string){
  let handler:any,providerCalls=0,queries=0,checkoutParameters:any;
@@ -10,6 +11,7 @@ function sourceHandler(path:string){
  const db={auth:{getUser:async()=>({data:{user:null}})},rpc:async(name:string)=>({data:name==='external_provider_handoff_context'?{booking_id:booking.id,booking_ref:booking.booking_ref,customer_id:booking.customer_id,operator_id:booking.team_id,mode:'test'}:name==='external_reserve_rental_checkout'?{attempt_key:'persisted-source-key',customer_ref:null,session_ref:null,provider_expires_at:Math.floor(Date.now()/1000)+3600}:true,error:null}),from:(table:string)=>{queries++;const chain:any={select:()=>chain,eq:()=>chain,single:async()=>({data:table==='teams'?{name:'Operator',currency:'USD',stripe_test_account_id:'acct_synthetic'}:booking}),maybeSingle:async()=>({data:table==='identity_verifications'?{status:'verified',document_expiry:null}:booking})};return chain;}};
  const stripe={customers:{list:async()=>({data:[]})},checkout:{sessions:{create:async(parameters:any)=>{providerCalls++;checkoutParameters=parameters;return {id:'cs_test_synthetic',url:'https://checkout.stripe.com/c/pay/test',status:'open',payment_status:'unpaid',livemode:false,expires_at:Math.floor(Date.now()/1000)+600,amount_total:10000,currency:'usd',metadata:parameters.metadata,success_url:parameters.success_url,cancel_url:parameters.cancel_url};}}}};
  const fakeRequire=(name:string)=>{
+  if(name.includes('source-body'))return {readSourceHandoffBody};
   if(name.includes('/http/server'))return {serve:(fn:any)=>handler=fn};
   if(name.includes('esm.sh/stripe'))return {default:function(){return stripe;}};
   if(name.includes('esm.sh/@supabase'))return {createClient:()=>db};
