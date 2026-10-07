@@ -203,7 +203,7 @@ function decode64(value: string): Uint8Array {
 }
 async function cursorKey(secret: Uint8Array): Promise<CryptoKey> {
   if (secret.byteLength < 32) throw new Error('Cursor signing key must contain at least 32 bytes');
-  return crypto.subtle.importKey('raw', secret, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify']);
+  return crypto.subtle.importKey('raw', new Uint8Array(secret).buffer, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify']);
 }
 /** Opaque authenticated cursors contain no customer data. Routes must supply normalized
  * allowlisted query filters and repeat operator visibility checks on every page.
@@ -220,7 +220,7 @@ export async function verifyCursor(token: string, context: CursorContext, secret
   try {
     if (!/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token) || token.length > 2048) throw new Error();
     const [payload, signature] = token.split('.');
-    if (!(await crypto.subtle.verify('HMAC', await cursorKey(secret), decode64(signature), encoder.encode(payload)))) throw new Error();
+    if (!(await crypto.subtle.verify('HMAC', await cursorKey(secret), new Uint8Array(decode64(signature)).buffer, encoder.encode(payload)))) throw new Error();
     const data = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(decode64(payload)));
     if (!isObject(data) || data.v !== 1 || data.operation !== context.operation || stableJson(data.filters) !== stableJson(context.filters) || !uuidPattern.test(String(data.after)) || !Number.isSafeInteger(data.expires_at) || (data.expires_at as number) <= context.now || (data.expires_at as number) - context.now > 3600000 || Object.keys(data).length !== 5) throw new Error();
     return { after: data.after as string, expires_at: data.expires_at as number };
