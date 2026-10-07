@@ -1,7 +1,7 @@
 import {describe,it,expect} from 'vitest';
 import {redactedEvent,principalPseudonym,emitEvent} from '../../supabase/functions/_shared/external-booking/observability';
 const event={request_id:'synthetic_request_150001',operator_id:'a1500000-0000-4000-8000-000000000001',action:'quote:create',outcome:'success',latency_ms:23};
-describe('redacted durable telemetry',()=>{
+describe('redacted durable operational telemetry',()=>{
  it('drops credentials, customer fields, URLs, receipts, nonce and arbitrary errors before persistence',()=>{
   const safe=redactedEvent({...event,authorization:'Bearer secret',email:'private@example.invalid',customer_name:'Private',consent_receipt:'receipt',nonce:'nonce',url:'https://customer.invalid/token',error:'credential'});
   expect(safe).toEqual(event);expect(JSON.stringify(safe)).not.toMatch(/secret|Private|receipt|nonce|token|credential/);
