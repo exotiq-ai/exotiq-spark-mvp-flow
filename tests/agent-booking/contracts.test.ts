@@ -23,6 +23,9 @@ describe('canonical contracts', () => {
     expect(validateContract('QuoteResult', { ...quote(), pricing_details: { ...quote().pricing_details, rental_days: 3 } }).ok).toBe(false);
     expect(validateContract('QuoteResult', { ...quote(), terms: { ...quote().terms, mileage_overage_rate_usd: '-1' } }).ok).toBe(false);
   });
+  it('rejects credential query keys after URL decoding on every public HTTPS field',()=>{
+    for(const query of ['token=private','%74oken=private','access%5ftoken=private','%74=private','email=private','client_secret=private'])expect(validateContract('QuoteResult',{...quote(),consent_url:'https://rent.example.invalid/agent/consent/'+quote().quote_id+'?'+query}).ok,query).toBe(false);
+  });
   it('handles tax included in rental without double counting it or charging deposit as rental', () => {
     const included = quote(); included.itemization.operator_tax_inclusive = true;
     included.operator_total_cents = 20000; included.total_cents = 82387; included.payment_schedule[0].amount_cents = 20000;
@@ -58,6 +61,7 @@ describe('canonical contracts', () => {
   });
   it('requires safe idempotency keys', () => {
     expect(validateIdempotencyKey('synthetic-retry-001')).toBe(true);
+    expect(validateIdempotencyKey('synthetic.retry:001')).toBe(true);
     for (const key of ['', 'short', 'a'.repeat(129), 'x'.repeat(16) + '\r\nInjected: bad']) expect(validateIdempotencyKey(key)).toBe(false);
   });
   it('authenticates opaque cursors and binds operation, normalized filters, expiry and size', async () => {
