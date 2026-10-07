@@ -39,6 +39,9 @@ jobs:
       - name: Test
         run: npm test
 
+      - name: External booking strict runtime typecheck
+        run: npx tsc -p tsconfig.external-api.json
+
       - name: External booking canonical documentation
         run: node scripts/agent-booking/generate-contract.mjs --check
 
