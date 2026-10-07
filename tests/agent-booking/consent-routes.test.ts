@@ -13,7 +13,7 @@ async function request(path:string,body:unknown,claims:Record<string,unknown>={}
 }
 function extension(reply:unknown,rows:Array<{name:string,args:Record<string,unknown>}>){return createConsentExtension({auth:{requirePrincipal:async()=>principal},rpc:{rpc:async(name:string,args:Record<string,unknown>)=>{rows.push({name,args});return {data:reply,error:null};}},hosted:config,consentOrigin:origin,now:()=>now});}
 it('requires signed hosted proof before consent SQL and keeps browser result receipt-free',async()=>{
- const rows:Array<{name:string,args:Record<string,unknown>}>=[],body={terms_hash:'b'.repeat(64),action:'rental_requests:create'};
+ const rows:Array<{name:string,args:Record<string,unknown>}>=[],body={terms_hash:'b'.repeat(64),action:'rental_requests:create',action_scopes:['rental_requests:read','identity:handoff']};
  const route=extension({api_version:'v1',source_checked_at:new Date(now).toISOString(),quote_id:quote,state:'authorized',expires_at:new Date(now+60000).toISOString()},rows),path='/v1/quotes/'+quote+'/consents';
  await expect(route(new Request(resource+path,{method:'POST',body:JSON.stringify(body)}),path,body)).rejects.toMatchObject({code:'unauthorized'});expect(rows).toHaveLength(0);
  const result=await route(await request(path,body),path,body);expect(result?.status).toBe(201);expect(await result!.json()).not.toHaveProperty('consent_receipt_id');expect(rows[0].args).toMatchObject({_issuer:principal.issuer,_subject:principal.subject,_csrf_hash:'a'.repeat(64)});
@@ -33,7 +33,7 @@ it('agent rendezvous waits with expiry/retry and returns matched consumed receip
  ready=true;const result=await route(req,path,undefined);expect(result?.status).toBe(200);expect(await result!.json()).toHaveProperty('consent_receipt_id',operator);
 });
 it('denies wrong browser origin and invalid renewal completion bodies before SQL writes',async()=>{
- const rows:Array<{name:string,args:Record<string,unknown>}>=[],route=extension({},rows),path='/v1/quotes/'+quote+'/consents',body={terms_hash:'b'.repeat(64),action:'rental_requests:create'};
+ const rows:Array<{name:string,args:Record<string,unknown>}>=[],route=extension({},rows),path='/v1/quotes/'+quote+'/consents',body={terms_hash:'b'.repeat(64),action:'rental_requests:create',action_scopes:['rental_requests:read','identity:handoff']};
  const signed=await request(path,body),headers=new Headers(signed.headers);headers.set('origin','https://attacker.example.invalid');
  await expect(route(new Request(signed.url,{method:'POST',headers,body:JSON.stringify(body)}),path,body)).rejects.toMatchObject({code:'unauthorized'});
  const renewalPath='/v1/grant-renewals/'+quote+'/complete',invalid={action_scopes:['catalog:read'],explicit_new_delegation:false,consented:true};
