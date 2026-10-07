@@ -13,6 +13,8 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.77.0";
 
+import { applyIdentityEvent } from "../_shared/external-booking/lifecycle.ts";
+
 const MAX_SELF_SERVE_ATTEMPTS = 3; // decision V6
 
 const logStep = (step: string, details?: Record<string, unknown>) => {
@@ -63,167 +65,33 @@ serve(async (req) => {
     { auth: { persistSession: false } },
   );
 
-  // Idempotency claim — Stripe re-delivers events, and without this a
-  // double-delivered `requires_input` double-counts attempt_count.
-  const { error: claimError } = await admin
-    .from("stripe_webhook_events")
-    .insert({
-      consumer: "identity",
-      stripe_event_id: event.id,
-      event_type: event.type,
-    });
-  if (claimError) {
-    logStep("Duplicate event ignored", { event: event.type, id: event.id });
-    return new Response(JSON.stringify({ received: true, duplicate: true }), { status: 200 });
-  }
-
-
-  const { data: row } = await admin
-    .from("identity_verifications")
-    .select("id, customer_id, attempt_count, status")
-    .eq("stripe_verification_session_id", session.id)
-    .maybeSingle();
-  if (!row) {
-    // Session not ours (e.g. created manually in the dashboard) - ack anyway.
-    logStep("Unknown session acked", { event: event.type });
-    return new Response(JSON.stringify({ received: true }), { status: 200 });
-  }
-
-  const patch: Record<string, unknown> = {};
-  let customerPatch: Record<string, unknown> | null = null;
-  let notifyManualReview = false;
-  let notifyVerified = false;
-  let notifyRequiresInput = false;
-  let attemptsRemaining = 0;
-
-
-  switch (event.type) {
-    case "identity.verification_session.processing":
-      patch.status = "processing";
-      customerPatch = { identity_status: "processing" };
-      break;
-
-    case "identity.verification_session.verified": {
-      patch.status = "verified";
-      patch.verified_at = new Date().toISOString();
-      patch.last_error_code = null;
-      patch.last_error_reason = null;
-      // Pull ONLY name + expiry from verified outputs (decision V4).
-      try {
-        const expanded = await stripe.identity.verificationSessions.retrieve(
-          session.id,
-          { expand: ["verified_outputs"] },
-        );
-        const outputs = expanded.verified_outputs;
-        if (outputs?.first_name || outputs?.last_name) {
-          patch.verified_name =
-            [outputs.first_name, outputs.last_name].filter(Boolean).join(" ");
-        }
-        const report = expanded.last_verification_report;
-        if (typeof report === "string") {
-          const fullReport = await stripe.identity.verificationReports.retrieve(
-            report,
-            { expand: ["document"] },
-          );
-          const expiry = fullReport.document?.expiration_date;
-          if (expiry?.year && expiry.month && expiry.day) {
-            patch.document_expiry = `${expiry.year}-${String(expiry.month).padStart(2, "0")}-${String(expiry.day).padStart(2, "0")}`;
-          }
-        }
-      } catch (err) {
-        console.error("[IDENTITY-WEBHOOK] verified_outputs fetch failed (status still applied)", err);
-      }
-      customerPatch = {
-        identity_status: "verified",
-        id_verified: true,
-        id_verified_at: new Date().toISOString(),
-      };
-      notifyVerified = true;
-      break;
+  // Provider lookup completes BEFORE one atomic database ledger/customer/promotion
+  // transaction. A failed lookup or transaction returns 500 and remains retryable.
+  let completion: {applied:boolean;status?:string;customer_id?:string;attempt_count?:number};
+  try {
+    const current=await stripe.identity.verificationSessions.retrieve(session.id,{expand:["verified_outputs"]});
+    const identityKeyMode=stripeKey.startsWith("sk_live_")?true:stripeKey.startsWith("sk_test_")?false:null;
+    if(identityKeyMode===null || current.livemode!==identityKeyMode || event.livemode!==identityKeyMode)throw new Error("Identity mode mismatch");
+    let documentExpiry:string|null=null;
+    if(current.status==="verified"){
+      const reportId=typeof current.last_verification_report==="string"?current.last_verification_report:current.last_verification_report?.id;
+      if(!reportId)throw new Error("Verified identity report unavailable");
+      const report=await stripe.identity.verificationReports.retrieve(reportId,{expand:["document"]});
+      const expiry=report.document?.expiration_date;
+      if(expiry?.year && expiry.month && expiry.day)documentExpiry=`${expiry.year}-${String(expiry.month).padStart(2,"0")}-${String(expiry.day).padStart(2,"0")}`;
     }
-
-
-    case "identity.verification_session.requires_input": {
-      const attempts = (row.attempt_count ?? 0) + 1;
-      patch.attempt_count = attempts;
-      patch.last_error_code = session.last_error?.code ?? null;
-      patch.last_error_reason = session.last_error?.reason ?? null;
-      if (attempts >= MAX_SELF_SERVE_ATTEMPTS) {
-        patch.status = "manual_review";
-        customerPatch = { identity_status: "manual_review" };
-        notifyManualReview = true;
-      } else {
-        patch.status = "requires_input";
-        customerPatch = { identity_status: "requires_input" };
-        notifyRequiresInput = true;
-        attemptsRemaining = Math.max(0, MAX_SELF_SERVE_ATTEMPTS - attempts);
-      }
-      break;
-    }
-
-
-    case "identity.verification_session.canceled":
-      patch.status = "canceled";
-      customerPatch = { identity_status: "canceled" };
-      break;
-
-    case "identity.verification_session.redacted":
-      patch.status = "redacted";
-      patch.redacted_at = new Date().toISOString();
-      patch.verified_name = null;
-      customerPatch = { identity_status: "redacted", identity_session_id: null };
-      break;
-
-    default:
-      return new Response(JSON.stringify({ ignored: event.type }), { status: 200 });
+    const outputs=current.verified_outputs;
+    completion=await applyIdentityEvent(admin,event,{id:current.id,status:event.type.endsWith(".redacted")?"redacted":current.status,documentExpiry,verifiedName:[outputs?.first_name,outputs?.last_name].filter(Boolean).join(" ")||null}) as typeof completion;
+  }catch{
+    return new Response("Identity reconciliation unavailable",{status:500});
   }
-
-  const { error: updateError } = await admin
-    .from("identity_verifications")
-    .update(patch)
-    .eq("id", row.id);
-  if (updateError) {
-    console.error("[IDENTITY-WEBHOOK] ledger update failed", updateError);
-    return new Response("Database error", { status: 500 });
-  }
-
-  if (customerPatch) {
-    await admin.from("customers").update(customerPatch).eq("id", row.customer_id);
-  }
-
-  // Once the renter clears ID verification, promote any pending_documents
-  // marketplace bookings out of that hold. Split by payment state:
-  //   paid_at IS NOT NULL → 'confirmed' (payment landed first, ID second)
-  //   paid_at IS NULL     → 'requested' (normal path: ID first, operator approves next)
-  // Without the paid_at IS NULL branch, first-time renters get stuck in
-  // pending_documents forever — rent-approve-booking rejects that status by design.
-  if (notifyVerified && row.customer_id) {
-    const { error: promotePaidErr } = await admin
-      .from("bookings")
-      .update({ status: "confirmed" })
-      .eq("customer_id", row.customer_id)
-      .eq("booking_source", "marketplace")
-      .eq("status", "pending_documents")
-      .not("paid_at", "is", null);
-    if (promotePaidErr) {
-      // Guard trigger now permits pending_documents → confirmed when paid_at IS NOT NULL,
-      // so any error here is a real integrity failure — fail loudly so Stripe retries
-      // instead of leaving a paid, verified booking stuck in pending_documents.
-      console.error("[IDENTITY-WEBHOOK] pending_documents → confirmed promotion failed", promotePaidErr);
-      return new Response("Booking promotion failed", { status: 500 });
-    }
-    const { error: promoteUnpaidErr } = await admin
-      .from("bookings")
-      .update({ status: "requested" })
-      .eq("customer_id", row.customer_id)
-      .eq("booking_source", "marketplace")
-      .eq("status", "pending_documents")
-      .is("paid_at", null);
-    if (promoteUnpaidErr) {
-      console.error("[IDENTITY-WEBHOOK] pending_documents → requested promotion failed", promoteUnpaidErr);
-      return new Response("Booking promotion failed", { status: 500 });
-    }
-  }
+  if(!completion.applied)return new Response(JSON.stringify({received:true}),{status:200});
+  const row={customer_id:completion.customer_id};
+  const patch={status:completion.status};
+  const notifyManualReview=completion.status==="manual_review";
+  const notifyVerified=completion.status==="verified";
+  const notifyRequiresInput=completion.status==="requires_input";
+  const attemptsRemaining=Math.max(0,MAX_SELF_SERVE_ATTEMPTS-(completion.attempt_count??0));
 
   // Bell notifications for the tenant's team (decision V6 + verified/retry alerts).
   const notifyType = notifyManualReview

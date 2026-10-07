@@ -140,11 +140,15 @@ serve(async (req) => {
     let reminderCount = 0;
     let errorCount = 0;
 
+    // Reconcile durable financial/identity evidence before any expiry sweep.
+    const {error:reconciliationError}=await admin.rpc("external_reconcile_lifecycle_batch",{_limit:50});
+    if(reconciliationError)return json({error:"Lifecycle reconciliation unavailable"},500);
+
     // 1. Expiry sweep
     const { data: expired, error: expiryError } = await admin.rpc("expire_overdue_payment_bookings");
     if (expiryError) {
       console.error("[RENT-PAYMENT-SCHEDULER] expiry sweep failed", expiryError);
-      return json({ error: "Expiry sweep failed", detail: expiryError }, 500);
+      return json({ error: "Expiry sweep failed",  }, 500);
     }
 
     for (const booking of (expired ?? []) as ExpiredBooking[]) {
@@ -212,7 +216,7 @@ serve(async (req) => {
 
     if (reminderError) {
       console.error("[RENT-PAYMENT-SCHEDULER] reminder query failed", reminderError);
-      return json({ error: "Reminder query failed", detail: reminderError }, 500);
+      return json({ error: "Reminder query failed",  }, 500);
     }
 
     for (const booking of (reminders ?? []) as any[]) {
