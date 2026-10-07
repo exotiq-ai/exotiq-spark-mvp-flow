@@ -31,6 +31,10 @@ export function createLocalSqlRpc(manifestPath){
  if(query('SELECT current_database();')!=='agent_test')throw Error('Wrong local database');
  return {
   evidence:{environment:'owned-local-partial-schema',partialSchema:true,providerParity:false},
+  async setFixtureGlobalAdmission(enabled){
+   if(typeof enabled!=='boolean')throw Error('Invalid synthetic admission control');
+   query(`BEGIN;SET LOCAL statement_timeout='4s';SET LOCAL lock_timeout='500ms';UPDATE public.external_api_runtime_settings SET external_api_new_writes_enabled=${enabled} WHERE singleton;COMMIT;`);
+  },
   /** Fixed synthetic fixture control, separate from RPC authority. Never accepts
    * a tenant selector or arbitrary SQL and never operates outside this lab. */
   async setFixtureAdmission(enabled){
