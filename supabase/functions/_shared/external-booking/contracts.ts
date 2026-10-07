@@ -287,6 +287,10 @@ export function generateOpenApi() {
   identity.parameters.push(refParameter);
   const customerStatus = customer(operation('getCustomerRentalRequest','CustomerRentalStatusResult',['rental_requests:read'],'Verified customer browser and request-bound private BFF proof read the current owned request. Independent of withdrawn agent delegation; no browser-return success inference.'));
   customerStatus.parameters.push(refParameter);
+  const customerIdentity = created(customer(operation('createCustomerIdentityHandoff','IdentityHandoffResult',['identity:handoff'],'Verified customer browser explicitly continues its own existing rental with fresh private BFF/CSRF proof. Independent of agent delegation; never expands agent scopes or creates another request.','CustomerHandoffResolveInput')));
+  customerIdentity.parameters.push(refParameter);
+  const customerCheckout = created(customer(operation('createCustomerCheckoutHandoff','CheckoutHandoffResult',['checkout:handoff'],'Verified customer browser explicitly continues its own existing rental with fresh private BFF/CSRF proof. Rechecks operator approval, identity, payment window and charge authority; independent of agent delegation.','CustomerHandoffResolveInput')));
+  customerCheckout.parameters.push(refParameter);
   const nonceSchema:JsonSchema={...text(43,43),pattern:'^[A-Za-z0-9_-]{43}$'};
   const nonceReview = customer(operation('reviewCustomerHandoff','CustomerHandoffReviewResult',['rental_requests:read'],'Authenticated customer review is read-only. Checks current exact owner, nonce/grant expiry, state and action. No provider session is created by GET.'));
   nonceReview.parameters.push(parameter('nonce',nonceSchema));
@@ -316,6 +320,8 @@ export function generateOpenApi() {
       '/v1/rental-requests/{ref}/checkout-handoff': { post: handoff },
       '/v1/rental-requests/{ref}/identity-handoff': { post: identity },
       '/v1/customers/rental-requests/{ref}': { get: customerStatus },
+      '/v1/customers/rental-requests/{ref}/identity-handoff': { post: customerIdentity },
+      '/v1/customers/rental-requests/{ref}/checkout-handoff': { post: customerCheckout },
       '/v1/customer-handoffs/{nonce}/review': { get: nonceReview },
       '/v1/customer-handoffs/{nonce}/resolve': { post: nonceResolve },
     },

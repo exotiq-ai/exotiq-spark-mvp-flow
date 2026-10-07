@@ -27,7 +27,7 @@ export function operationForRoute(path:string,method:string):RedactedEvent['acti
  if(method==='POST'&&path==='/v1/rental-requests')return 'request:create';
  if(method==='POST'&&/^\/v1\/quotes\/[^/]+\/consents$/.test(path))return 'consent:new-delegation';
  if(method==='GET'&&/^\/v1\/(?:customers\/)?rental-requests\/[^/]+$/.test(path))return 'request:read';
- if(/^\/v1\/(?:grants\/[^/]+\/renewal-review|grant-renewals\/[^/]+(?:\/consents)?)$/.test(path))return 'grant:reauthorize';
+ if(/^\/v1\/(?:grants\/[^/]+\/renewal-review|grant-renewals\/[^/]+(?:\/(?:review|complete))?)$/.test(path))return 'grant:reauthorize';
  if(method==='POST'&&/^\/v1\/(?:customers\/)?rental-requests\/[^/]+\/identity-handoff$/.test(path))return 'identity:handoff';
  if(method==='POST'&&/^\/v1\/(?:customers\/)?rental-requests\/[^/]+\/checkout-handoff$/.test(path))return 'checkout:handoff';
  if(method==='POST'&&/^\/v1\/customer-handoffs\/[^/]+\/resolve$/.test(path))return 'nonce:resolve';
