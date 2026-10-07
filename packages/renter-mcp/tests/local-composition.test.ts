@@ -98,6 +98,7 @@ describe.skipIf(!manifest)('owned local SQL → production API → production MC
   let lab:{rpc(name:string,args:Record<string,unknown>):Promise<{data:unknown;error:unknown}>;setFixtureAdmission(enabled:boolean):Promise<void>;evidence:Record<string,unknown>};
   const bridgeKey=new Uint8Array(32).fill(27);
   const rpcNames:string[]=[];
+  const rpcFailures:Array<{name:string;error:unknown}>=[];
   const supabase='https://abcdefghijklmnopqrst.supabase.co';
   const agentScopes='catalog:read quotes:create rental_requests:create rental_requests:read';
   const run=crypto.randomUUID();
@@ -115,6 +116,7 @@ describe.skipIf(!manifest)('owned local SQL → production API → production MC
       if(target.origin!==supabase||!/^\/rest\/v1\/rpc\/(?:external_[a-z_]+|agent_inventory_available|check_rate_limit)$/.test(target.pathname)||target.search||init?.method!=='POST'||new Headers(init.headers).get('authorization')!=='Bearer synthetic-local-only')throw new Error('invalid_local_egress');
       const name=target.pathname.split('/').at(-1)!;rpcNames.push(name);
       const reply=await lab.rpc(name,JSON.parse(String(init.body)));
+      if(reply.error)rpcFailures.push({name,error:reply.error});
       return Response.json(reply.error??reply.data,{status:reply.error?400:200});
     };
     runtime=createRuntime(config,apiFetch,{keyResolver:createRemoteJWKSet(new URL(issuer+'/jwks'),{[customFetch]:as.fetch})});
@@ -157,7 +159,7 @@ describe.skipIf(!manifest)('owned local SQL → production API → production MC
     async function tool(name:string,args:Record<string,unknown>){const response=await client.callTool({name,arguments:args});expect(response.isError).not.toBe(true);return response.structuredContent as Record<string,unknown>;}
     try{
       expect(client.getProtocolEra()).toBe(era);
-      const onboard=await hosted(subject,email,'/v1/customers/operator-links','POST',{operator_id:operator,full_name:'Synthetic local renter',phone:'2025550101',consented:true});expect(onboard.status).toBe(201);
+      const onboard=await hosted(subject,email,'/v1/customers/operator-links','POST',{operator_id:operator,full_name:'Synthetic local renter',phone:'2025550101',consented:true});expect(onboard.status,JSON.stringify(rpcFailures)).toBe(201);
       const discovery=await tool('search_vehicles',{operator_id:operator});expect(discovery.items).toEqual(expect.arrayContaining([expect.objectContaining({vehicle_id:vehicle})]));
       const available=await tool('check_availability',window);expect(available).toMatchObject({availability:'AVAILABLE',buffer_policy_version:'post-return-snapshot-v1/60'});
       const quote=await tool('create_quote',{...window,selected_options:['premium']});expect(quote).toMatchObject({total_cents:83587,holds_inventory:false});
