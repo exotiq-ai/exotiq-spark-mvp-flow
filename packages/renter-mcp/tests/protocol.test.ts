@@ -5,6 +5,7 @@ import { decodeJwt,exportJWK,generateKeyPair,SignJWT } from 'jose';
 import { createMcpApplication } from '../src/server.ts';
 import { createNodeServer } from '../src/node-http.ts';
 import type { AuthConfig } from '../src/auth.ts';
+import {validateIdempotencyKey} from '../../../supabase/functions/_shared/external-booking/contracts.ts';
 
 const issuer='https://id.example.test',resource='https://mcp.example.test/mcp',api='https://api.example.test',customer='https://customer.example.test';
 const operator='11111111-1111-4111-8111-111111111111',vehicle='22222222-2222-4222-8222-222222222222',quote='33333333-3333-4333-8333-333333333333';
@@ -68,5 +69,13 @@ describe('official Streamable HTTP client profiles over loopback',()=> {
       const result=await c.callTool({name:'create_quote',arguments:{operator_id:operator,vehicle_id:vehicle,pickup_at:'2026-11-01T10:00:00Z',return_at:'2026-11-02T10:00:00Z',timezone:'UTC',selected_options:['decline']}});
       expect(result.isError).toBe(true);expect(result.structuredContent).toMatchObject({code:'upstream_unavailable'});expect(JSON.stringify(result)).not.toContain(url);expect(JSON.stringify(result)).not.toContain('legacy-secret');
     }}finally{unsafeQuoteConsent=undefined;await c.close();}
+  });
+  it('accepts canonical punctuation in a stable idempotency key without normalization',async()=>{
+    const {c}=await client('profile-a');
+    try{const key='rent:customer.0001';expect(validateIdempotencyKey(key)).toBe(true);
+      const result=await c.callTool({name:'submit_rental_request',arguments:{quote_id:quote,idempotency_key:key}});
+      expect(result.isError).not.toBe(true);expect(result.structuredContent).toMatchObject({status:'awaiting_customer_consent'});
+      expect((await c.listTools()).tools.find(t=>t.name==='submit_rental_request')?.inputSchema.properties).toMatchObject({idempotency_key:{pattern:'^[A-Za-z0-9._:-]+$'}});
+    }finally{await c.close();}
   });
 });
