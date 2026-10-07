@@ -11,7 +11,7 @@ function edgeHandler(path:string,db:unknown,stripe:unknown){
  const output=transpileModule(readFileSync(path,'utf8'),{compilerOptions:{module:ModuleKind.CommonJS,target:ScriptTarget.ES2022}}).outputText;
  const fakeRequire=(name:string)=>{
   if(name.includes('/http/server'))return {serve:(callback:typeof handler)=>{handler=callback;}};
-  if(name.includes('esm.sh/stripe'))return {default:class{constructor(){return stripe;}}};
+  if(name.includes('esm.sh/stripe'))return {default:function StripeFixture(){return stripe;}};
   if(name.includes('esm.sh/@supabase'))return {createClient:()=>db};
   if(name.includes('external-booking/lifecycle'))return {applyIdentityEvent,reconcileBooking,settlementEvidence};
   if(name.includes('rentEmail'))return {sendRenterEmail:async()=>({message_id:'synthetic'}),resolveRenterReplyTo:()=>''};
