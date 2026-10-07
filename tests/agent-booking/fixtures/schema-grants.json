@@ -1,7 +1,7 @@
 {
   "version": 1,
   "proof": "source-only; applied effective privileges not verified",
-  "sourceFingerprint": "29cf4db1dbaeeef6b672e8a443cca4b1d82ee7c46d56e33cbca9a6e6f1ccb1ff",
+  "sourceFingerprint": "74fa2e861eb59ae88542bcdfe1066749e24025a92c2cf32e2ccb3bec33d28b78",
   "writers": [
     {
       "file": "scripts/rls-verify/test_m3_public_rpcs.sql",
@@ -779,9 +779,9 @@
     },
     {
       "file": "supabase/migrations/20261007090730_preserve_unresolved_checkout_inventory.sql",
-      "line": 58,
+      "line": 64,
       "evidence": "UPDATE public.bookings",
-      "sha256": "1769b8dc06326335c2efa1784e8ea8160b66f21c6e37abe3b39d999e165ae7f9",
+      "sha256": "c818d60925f49c0d540d7e0df1a10f27b20c0cd9d7d0b553badd710da83a3d56",
       "table": "bookings",
       "operation": "update",
       "kind": "sql-candidate"
@@ -1058,14 +1058,14 @@
       "file": "supabase/migrations/20261007090730_preserve_unresolved_checkout_inventory.sql",
       "line": 26,
       "evidence": "CREATE FUNCTION public.external_checkout_reservation_immutable(",
-      "sha256": "1769b8dc06326335c2efa1784e8ea8160b66f21c6e37abe3b39d999e165ae7f9",
+      "sha256": "c818d60925f49c0d540d7e0df1a10f27b20c0cd9d7d0b553badd710da83a3d56",
       "name": "public.external_checkout_reservation_immutable",
       "identity": "public.external_checkout_reservation_immutable()",
       "arguments": [],
       "defaults": [],
       "securityDefiner": false,
-      "bodySha256": "d2be66ad440505aabe5255a7d183ea86a2d084380eb387bd69003c5c4a6020c2",
-      "bodyEndLine": 40,
+      "bodySha256": "7fc7fc97cad46a142a63f1f511694e710e4f75f568785231350063e344c41d54",
+      "bodyEndLine": 46,
       "touchesInventory": false,
       "lifecycleStates": [],
       "deployment": "unverified",
@@ -1324,7 +1324,7 @@
       "file": "supabase/migrations/20261007090730_preserve_unresolved_checkout_inventory.sql",
       "line": 7,
       "evidence": "CREATE OR REPLACE FUNCTION public.external_preserve_financial_hold(",
-      "sha256": "1769b8dc06326335c2efa1784e8ea8160b66f21c6e37abe3b39d999e165ae7f9",
+      "sha256": "c818d60925f49c0d540d7e0df1a10f27b20c0cd9d7d0b553badd710da83a3d56",
       "name": "public.external_preserve_financial_hold",
       "identity": "public.external_preserve_financial_hold()",
       "arguments": [],
@@ -1365,9 +1365,9 @@
     },
     {
       "file": "supabase/migrations/20261007090730_preserve_unresolved_checkout_inventory.sql",
-      "line": 43,
+      "line": 49,
       "evidence": "CREATE FUNCTION public.external_queue_unresolved_checkout_batch(",
-      "sha256": "1769b8dc06326335c2efa1784e8ea8160b66f21c6e37abe3b39d999e165ae7f9",
+      "sha256": "c818d60925f49c0d540d7e0df1a10f27b20c0cd9d7d0b553badd710da83a3d56",
       "name": "public.external_queue_unresolved_checkout_batch",
       "identity": "public.external_queue_unresolved_checkout_batch(integer)",
       "arguments": [
@@ -1378,7 +1378,7 @@
       ],
       "securityDefiner": true,
       "bodySha256": "bf66d66a9869c6a195c71341c19efccf802d15c189a18f0ec3d6ffeaad140f2d",
-      "bodyEndLine": 62,
+      "bodyEndLine": 68,
       "touchesInventory": true,
       "lifecycleStates": [
         "pending_documents",
@@ -4671,21 +4671,21 @@
     },
     {
       "file": "supabase/migrations/20261007090730_preserve_unresolved_checkout_inventory.sql",
-      "line": 63,
+      "line": 69,
       "evidence": "REVOKE ALL ON FUNCTION public.external_preserve_financial_hold(),public.external_checkout_reservation_immutable() FROM PUBLIC,anon,authenticated,service_role;",
-      "sha256": "1769b8dc06326335c2efa1784e8ea8160b66f21c6e37abe3b39d999e165ae7f9"
+      "sha256": "c818d60925f49c0d540d7e0df1a10f27b20c0cd9d7d0b553badd710da83a3d56"
     },
     {
       "file": "supabase/migrations/20261007090730_preserve_unresolved_checkout_inventory.sql",
-      "line": 64,
+      "line": 70,
       "evidence": "REVOKE ALL ON FUNCTION public.external_queue_unresolved_checkout_batch(integer) FROM PUBLIC,anon,authenticated;",
-      "sha256": "1769b8dc06326335c2efa1784e8ea8160b66f21c6e37abe3b39d999e165ae7f9"
+      "sha256": "c818d60925f49c0d540d7e0df1a10f27b20c0cd9d7d0b553badd710da83a3d56"
     },
     {
       "file": "supabase/migrations/20261007090730_preserve_unresolved_checkout_inventory.sql",
-      "line": 65,
+      "line": 71,
       "evidence": "GRANT EXECUTE ON FUNCTION public.external_queue_unresolved_checkout_batch(integer) TO service_role;",
-      "sha256": "1769b8dc06326335c2efa1784e8ea8160b66f21c6e37abe3b39d999e165ae7f9"
+      "sha256": "c818d60925f49c0d540d7e0df1a10f27b20c0cd9d7d0b553badd710da83a3d56"
     }
   ],
   "states": [
@@ -4936,7 +4936,7 @@
           "state": "pending_documents",
           "file": "supabase/migrations/20261007090730_preserve_unresolved_checkout_inventory.sql",
           "line": 10,
-          "sha256": "1769b8dc06326335c2efa1784e8ea8160b66f21c6e37abe3b39d999e165ae7f9"
+          "sha256": "c818d60925f49c0d540d7e0df1a10f27b20c0cd9d7d0b553badd710da83a3d56"
         }
       ]
     },
@@ -5193,7 +5193,7 @@
           "state": "requested",
           "file": "supabase/migrations/20261007090730_preserve_unresolved_checkout_inventory.sql",
           "line": 10,
-          "sha256": "1769b8dc06326335c2efa1784e8ea8160b66f21c6e37abe3b39d999e165ae7f9"
+          "sha256": "c818d60925f49c0d540d7e0df1a10f27b20c0cd9d7d0b553badd710da83a3d56"
         }
       ]
     },
@@ -5438,7 +5438,7 @@
           "state": "pending_payment",
           "file": "supabase/migrations/20261007090730_preserve_unresolved_checkout_inventory.sql",
           "line": 10,
-          "sha256": "1769b8dc06326335c2efa1784e8ea8160b66f21c6e37abe3b39d999e165ae7f9"
+          "sha256": "c818d60925f49c0d540d7e0df1a10f27b20c0cd9d7d0b553badd710da83a3d56"
         }
       ]
     },
@@ -7324,7 +7324,7 @@
           "state": "cancelled",
           "file": "supabase/migrations/20261007090730_preserve_unresolved_checkout_inventory.sql",
           "line": 10,
-          "sha256": "1769b8dc06326335c2efa1784e8ea8160b66f21c6e37abe3b39d999e165ae7f9"
+          "sha256": "c818d60925f49c0d540d7e0df1a10f27b20c0cd9d7d0b553badd710da83a3d56"
         }
       ]
     },

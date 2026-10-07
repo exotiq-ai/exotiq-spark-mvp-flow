@@ -120,7 +120,7 @@ Only dedicated synthetic staging can prove role denial, transactional concurrenc
 | update | bookings | supabase/migrations/20261007090600_customer_handoff_nonces.sql:338 | UPDATE public.bookings |
 | update | bookings | supabase/migrations/20261007090600_customer_handoff_nonces.sql:350 | UPDATE public.bookings |
 | update | bookings | supabase/migrations/20261007090600_customer_handoff_nonces.sql:358 | UPDATE public.bookings |
-| update | bookings | supabase/migrations/20261007090730_preserve_unresolved_checkout_inventory.sql:58 | UPDATE public.bookings |
+| update | bookings | supabase/migrations/20261007090730_preserve_unresolved_checkout_inventory.sql:64 | UPDATE public.bookings |
 
 ## Final static function overloads
 
@@ -152,7 +152,7 @@ Only dedicated synthetic staging can prove role denial, transactional concurrenc
 | public.external_lifecycle_identity_cleared(uuid,timestamptz,uuid,uuid) | supabase/migrations/20261007090500_external_lifecycle_reconciliation.sql:50 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
 | public.external_preserve_financial_hold() | supabase/migrations/20261007090730_preserve_unresolved_checkout_inventory.sql:7 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
 | public.external_provider_handoff_context(text,uuid,text) | supabase/migrations/20261007090600_customer_handoff_nonces.sql:114 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
-| public.external_queue_unresolved_checkout_batch(integer) | supabase/migrations/20261007090730_preserve_unresolved_checkout_inventory.sql:43 | true | _limit integer DEFAULT 50 | Applied privileges and deployment unverified; all historical ACL statements in JSON |
+| public.external_queue_unresolved_checkout_batch(integer) | supabase/migrations/20261007090730_preserve_unresolved_checkout_inventory.sql:49 | true | _limit integer DEFAULT 50 | Applied privileges and deployment unverified; all historical ACL statements in JSON |
 | public.external_quote_immutable() | supabase/migrations/20261007090100_external_quote_snapshots.sql:38 | false |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
 | public.external_read_rental_request(text,text,text,text,text) | supabase/migrations/20261007090600_customer_handoff_nonces.sql:386 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
 | public.external_reconcile_booking(text,text) | supabase/migrations/20261007090500_external_lifecycle_reconciliation.sql:73 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
