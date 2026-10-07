@@ -1,5 +1,5 @@
 import { createMcpHandler,McpServer,type StandardSchemaWithJSON } from '@modelcontextprotocol/server';
-import { schemas,validateContract,type ContractName,type JsonSchema } from '../../../supabase/functions/_shared/external-booking/contracts.ts';
+import { schemas,validateContract,validateIdempotencyKey,type ContractName,type JsonSchema } from '../../../supabase/functions/_shared/external-booking/contracts.ts';
 import { createAuthenticator,AuthFailure,type AuthConfig,type Delegation } from './auth.ts';
 import { ApiFailure,createApiClient,waitingAuthorizationSchema,waitingConsentSchema } from './api-client.ts';
 import { record } from './http.ts';
@@ -10,7 +10,7 @@ function standard(schema:JsonSchema|Record<string,unknown>,validate:(value:unkno
 }
 function canonical(name:ContractName){return standard(schemas[name],v=>validateContract(name,v).ok);}
 const refSchema:JsonSchema={type:'object',properties:{ref:{type:'string',minLength:1,maxLength:80,pattern:'^[A-Za-z0-9_-]+$'}},required:['ref'],additionalProperties:false};
-const submitSchema:JsonSchema={type:'object',properties:{quote_id:schemas.QuoteRequest.properties!.operator_id,idempotency_key:{type:'string',minLength:16,maxLength:128,pattern:'^[A-Za-z0-9_-]+$'}},required:['quote_id','idempotency_key'],additionalProperties:false};
+const submitSchema:JsonSchema={type:'object',properties:{quote_id:schemas.QuoteRequest.properties!.operator_id,idempotency_key:{type:'string',minLength:16,maxLength:128,pattern:'^[A-Za-z0-9._:-]+$'}},required:['quote_id','idempotency_key'],additionalProperties:false};
 function strictKeys(v:Record<string,unknown>,keys:string[]){return Object.keys(v).length===keys.length&&keys.every(k=>Object.hasOwn(v,k));}
 export function createMcpApplication(config:ApplicationConfig,fetcher:typeof fetch=fetch) {
   const authenticator=createAuthenticator(config.auth,fetcher);const resource=new URL(config.auth.resource),metadata=new URL(config.auth.resourceMetadataUri);
@@ -23,7 +23,7 @@ export function createMcpApplication(config:ApplicationConfig,fetcher:typeof fet
       {name:'search_vehicles',input:canonical('VehiclesQuery'),output:'VehiclesPage',execute:api.search,readOnly:true,idempotent:true},
       {name:'check_availability',input:canonical('AvailabilityRequest'),output:'AvailabilityResult',execute:api.availability,readOnly:true,idempotent:true},
       {name:'create_quote',input:canonical('QuoteRequest'),output:'QuoteResult',execute:api.quote,readOnly:false,idempotent:false},
-      {name:'submit_rental_request',input:standard(submitSchema,v=>record(v)&&strictKeys(v,['quote_id','idempotency_key'])&&typeof v.quote_id==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v.quote_id)&&typeof v.idempotency_key==='string'&&/^[A-Za-z0-9_-]{16,128}$/.test(v.idempotency_key)),output:'RentalRequestResult',execute:api.submit,readOnly:false,idempotent:true,waiting:true},
+      {name:'submit_rental_request',input:standard(submitSchema,v=>record(v)&&strictKeys(v,['quote_id','idempotency_key'])&&typeof v.quote_id==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v.quote_id)&&validateIdempotencyKey(v.idempotency_key)),output:'RentalRequestResult',execute:api.submit,readOnly:false,idempotent:true,waiting:true},
       {name:'get_request_status',input:standard(refSchema,v=>record(v)&&strictKeys(v,['ref'])&&typeof v.ref==='string'&&/^[A-Za-z0-9_-]{1,80}$/.test(v.ref)),output:'RentalStatusResult',execute:api.status,readOnly:false,idempotent:false,waiting:true},
       {name:'create_checkout_handoff',input:standard(refSchema,v=>record(v)&&strictKeys(v,['ref'])&&typeof v.ref==='string'&&/^[A-Za-z0-9_-]{1,80}$/.test(v.ref)),output:'CheckoutHandoffResult',execute:api.checkout,readOnly:false,idempotent:false,waiting:true}
     ];
