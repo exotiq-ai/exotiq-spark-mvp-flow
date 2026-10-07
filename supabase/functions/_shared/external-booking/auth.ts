@@ -42,7 +42,7 @@ function validateConfiguration(config: ProviderConfiguration): void {
 }
 export function protectedResourceMetadata(config: ProviderConfiguration) {
   validateConfiguration(config);
-  return { resource: config.resource, authorization_servers: [config.issuer], scopes_supported: [...SCOPES], bearer_methods_supported: ['header'] };
+  return { resource: config.resource, authorization_servers: [config.issuer], scopes_supported: ['catalog:read'], bearer_methods_supported: ['header'] };
 }
 export function authenticationChallenge(config: ProviderConfiguration, scope: Scope): Record<string, string> {
   validateConfiguration(config);
@@ -53,7 +53,7 @@ export function authenticationChallenge(config: ProviderConfiguration, scope: Sc
  * here. Redirect allowlist comes from reviewed registration, not request input. */
 export function validateAuthorizationRequest(input: { redirectUri: string; resource: string; codeChallenge: string; codeChallengeMethod: string }, redirectAllowlist: readonly string[], resource: string): void {
   const url = new URL(input.redirectUri);
-  if (url.protocol !== 'https:' || url.username || url.password || url.hash || !redirectAllowlist.includes(input.redirectUri)
+  if (url.protocol !== 'https:' || url.username || url.password || url.hash || url.hostname === 'localhost' || url.hostname.includes(':') || /^[\d.]+$/.test(url.hostname) || /(?:^|\.)(?:local|internal)$/.test(url.hostname) || !redirectAllowlist.includes(input.redirectUri)
     || redirectAllowlist.some((uri) => uri.includes('*')) || input.resource !== resource
     || input.codeChallengeMethod !== 'S256' || !/^[A-Za-z0-9_-]{43}$/.test(input.codeChallenge)) throw new BookingApiError('invalid_input');
 }
