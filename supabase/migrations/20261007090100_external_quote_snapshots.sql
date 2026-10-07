@@ -151,7 +151,7 @@ BEGIN
   END LOOP;
   IF (q->>'operator_total_cents')::bigint + (q->>'exotiq_total_cents')::bigint <> (q->>'grand_total_cents')::bigint OR
     (q->>'operator_total_cents')::bigint <> (q->>'rental_subtotal_cents')::bigint +
-      CASE WHEN (terms->>'operator_tax_inclusive')::boolean THEN 0 ELSE (q->>'operator_tax_cents')::bigint END OR
+      (CASE WHEN (terms->>'operator_tax_inclusive')::boolean THEN 0 ELSE (q->>'operator_tax_cents')::bigint END) OR
     (q->>'exotiq_total_cents')::bigint <> (q->>'platform_fee_cents')::bigint + (q->>'protection_total_cents')::bigint +
       (q->>'state_fee_cents')::bigint + (q->>'processing_fee_cents')::bigint OR
     ((terms->>'operator_tax_inclusive')::boolean AND (q->>'operator_tax_cents')::bigint > (q->>'rental_subtotal_cents')::bigint) OR
