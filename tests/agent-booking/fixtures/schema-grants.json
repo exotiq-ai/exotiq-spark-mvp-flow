@@ -1,7 +1,7 @@
 {
   "version": 1,
   "proof": "source-only; applied effective privileges not verified",
-  "sourceFingerprint": "370421cafcdcfec6b4ce7e617b58a647ffcadcfa0094ec417c8e81d3c39895aa",
+  "sourceFingerprint": "8fafe1bad0757b6d18a20b6572f719cc194b8ba875ec4eae6f6afbef636ac63d",
   "writers": [
     {
       "file": "scripts/rls-verify/test_m3_public_rpcs.sql",
@@ -713,9 +713,73 @@
       "table": "bookings",
       "operation": "insert",
       "kind": "sql-candidate"
+    },
+    {
+      "file": "supabase/migrations/20261007090200_shared_inventory_guard.sql",
+      "line": 10,
+      "evidence": "UPDATE public.bookings",
+      "sha256": "6e754adb371c63f677f17f25104f07a12ea672fd31edb80163215943489ffffa",
+      "table": "bookings",
+      "operation": "update",
+      "kind": "sql-candidate"
     }
   ],
   "functions": [
+    {
+      "file": "supabase/migrations/20261007090300_inventory_policy_read_parity.sql",
+      "line": 7,
+      "evidence": "CREATE FUNCTION public.agent_inventory_available(",
+      "sha256": "56dafd841effa6a465d5e7c96ccf5d5dfe574471277a5fb33da80984feb1226b",
+      "name": "public.agent_inventory_available",
+      "identity": "public.agent_inventory_available(uuid,timestamptz,timestamptz)",
+      "arguments": [
+        "_vehicle uuid",
+        "_start timestamptz",
+        "_end timestamptz"
+      ],
+      "defaults": [],
+      "securityDefiner": true,
+      "bodySha256": "0f98605e48b5553e4028ab01b332d66140925247263dbdbd91c00b7298348ae5",
+      "bodyEndLine": 27,
+      "touchesInventory": true,
+      "lifecycleStates": [],
+      "deployment": "unverified",
+      "action": "create"
+    },
+    {
+      "file": "supabase/migrations/20261007090200_shared_inventory_guard.sql",
+      "line": 94,
+      "evidence": "CREATE FUNCTION public.agent_inventory_blocked_guard(",
+      "sha256": "6e754adb371c63f677f17f25104f07a12ea672fd31edb80163215943489ffffa",
+      "name": "public.agent_inventory_blocked_guard",
+      "identity": "public.agent_inventory_blocked_guard()",
+      "arguments": [],
+      "defaults": [],
+      "securityDefiner": true,
+      "bodySha256": "208754208fce09ae3061bbb0f2d381708419b7dea19c8a172103f41d9d56ceac",
+      "bodyEndLine": 118,
+      "touchesInventory": true,
+      "lifecycleStates": [],
+      "deployment": "unverified",
+      "action": "create"
+    },
+    {
+      "file": "supabase/migrations/20261007090200_shared_inventory_guard.sql",
+      "line": 52,
+      "evidence": "CREATE FUNCTION public.agent_inventory_booking_guard(",
+      "sha256": "6e754adb371c63f677f17f25104f07a12ea672fd31edb80163215943489ffffa",
+      "name": "public.agent_inventory_booking_guard",
+      "identity": "public.agent_inventory_booking_guard()",
+      "arguments": [],
+      "defaults": [],
+      "securityDefiner": true,
+      "bodySha256": "eb17bfec742e2b09f0ff8f67d043a12b4be6eea84bdbb0e7ec18e01cf32dfdbd",
+      "bodyEndLine": 92,
+      "touchesInventory": true,
+      "lifecycleStates": [],
+      "deployment": "unverified",
+      "action": "create"
+    },
     {
       "file": "supabase/migrations/20260725045744_fa25b9ea-3209-4ab2-bade-3d1744f0b5b2.sql",
       "line": 6,
@@ -887,6 +951,40 @@
         "requested",
         "cancelled"
       ],
+      "deployment": "unverified",
+      "action": "create"
+    },
+    {
+      "file": "supabase/migrations/20261007090100_external_quote_snapshots.sql",
+      "line": 38,
+      "evidence": "CREATE FUNCTION public.external_quote_immutable(",
+      "sha256": "284d415effbe593275ba08ab41824eae0fae01f7c5033a27bc2fdd4de891f5f1",
+      "name": "public.external_quote_immutable",
+      "identity": "public.external_quote_immutable()",
+      "arguments": [],
+      "defaults": [],
+      "securityDefiner": false,
+      "bodySha256": "991954dbc76e8e1a528d196e8859deefd3d4c71dec0f7f1df50deaaafb5ef592",
+      "bodyEndLine": 55,
+      "touchesInventory": true,
+      "lifecycleStates": [],
+      "deployment": "unverified",
+      "action": "create"
+    },
+    {
+      "file": "supabase/migrations/20261007090000_external_customer_grants.sql",
+      "line": 107,
+      "evidence": "CREATE FUNCTION public.external_validate_grant_binding(",
+      "sha256": "b4fa75016c474f988d87d89e402ea3874e37e11d879d25ab11a3f39a6267bc04",
+      "name": "public.external_validate_grant_binding",
+      "identity": "public.external_validate_grant_binding()",
+      "arguments": [],
+      "defaults": [],
+      "securityDefiner": true,
+      "bodySha256": "3d1b97f216a584d0776f02bac386c7b237b87b2721db2f392c39bdf00b321f73",
+      "bodyEndLine": 124,
+      "touchesInventory": true,
+      "lifecycleStates": [],
       "deployment": "unverified",
       "action": "create"
     },
@@ -1235,30 +1333,25 @@
       "action": "create"
     },
     {
-      "file": "supabase/migrations/20260904122112_f5da6216-1ce4-40f1-b601-bd5406a9c4d1.sql",
-      "line": 4,
-      "evidence": "create or replace function public.public_fleet_busy(",
-      "sha256": "3035dc24f53d2c9704d6ef5ff6c5aaa50732515b1b61064a8a53a5021701594f",
+      "file": "supabase/migrations/20261007090300_inventory_policy_read_parity.sql",
+      "line": 68,
+      "evidence": "CREATE OR REPLACE FUNCTION public.public_fleet_busy(",
+      "sha256": "56dafd841effa6a465d5e7c96ccf5d5dfe574471277a5fb33da80984feb1226b",
       "name": "public.public_fleet_busy",
       "identity": "public.public_fleet_busy(date,date,text)",
       "arguments": [
         "_range_start date",
         "_range_end date",
-        "_team_slug text default null"
+        "_team_slug text DEFAULT NULL"
       ],
-      "defaults": [],
+      "defaults": [
+        "_team_slug text DEFAULT NULL"
+      ],
       "securityDefiner": true,
-      "bodySha256": "2557e7d46e10adbc891b2679a32d0fa3f716de76739c40c0deb916048847e0b2",
-      "bodyEndLine": 78,
+      "bodySha256": "c4f355b9b789440c5215de61895afb98ca6c7d45fb42a574f7fc638f654b00cc",
+      "bodyEndLine": 93,
       "touchesInventory": true,
-      "lifecycleStates": [
-        "pending_documents",
-        "requested",
-        "pending_payment",
-        "confirmed",
-        "active",
-        "pending"
-      ],
+      "lifecycleStates": [],
       "deployment": "unverified",
       "action": "create"
     },
@@ -1336,10 +1429,10 @@
       "action": "create"
     },
     {
-      "file": "supabase/migrations/20260901194608_e2f6eea3-4363-483c-bc1d-9cfa24d1819e.sql",
-      "line": 1,
+      "file": "supabase/migrations/20261007090300_inventory_policy_read_parity.sql",
+      "line": 57,
       "evidence": "CREATE OR REPLACE FUNCTION public.public_vehicle_availability(",
-      "sha256": "178dfccec1c8fa8faaaa0850143cdab7e9e3dabff22aa99b7a22658ffe4aa479",
+      "sha256": "56dafd841effa6a465d5e7c96ccf5d5dfe574471277a5fb33da80984feb1226b",
       "name": "public.public_vehicle_availability",
       "identity": "public.public_vehicle_availability(text,text,date,date)",
       "arguments": [
@@ -1350,25 +1443,18 @@
       ],
       "defaults": [],
       "securityDefiner": true,
-      "bodySha256": "8e71f4cbeb25926aa0c2aebce6b1819c8646c35677417e8dbbcbcbd5bb92642d",
-      "bodyEndLine": 40,
-      "touchesInventory": true,
-      "lifecycleStates": [
-        "pending_documents",
-        "requested",
-        "pending_payment",
-        "confirmed",
-        "active",
-        "pending"
-      ],
+      "bodySha256": "ae16e554f4b0ed559ec32b6065b83a2dab79a42992b42f3e99a2dde9f3e0a13d",
+      "bodyEndLine": 64,
+      "touchesInventory": false,
+      "lifecycleStates": [],
       "deployment": "unverified",
       "action": "create"
     },
     {
-      "file": "supabase/migrations/20260819031937_c36dd9f7-6487-41e5-b013-5b43663eb92d.sql",
-      "line": 2,
+      "file": "supabase/migrations/20261007090300_inventory_policy_read_parity.sql",
+      "line": 31,
       "evidence": "CREATE OR REPLACE FUNCTION public.public_vehicle_busy_windows(",
-      "sha256": "b7e62c3fd9059c8308d34a32ab8f8f617d0c7dc2649959287c82b1cca2459c21",
+      "sha256": "56dafd841effa6a465d5e7c96ccf5d5dfe574471277a5fb33da80984feb1226b",
       "name": "public.public_vehicle_busy_windows",
       "identity": "public.public_vehicle_busy_windows(text,text,date,date)",
       "arguments": [
@@ -1379,17 +1465,10 @@
       ],
       "defaults": [],
       "securityDefiner": true,
-      "bodySha256": "c62509dda5a03915555149a04699edca480bb1178a49b4cfc846c5667074befd",
-      "bodyEndLine": 29,
+      "bodySha256": "3140311fbe7c7b4e6910b2bc68cdbe3ae4a283cd2182fa8e2212d427d794b388",
+      "bodyEndLine": 53,
       "touchesInventory": true,
-      "lifecycleStates": [
-        "pending_documents",
-        "requested",
-        "pending_payment",
-        "confirmed",
-        "active",
-        "pending"
-      ],
+      "lifecycleStates": [],
       "deployment": "unverified",
       "action": "create"
     },
@@ -3138,6 +3217,156 @@
       "line": 95,
       "evidence": "grant execute on function public.public_fleet_busy(date, date, text) to anon, authenticated, service_role;",
       "sha256": "3035dc24f53d2c9704d6ef5ff6c5aaa50732515b1b61064a8a53a5021701594f"
+    },
+    {
+      "file": "supabase/migrations/20261007090000_external_customer_grants.sql",
+      "line": 88,
+      "evidence": "REVOKE ALL ON TABLE public.external_customer_links, public.external_booking_grants, public.external_consent_receipts, public.external_grant_renewals FROM PUBLIC, anon, authenticated, service_role;",
+      "sha256": "b4fa75016c474f988d87d89e402ea3874e37e11d879d25ab11a3f39a6267bc04"
+    },
+    {
+      "file": "supabase/migrations/20261007090000_external_customer_grants.sql",
+      "line": 90,
+      "evidence": "GRANT SELECT ON TABLE public.external_customer_links, public.external_booking_grants, public.external_consent_receipts, public.external_grant_renewals TO service_role;",
+      "sha256": "b4fa75016c474f988d87d89e402ea3874e37e11d879d25ab11a3f39a6267bc04"
+    },
+    {
+      "file": "supabase/migrations/20261007090000_external_customer_grants.sql",
+      "line": 226,
+      "evidence": "REVOKE ALL ON FUNCTION public.external_validate_grant_binding() FROM PUBLIC, anon, authenticated, service_role;",
+      "sha256": "b4fa75016c474f988d87d89e402ea3874e37e11d879d25ab11a3f39a6267bc04"
+    },
+    {
+      "file": "supabase/migrations/20261007090000_external_customer_grants.sql",
+      "line": 227,
+      "evidence": "REVOKE ALL ON FUNCTION public.external_validate_customer_link() FROM PUBLIC, anon, authenticated, service_role;",
+      "sha256": "b4fa75016c474f988d87d89e402ea3874e37e11d879d25ab11a3f39a6267bc04"
+    },
+    {
+      "file": "supabase/migrations/20261007090000_external_customer_grants.sql",
+      "line": 228,
+      "evidence": "REVOKE ALL ON FUNCTION public.external_validate_receipt_binding() FROM PUBLIC, anon, authenticated, service_role;",
+      "sha256": "b4fa75016c474f988d87d89e402ea3874e37e11d879d25ab11a3f39a6267bc04"
+    },
+    {
+      "file": "supabase/migrations/20261007090000_external_customer_grants.sql",
+      "line": 229,
+      "evidence": "REVOKE ALL ON FUNCTION public.external_revoke_booking_grant(uuid,uuid,text,text,text), public.external_create_grant_renewal(uuid,uuid,text,text,text,text), public.external_complete_grant_renewal(uuid,uuid,text,text,text,text,text[],boolean), public.external_consume_consent_receipt(uuid,uuid,text,text,text,uuid,uuid,text) FROM PUBLIC, anon, authenticated, service_role;",
+      "sha256": "b4fa75016c474f988d87d89e402ea3874e37e11d879d25ab11a3f39a6267bc04"
+    },
+    {
+      "file": "supabase/migrations/20261007090000_external_customer_grants.sql",
+      "line": 233,
+      "evidence": "GRANT EXECUTE ON FUNCTION public.external_revoke_booking_grant(uuid,uuid,text,text,text), public.external_create_grant_renewal(uuid,uuid,text,text,text,text), public.external_complete_grant_renewal(uuid,uuid,text,text,text,text,text[],boolean) TO service_role;",
+      "sha256": "b4fa75016c474f988d87d89e402ea3874e37e11d879d25ab11a3f39a6267bc04"
+    },
+    {
+      "file": "supabase/migrations/20261007090000_external_customer_grants.sql",
+      "line": 248,
+      "evidence": "REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon, authenticated', writer.signature);",
+      "sha256": "b4fa75016c474f988d87d89e402ea3874e37e11d879d25ab11a3f39a6267bc04"
+    },
+    {
+      "file": "supabase/migrations/20261007090000_external_customer_grants.sql",
+      "line": 249,
+      "evidence": "GRANT EXECUTE ON FUNCTION %s TO service_role', writer.signature);",
+      "sha256": "b4fa75016c474f988d87d89e402ea3874e37e11d879d25ab11a3f39a6267bc04"
+    },
+    {
+      "file": "supabase/migrations/20261007090100_external_quote_snapshots.sql",
+      "line": 32,
+      "evidence": "REVOKE ALL ON TABLE public.external_quotes FROM PUBLIC, anon, authenticated, service_role;",
+      "sha256": "284d415effbe593275ba08ab41824eae0fae01f7c5033a27bc2fdd4de891f5f1"
+    },
+    {
+      "file": "supabase/migrations/20261007090100_external_quote_snapshots.sql",
+      "line": 33,
+      "evidence": "GRANT SELECT ON TABLE public.external_quotes TO service_role;",
+      "sha256": "284d415effbe593275ba08ab41824eae0fae01f7c5033a27bc2fdd4de891f5f1"
+    },
+    {
+      "file": "supabase/migrations/20261007090100_external_quote_snapshots.sql",
+      "line": 56,
+      "evidence": "REVOKE ALL ON FUNCTION public.external_quote_immutable() FROM PUBLIC, anon, authenticated, service_role;",
+      "sha256": "284d415effbe593275ba08ab41824eae0fae01f7c5033a27bc2fdd4de891f5f1"
+    },
+    {
+      "file": "supabase/migrations/20261007090100_external_quote_snapshots.sql",
+      "line": 145,
+      "evidence": "REVOKE ALL ON FUNCTION public.external_quote_authority(uuid,uuid,timestamptz,timestamptz,text,jsonb) FROM PUBLIC, anon, authenticated;",
+      "sha256": "284d415effbe593275ba08ab41824eae0fae01f7c5033a27bc2fdd4de891f5f1"
+    },
+    {
+      "file": "supabase/migrations/20261007090100_external_quote_snapshots.sql",
+      "line": 146,
+      "evidence": "GRANT EXECUTE ON FUNCTION public.external_quote_authority(uuid,uuid,timestamptz,timestamptz,text,jsonb) TO service_role;",
+      "sha256": "284d415effbe593275ba08ab41824eae0fae01f7c5033a27bc2fdd4de891f5f1"
+    },
+    {
+      "file": "supabase/migrations/20261007090100_external_quote_snapshots.sql",
+      "line": 181,
+      "evidence": "REVOKE ALL ON FUNCTION public.external_create_quote(text,uuid,text,text,text,uuid,uuid,timestamptz,timestamptz,text,jsonb,integer) FROM PUBLIC, anon, authenticated;",
+      "sha256": "284d415effbe593275ba08ab41824eae0fae01f7c5033a27bc2fdd4de891f5f1"
+    },
+    {
+      "file": "supabase/migrations/20261007090100_external_quote_snapshots.sql",
+      "line": 183,
+      "evidence": "GRANT EXECUTE ON FUNCTION public.external_create_quote(text,uuid,text,text,text,uuid,uuid,timestamptz,timestamptz,text,jsonb,integer) TO service_role;",
+      "sha256": "284d415effbe593275ba08ab41824eae0fae01f7c5033a27bc2fdd4de891f5f1"
+    },
+    {
+      "file": "supabase/migrations/20261007090200_shared_inventory_guard.sql",
+      "line": 120,
+      "evidence": "REVOKE ALL ON FUNCTION public.agent_inventory_blocking(text), public.agent_inventory_span(timestamptz,timestamptz,integer), public.agent_inventory_lock(uuid,uuid), public.agent_inventory_booking_guard(), public.agent_inventory_blocked_guard() FROM PUBLIC,anon,authenticated;",
+      "sha256": "6e754adb371c63f677f17f25104f07a12ea672fd31edb80163215943489ffffa"
+    },
+    {
+      "file": "supabase/migrations/20261007090300_inventory_policy_read_parity.sql",
+      "line": 28,
+      "evidence": "REVOKE ALL ON FUNCTION public.agent_inventory_available(uuid,timestamptz,timestamptz) FROM PUBLIC,anon,authenticated;",
+      "sha256": "56dafd841effa6a465d5e7c96ccf5d5dfe574471277a5fb33da80984feb1226b"
+    },
+    {
+      "file": "supabase/migrations/20261007090300_inventory_policy_read_parity.sql",
+      "line": 29,
+      "evidence": "GRANT EXECUTE ON FUNCTION public.agent_inventory_available(uuid,timestamptz,timestamptz) TO service_role;",
+      "sha256": "56dafd841effa6a465d5e7c96ccf5d5dfe574471277a5fb33da80984feb1226b"
+    },
+    {
+      "file": "supabase/migrations/20261007090300_inventory_policy_read_parity.sql",
+      "line": 54,
+      "evidence": "REVOKE ALL ON FUNCTION public.public_vehicle_busy_windows(text,text,date,date) FROM PUBLIC;",
+      "sha256": "56dafd841effa6a465d5e7c96ccf5d5dfe574471277a5fb33da80984feb1226b"
+    },
+    {
+      "file": "supabase/migrations/20261007090300_inventory_policy_read_parity.sql",
+      "line": 55,
+      "evidence": "GRANT EXECUTE ON FUNCTION public.public_vehicle_busy_windows(text,text,date,date) TO anon,authenticated,service_role;",
+      "sha256": "56dafd841effa6a465d5e7c96ccf5d5dfe574471277a5fb33da80984feb1226b"
+    },
+    {
+      "file": "supabase/migrations/20261007090300_inventory_policy_read_parity.sql",
+      "line": 65,
+      "evidence": "REVOKE ALL ON FUNCTION public.public_vehicle_availability(text,text,date,date) FROM PUBLIC;",
+      "sha256": "56dafd841effa6a465d5e7c96ccf5d5dfe574471277a5fb33da80984feb1226b"
+    },
+    {
+      "file": "supabase/migrations/20261007090300_inventory_policy_read_parity.sql",
+      "line": 66,
+      "evidence": "GRANT EXECUTE ON FUNCTION public.public_vehicle_availability(text,text,date,date) TO anon,authenticated,service_role;",
+      "sha256": "56dafd841effa6a465d5e7c96ccf5d5dfe574471277a5fb33da80984feb1226b"
+    },
+    {
+      "file": "supabase/migrations/20261007090300_inventory_policy_read_parity.sql",
+      "line": 96,
+      "evidence": "REVOKE ALL ON FUNCTION public.public_fleet_busy(date,date,text) FROM PUBLIC;",
+      "sha256": "56dafd841effa6a465d5e7c96ccf5d5dfe574471277a5fb33da80984feb1226b"
+    },
+    {
+      "file": "supabase/migrations/20261007090300_inventory_policy_read_parity.sql",
+      "line": 97,
+      "evidence": "GRANT EXECUTE ON FUNCTION public.public_fleet_busy(date,date,text) TO anon,authenticated,service_role;",
+      "sha256": "56dafd841effa6a465d5e7c96ccf5d5dfe574471277a5fb33da80984feb1226b"
     }
   ],
   "states": [
@@ -3190,7 +3419,7 @@
           "state": "pending_documents",
           "file": "supabase/functions/_shared/external-booking/contracts.ts",
           "line": 33,
-          "sha256": "98def81954f467092e3956e39b76a8accdab9eab8b8acee8221add02f44a338d"
+          "sha256": "f61ebdf78eedc31be8eb31cbbf46d55cbfef33c0ecee6d5364cef3a4e9f0f1c7"
         },
         {
           "state": "pending_documents",
@@ -3359,6 +3588,12 @@
           "file": "supabase/migrations/20260904122112_f5da6216-1ce4-40f1-b601-bd5406a9c4d1.sql",
           "line": 58,
           "sha256": "3035dc24f53d2c9704d6ef5ff6c5aaa50732515b1b61064a8a53a5021701594f"
+        },
+        {
+          "state": "pending_documents",
+          "file": "supabase/migrations/20261007090200_shared_inventory_guard.sql",
+          "line": 22,
+          "sha256": "6e754adb371c63f677f17f25104f07a12ea672fd31edb80163215943489ffffa"
         }
       ]
     },
@@ -3417,7 +3652,7 @@
           "state": "requested",
           "file": "supabase/functions/_shared/external-booking/contracts.ts",
           "line": 33,
-          "sha256": "98def81954f467092e3956e39b76a8accdab9eab8b8acee8221add02f44a338d"
+          "sha256": "f61ebdf78eedc31be8eb31cbbf46d55cbfef33c0ecee6d5364cef3a4e9f0f1c7"
         },
         {
           "state": "requested",
@@ -3586,6 +3821,12 @@
           "file": "supabase/migrations/20260904122112_f5da6216-1ce4-40f1-b601-bd5406a9c4d1.sql",
           "line": 58,
           "sha256": "3035dc24f53d2c9704d6ef5ff6c5aaa50732515b1b61064a8a53a5021701594f"
+        },
+        {
+          "state": "requested",
+          "file": "supabase/migrations/20261007090200_shared_inventory_guard.sql",
+          "line": 22,
+          "sha256": "6e754adb371c63f677f17f25104f07a12ea672fd31edb80163215943489ffffa"
         }
       ]
     },
@@ -3632,7 +3873,7 @@
           "state": "pending_payment",
           "file": "supabase/functions/_shared/external-booking/contracts.ts",
           "line": 33,
-          "sha256": "98def81954f467092e3956e39b76a8accdab9eab8b8acee8221add02f44a338d"
+          "sha256": "f61ebdf78eedc31be8eb31cbbf46d55cbfef33c0ecee6d5364cef3a4e9f0f1c7"
         },
         {
           "state": "pending_payment",
@@ -3807,6 +4048,12 @@
           "file": "supabase/migrations/20260904122112_f5da6216-1ce4-40f1-b601-bd5406a9c4d1.sql",
           "line": 58,
           "sha256": "3035dc24f53d2c9704d6ef5ff6c5aaa50732515b1b61064a8a53a5021701594f"
+        },
+        {
+          "state": "pending_payment",
+          "file": "supabase/migrations/20261007090200_shared_inventory_guard.sql",
+          "line": 22,
+          "sha256": "6e754adb371c63f677f17f25104f07a12ea672fd31edb80163215943489ffffa"
         }
       ]
     },
@@ -4087,7 +4334,7 @@
           "state": "confirmed",
           "file": "supabase/functions/_shared/external-booking/contracts.ts",
           "line": 33,
-          "sha256": "98def81954f467092e3956e39b76a8accdab9eab8b8acee8221add02f44a338d"
+          "sha256": "f61ebdf78eedc31be8eb31cbbf46d55cbfef33c0ecee6d5364cef3a4e9f0f1c7"
         },
         {
           "state": "confirmed",
@@ -4388,6 +4635,12 @@
           "file": "supabase/migrations/20260904122112_f5da6216-1ce4-40f1-b601-bd5406a9c4d1.sql",
           "line": 58,
           "sha256": "3035dc24f53d2c9704d6ef5ff6c5aaa50732515b1b61064a8a53a5021701594f"
+        },
+        {
+          "state": "confirmed",
+          "file": "supabase/migrations/20261007090200_shared_inventory_guard.sql",
+          "line": 22,
+          "sha256": "6e754adb371c63f677f17f25104f07a12ea672fd31edb80163215943489ffffa"
         }
       ]
     },
@@ -4590,7 +4843,7 @@
           "state": "active",
           "file": "supabase/functions/_shared/external-booking/contracts.ts",
           "line": 33,
-          "sha256": "98def81954f467092e3956e39b76a8accdab9eab8b8acee8221add02f44a338d"
+          "sha256": "f61ebdf78eedc31be8eb31cbbf46d55cbfef33c0ecee6d5364cef3a4e9f0f1c7"
         },
         {
           "state": "active",
@@ -4831,6 +5084,12 @@
           "file": "supabase/migrations/20260904122112_f5da6216-1ce4-40f1-b601-bd5406a9c4d1.sql",
           "line": 58,
           "sha256": "3035dc24f53d2c9704d6ef5ff6c5aaa50732515b1b61064a8a53a5021701594f"
+        },
+        {
+          "state": "active",
+          "file": "supabase/migrations/20261007090200_shared_inventory_guard.sql",
+          "line": 22,
+          "sha256": "6e754adb371c63f677f17f25104f07a12ea672fd31edb80163215943489ffffa"
         }
       ]
     },
@@ -5045,7 +5304,7 @@
           "state": "pending",
           "file": "supabase/functions/_shared/external-booking/contracts.ts",
           "line": 33,
-          "sha256": "98def81954f467092e3956e39b76a8accdab9eab8b8acee8221add02f44a338d"
+          "sha256": "f61ebdf78eedc31be8eb31cbbf46d55cbfef33c0ecee6d5364cef3a4e9f0f1c7"
         },
         {
           "state": "pending",
@@ -5346,6 +5605,12 @@
           "file": "supabase/migrations/20260904122112_f5da6216-1ce4-40f1-b601-bd5406a9c4d1.sql",
           "line": 58,
           "sha256": "3035dc24f53d2c9704d6ef5ff6c5aaa50732515b1b61064a8a53a5021701594f"
+        },
+        {
+          "state": "pending",
+          "file": "supabase/migrations/20261007090200_shared_inventory_guard.sql",
+          "line": 22,
+          "sha256": "6e754adb371c63f677f17f25104f07a12ea672fd31edb80163215943489ffffa"
         }
       ]
     },
@@ -5536,7 +5801,7 @@
           "state": "cancelled",
           "file": "supabase/functions/_shared/external-booking/contracts.ts",
           "line": 33,
-          "sha256": "98def81954f467092e3956e39b76a8accdab9eab8b8acee8221add02f44a338d"
+          "sha256": "f61ebdf78eedc31be8eb31cbbf46d55cbfef33c0ecee6d5364cef3a4e9f0f1c7"
         },
         {
           "state": "cancelled",
@@ -5673,7 +5938,7 @@
           "state": "expired",
           "file": "supabase/functions/_shared/external-booking/contracts.ts",
           "line": 32,
-          "sha256": "98def81954f467092e3956e39b76a8accdab9eab8b8acee8221add02f44a338d"
+          "sha256": "f61ebdf78eedc31be8eb31cbbf46d55cbfef33c0ecee6d5364cef3a4e9f0f1c7"
         },
         {
           "state": "expired",
@@ -5738,7 +6003,7 @@
           "state": "declined",
           "file": "supabase/functions/_shared/external-booking/contracts.ts",
           "line": 33,
-          "sha256": "98def81954f467092e3956e39b76a8accdab9eab8b8acee8221add02f44a338d"
+          "sha256": "f61ebdf78eedc31be8eb31cbbf46d55cbfef33c0ecee6d5364cef3a4e9f0f1c7"
         },
         {
           "state": "declined",
@@ -6007,7 +6272,7 @@
           "state": "completed",
           "file": "supabase/functions/_shared/external-booking/contracts.ts",
           "line": 33,
-          "sha256": "98def81954f467092e3956e39b76a8accdab9eab8b8acee8221add02f44a338d"
+          "sha256": "f61ebdf78eedc31be8eb31cbbf46d55cbfef33c0ecee6d5364cef3a4e9f0f1c7"
         },
         {
           "state": "completed",
@@ -6234,7 +6499,7 @@
           "state": "refunded",
           "file": "supabase/functions/_shared/external-booking/contracts.ts",
           "line": 33,
-          "sha256": "98def81954f467092e3956e39b76a8accdab9eab8b8acee8221add02f44a338d"
+          "sha256": "f61ebdf78eedc31be8eb31cbbf46d55cbfef33c0ecee6d5364cef3a4e9f0f1c7"
         },
         {
           "state": "refunded",
