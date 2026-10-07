@@ -1,7 +1,7 @@
 import { validateContract } from './contracts.ts';
 import { BookingApiError, errorResponse } from './errors.ts';
 import { jsonResponse, type CatalogRepository, type AvailabilityObservation } from './catalog-routes.ts';
-import { createQuote, type QuoteInput, type QuoteStore, type QuotePrincipal } from './quotes.ts';
+import { createQuote, type QuoteInput, type QuoteStore, type QuotePrincipal, type QuoteSnapshot, publicQuoteWindow } from './quotes.ts';
 import type { createResourceAuthenticator } from './auth.ts';
 export type ResourceAuth = ReturnType<typeof createResourceAuthenticator>;
 export async function availabilityResponse(input: unknown, repository: CatalogRepository, now: number): Promise<Response> {
@@ -34,10 +34,14 @@ export async function quoteResponse(input: unknown, request: Request, repository
     throw error;
   }
   const quote = await createQuote(window, principal as QuotePrincipal, store, now);
+  return jsonResponse(quoteResultFromSnapshot(quote,consentOrigin,now),201);
+}
+export function quoteResultFromSnapshot(quote:QuoteSnapshot,consentOrigin:string,now:number) {
+  const window=publicQuoteWindow(quote.authority.window);
   const p = quote.authority.pricing, terms = quote.authority.terms;
   const consent = new URL(`/agent/consent/${quote.quote_id}`, consentOrigin);
-  const result = { api_version: 'v1', source_checked_at: quote.created_at, ...window, quote_id: quote.quote_id,
-    principal_scope: { subject: principal.subject, operator_id: window.operator_id }, expires_at: quote.expires_at,
+  const result = { api_version: 'v1', source_checked_at: new Date(quote.created_at).toISOString(), ...window, quote_id: quote.quote_id,
+    principal_scope: { subject: quote.principal.subject, operator_id: window.operator_id }, expires_at: new Date(quote.expires_at).toISOString(),
     pricing_version: quote.pricing_version, terms_version: quote.terms_version, terms_hash: quote.terms_hash,
     terms: { cancellation_policy: terms.cancellation_policy, pickup_address: terms.pickup_address, pickup_instructions: terms.pickup_instructions,
       mileage_limit: terms.mileage_limit, mileage_overage_rate_usd: terms.mileage_overage_rate, deposit_disclosure: terms.deposit_disclosure },
@@ -52,7 +56,7 @@ export async function quoteResponse(input: unknown, request: Request, repository
     operator_total_cents: p.operator_total_cents, exotiq_total_cents: p.exotiq_total_cents, total_cents: p.grand_total_cents,
     payment_schedule: [{ payee: 'operator', amount_cents: p.operator_total_cents, due: 'after_operator_approval' },
       { payee: 'exotiq', amount_cents: p.exotiq_total_cents, due: 'after_operator_charge' }],
-    availability_checked_at: quote.authority.availability_checked_at, holds_inventory: false, consent_url: consent.href };
+    availability_checked_at: new Date(quote.authority.availability_checked_at).toISOString(), holds_inventory: false, consent_url: consent.href };
   if (!validateContract('QuoteResult', result, { now }).ok) throw new BookingApiError('upstream_unavailable');
-  return jsonResponse(result, 201);
+  return result;
 }

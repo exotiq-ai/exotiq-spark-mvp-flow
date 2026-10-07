@@ -4,7 +4,8 @@ DO $$ DECLARE f public.lab_requests%ROWTYPE; result jsonb; e jsonb; context json
  INSERT INTO public.identity_verifications(customer_id,status,document_expiry) VALUES('30000000-0000-4000-8000-000000000001','verified',current_date+90);
  SELECT * INTO f FROM public.lab_requests WHERE ordinal=1;
  result:=public.external_submit_rental_request(f.quote_id,f.receipt_id,'verified-request-key-001','https://issuer.example.invalid','renter','client-a','30000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','https://api.example.invalid/v1','https://api.example.invalid');
- IF result->>'status'<>'requested' THEN RAISE EXCEPTION 'owned unexpired identity did not permit requested'; END IF;
+ IF result->>'status'<>'pending_documents' THEN RAISE EXCEPTION 'legacy unproven identity was reused'; END IF;
+ UPDATE public.identity_verifications SET booking_ref=(SELECT b.booking_ref FROM public.bookings b JOIN public.external_request_idempotency l ON l.booking_id=b.id WHERE l.quote_id=f.quote_id),verified_at=clock_timestamp();
  UPDATE public.identity_verifications SET document_expiry=NULL;
  SELECT * INTO f FROM public.lab_requests WHERE ordinal=2;
  result:=public.external_submit_rental_request(f.quote_id,f.receipt_id,'unknown-expiry-key-001','https://issuer.example.invalid','renter','client-a','30000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','https://api.example.invalid/v1','https://api.example.invalid');

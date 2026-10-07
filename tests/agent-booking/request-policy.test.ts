@@ -10,3 +10,7 @@ it('does not blindly retry ambiguous transport failure; caller retries same dura
 it.each([{}, { ...input, consent_receipt_id: undefined }, { ...input, totals: 1 }])('denies missing consent and client totals %j', async (bad) => { await expect(submitRentalRequest(bad, 'retry-key-123456789', principal, { create: async () => response })).rejects.toMatchObject({ code: 'invalid_input' }); });
 it('requires resolved tenant customer and write scope', async () => { for (const change of [{ customerId: undefined }, { operatorId: undefined }, { scopes: ['catalog:read'] as const }]) await expect(submitRentalRequest(input, 'retry-key-123456789', { ...principal, ...change }, { create: async () => response })).rejects.toMatchObject({ code: 'unauthorized' }); });
 it('allows only reviewed public response shape and strips no legacy token implicitly', async () => { await expect(submitRentalRequest(input, 'retry-key-123456789', principal, { create: async () => ({ ...response, confirmation_token: 'secret' }) })).rejects.toMatchObject({ code: 'upstream_unavailable' }); });
+it('bounds in-flight retries and returns canonical409 with a short retry hint',async()=>{
+ let attempts=0;const store=new SupabaseRequestStore({rpc:async()=>{attempts++;return {data:null,error:{code:'40001',message:'request_in_flight'}};}},'https://api.example.test',{sleep:async()=>{},random:()=>0});
+ await expect(submitRentalRequest(input,'retry-key-123456789',principal,store)).rejects.toMatchObject({code:'request_in_flight',details:{retry_after_seconds:1}});expect(attempts).toBe(5);
+});

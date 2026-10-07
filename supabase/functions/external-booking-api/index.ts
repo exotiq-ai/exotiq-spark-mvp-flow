@@ -3,6 +3,8 @@ import { availabilityResponse, quoteResponse, type ResourceAuth } from '../_shar
 import { errorResponse, BookingApiError } from '../_shared/external-booking/errors.ts';
 import { authenticationChallenge, createResourceAuthenticator, protectedResourceMetadata, type ProviderConfiguration, type AuthDependencies } from '../_shared/external-booking/auth.ts';
 import { SupabaseQuoteStore, hashCanonical, type QuoteStore, type QuoteRpcClient } from '../_shared/external-booking/quotes.ts';
+import {createConsentExtension} from '../_shared/external-booking/consent-routes.ts';
+import type {HostedProofConfiguration} from '../_shared/external-booking/hosted-proof.ts';
 import { createRemoteJWKSet } from 'jose';
 
 export interface ApiDependencies {
@@ -24,12 +26,13 @@ async function boundedBytes(message: Request | Response, maximum = 32768): Promi
     const bytes = new Uint8Array(size); let offset = 0;
     for (const part of parts) { bytes.set(part, offset); offset += part.length; }
     return bytes;
-  } catch { throw new BookingApiError('invalid_input'); } finally { await reader.cancel().catch(() => undefined); }
+  } catch { throw new BookingApiError('invalid_input'); } finally { void reader.cancel().catch(() => undefined); reader.releaseLock(); }
 }
 export async function boundedJson(message: Request | Response, maximum = 32768): Promise<unknown> {
   try { return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(await boundedBytes(message, maximum))); } catch { throw new BookingApiError('invalid_input'); }
 }
-function routePath(url: URL): string {
+function routePath(url: URL,resource?:string): string {
+  if(resource){const prefix=new URL(resource).pathname.replace(/\/$/, '');if(prefix&&url.pathname.startsWith(prefix+'/v1/'))url=new URL(url.origin+url.pathname.slice(prefix.length)+url.search);}
   if (url.searchParams.has('access_token') || url.pathname.includes('%') || /\/\//.test(url.pathname)) throw new BookingApiError('invalid_input');
   return url.pathname.replace(/^\/functions\/v1\/external-booking-api(?=\/)/, '').replace(/^\/external-booking-api(?=\/)/, '');
 }
@@ -38,7 +41,7 @@ export function createApiHandler(deps: ApiDependencies): (request: Request) => P
   return async (request) => {
     const requestId = crypto.randomUUID();
     try {
-      const url = new URL(request.url), path = routePath(url), now = deps.now?.() ?? Date.now();
+      const url = new URL(request.url), path = routePath(url,deps.provider?.resource), now = deps.now?.() ?? Date.now();
       if (request.url.length > 8192 || !['GET', 'POST'].includes(request.method)) throw new BookingApiError('invalid_input');
       if (!await deps.boundaryLimit(request)) throw new BookingApiError('rate_limited');
       let response: Response;
@@ -49,7 +52,7 @@ export function createApiHandler(deps: ApiDependencies): (request: Request) => P
       } else {
         if (!path.startsWith('/v1/')) throw new BookingApiError('invalid_input');
         if (request.method === 'POST' && !/^application\/json(?:;\s*charset=utf-8)?$/i.test(request.headers.get('content-type') ?? '')) throw new BookingApiError('invalid_input');
-        const body = request.method === 'POST' ? await boundedJson(request) : undefined;
+        const body = request.method === 'POST' ? await boundedJson(request.clone()) : undefined;
         if (request.method === 'POST' && path === '/v1/availability') {
           if (request.headers.has('authorization')) { if (!deps.auth) throw new BookingApiError('upstream_unavailable'); await deps.auth.requirePrincipal(request, 'catalog:read'); }
           response = await availabilityResponse(body, deps.catalog, now);
@@ -65,9 +68,10 @@ export function createApiHandler(deps: ApiDependencies): (request: Request) => P
       if (response.status===401 && deps.provider) for(const [key,value] of Object.entries(authenticationChallenge(deps.provider,path==='/v1/quotes'?'quotes:create':'catalog:read'))) response.headers.set(key,value);
       return response;
     } catch (error) {
+      if(request.body&&!request.bodyUsed)void request.body.cancel().catch(()=>undefined);
       const response = errorResponse(error, requestId);
       if (response.status === 401 && deps.provider) {
-        const challenge = authenticationChallenge(deps.provider, routePath(new URL(request.url)) === '/v1/quotes' ? 'quotes:create' : 'catalog:read');
+        const challenge = authenticationChallenge(deps.provider, routePath(new URL(request.url),deps.provider?.resource) === '/v1/quotes' ? 'quotes:create' : 'catalog:read');
         for (const [key,value] of Object.entries(challenge)) response.headers.set(key,value);
       }
       return response;
@@ -101,7 +105,7 @@ export class HttpSupabaseRpcClient implements QuoteRpcClient {
 export interface RuntimeConfig {
   provider: ProviderConfiguration; introspectionUrl: string; introspectionAuthorization: string;
   supabaseUrl: string; serviceKey: string; cursorKey: Uint8Array; consentOrigin: string;
-  browseEnabled: boolean; gatewayKey?: Uint8Array;
+  browseEnabled: boolean; gatewayKey?: Uint8Array; hosted?:HostedProofConfiguration|null;
 }
 async function byteHash(bytes: Uint8Array): Promise<string> {
   return [...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map((v)=>v.toString(16).padStart(2,'0')).join('');
@@ -125,7 +129,9 @@ export async function normalizeIngress(request: Request, config: RuntimeConfig, 
   if (!await crypto.subtle.verify('HMAC',key,signature,message)) throw new BookingApiError('unauthorized');
   const path = routePath(incoming);
   if (!path.startsWith('/v1/') && path !== new URL(config.provider.metadataUrl).pathname) throw new BookingApiError('invalid_input');
-  return new Request(new URL(path+incoming.search,resource.origin),{method:request.method,headers:request.headers, ...(request.body?{body:bytes}:{})});
+  const prefix=resource.pathname.replace(/\/$/,'');
+  const publicPath=path===new URL(config.provider.metadataUrl).pathname?path:prefix+path;
+  return new Request(new URL(publicPath+incoming.search,resource.origin),{method:request.method,headers:request.headers, ...(request.body?{body:bytes}:{})});
 }
 export function readRuntimeConfig(env: Environment): RuntimeConfig {
   try {
@@ -140,7 +146,10 @@ export function readRuntimeConfig(env: Environment): RuntimeConfig {
     const cursor = env.get('EXTERNAL_API_CURSOR_KEY_HEX') ?? '', gateway = env.get('EXTERNAL_API_GATEWAY_KEY_HEX');
     if (!/^[a-f0-9]{64}$/.test(cursor) || (gateway !== undefined && !/^[a-f0-9]{64}$/.test(gateway))) throw new Error();
     const bytes = (raw: string) => Uint8Array.from(raw.match(/../g)!, (pair) => parseInt(pair, 16));
-    return { provider, introspectionUrl, introspectionAuthorization, supabaseUrl: env.get('SUPABASE_URL') ?? '', serviceKey: env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '', cursorKey: bytes(cursor), consentOrigin: consent.origin, browseEnabled: env.get('EXTERNAL_API_CATALOG_BROWSE_ENABLED') === 'true', ...(gateway ? { gatewayKey: bytes(gateway) } : {}) };
+    const bridgeKey=env.get('EXTERNAL_API_HOSTED_BRIDGE_KEY'),hostedClients=env.get('EXTERNAL_API_HOSTED_CLIENT_IDS');
+    let hosted:HostedProofConfiguration|null=null;
+    if(bridgeKey||hostedClients){const clientIds=JSON.parse(hostedClients??'[]') as unknown;if(!/^[A-Za-z0-9_-]{43}$/.test(bridgeKey??'')||!Array.isArray(clientIds)||!clientIds.length||clientIds.some(id=>typeof id!=='string'||!provider.clientIds.includes(id)))throw new Error();hosted={frontendOrigin:consent.origin,resource:provider.resource,bridgeKey:bridgeKey!,hostedClientIds:clientIds};}
+    return { hosted, provider, introspectionUrl, introspectionAuthorization, supabaseUrl: env.get('SUPABASE_URL') ?? '', serviceKey: env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '', cursorKey: bytes(cursor), consentOrigin: consent.origin, browseEnabled: env.get('EXTERNAL_API_CATALOG_BROWSE_ENABLED') === 'true', ...(gateway ? { gatewayKey: bytes(gateway) } : {}) };
   } catch { throw new BookingApiError('upstream_unavailable'); }
 }
 /** RFC7662 each-request introspection, not a signature-only revocation assertion.
@@ -187,9 +196,11 @@ export function createRuntime(config: RuntimeConfig, fetcher: Fetcher = fetch, a
       enforceRateLimit: async (principal) => limit(`external:principal:${await hashCanonical({ issuer: principal.issuer, subject: principal.subject, clientId: principal.clientId, operatorId: principal.operatorId ?? null })}`, principal.operatorId ? 20 : 120),
     };
     const auth = createResourceAuthenticator(config.provider, dependencies);
+    const consent=createConsentExtension({auth,rpc,hosted:config.hosted??null,consentOrigin:config.consentOrigin,now});
+    const extension:ApiDependencies['extension']=async(req,path,body)=>await consent(req,path,body)??await additions?.extension?.(req,path,body)??null;
     return createApiHandler({ catalog, cursorKey: config.cursorKey, browseEnabled: config.browseEnabled,
       boundaryLimit: async () => limit('external:boundary:global', 600), now, auth,
-      quoteStore: new SupabaseQuoteStore(rpc), consentOrigin: config.consentOrigin, provider: config.provider, extension: additions?.extension })(request);
+      quoteStore: new SupabaseQuoteStore(rpc), consentOrigin: config.consentOrigin, provider: config.provider, extension })(request);
   };
 }
 
