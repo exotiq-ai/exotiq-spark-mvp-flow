@@ -76,4 +76,14 @@ describe('trusted financial and identity lifecycle',()=>{
   expect(creates).toHaveLength(2);expect(creates[0]).toEqual(creates[1]);
   expect(creates[0]).toMatchObject({parameters:{customer:'cus_captured',amount:1000},options:{idempotencyKey:'persisted-one-charge-key'}});
  });
+ it('actual late payment queues financial reconciliation and keeps failed refunds retryable',async()=>{
+  const calls:Array<{name:string;args:Record<string,unknown>}>=[];
+  const booking={id:'synthetic',status:'cancelled',total_value:100,team_id:'operator',platform_fee_cents:1000,protection_total_cents:0,state_fee_cents:0,processing_fee_cents:0};
+  const db={from:(table:string)=>{const chain:any={select:()=>chain,eq:()=>chain,is:()=>chain,update:()=>chain,insert:()=>chain,single:async()=>({data:table==='teams'?{currency:'USD',stripe_test_account_id:'acct_synthetic'}:booking,error:null}),maybeSingle:async()=>({data:booking,error:null}),then:(resolve:(value:unknown)=>unknown)=>Promise.resolve({data:null,error:null}).then(resolve)};return chain;},rpc:async(name:string,args:Record<string,unknown>)=>{calls.push({name,args});return {data:name==='external_claim_rent_event'?{state:'claimed',claim_token:'synthetic'}:name==='external_reconcile_booking'?{changed:false,status:'cancelled'}:true,error:null};}};
+  const stripe={webhooks:{constructEventAsync:async()=>({id:'evt_late',type:'checkout.session.completed',livemode:false,data:{object:{payment_intent:'pi_synthetic',metadata:{booking_ref:expected.bookingRef,leg:'operator_rental'}}}})},paymentIntents:{retrieve:async()=>intent()},refunds:{create:async()=>{throw new Error('Ambiguous refund response');}}};
+  const handler=edgeHandler('supabase/functions/rent-payment-webhook/index.ts',db,stripe);
+  expect((await handler(new Request('https://api.example.invalid/rent-payment-webhook',{method:'POST',headers:{'stripe-signature':'synthetic'},body:'{}'}))).status).toBe(500);
+  expect(calls.some(call=>call.name==='external_reconcile_booking')).toBe(true);
+  expect(calls.at(-1)).toMatchObject({name:'external_finish_rent_event',args:{_completed:false}});
+ });
 });
