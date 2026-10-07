@@ -16,7 +16,7 @@ export interface AuthDependencies {
   resolveCustomer: (issuer: string, subject: string, operatorId: string) => Promise<{ customerId: string; operatorId: string; verified: boolean; revoked: boolean } | null>;
   /** MUST query current revocation/session policy or introspection on EVERY request.
    * A JWT signature is insufficient for provider revocation. Throw on unavailable store. */
-  isTokenActive: (identity: { issuer: string; subject: string; tokenId: string; clientId: string }) => Promise<boolean>;
+  isTokenActive: (identity: { issuer: string; subject: string; tokenId: string; clientId: string; requiredScope: Scope; scopes: readonly Scope[] }) => Promise<boolean>;
   /** Persistent limiter; request IP is trustworthy only after ingress proxy validation.
    * Operator-specific limits are additionally enforced after tenant resolution. */
   enforceRateLimit: (principal: Principal, request: Request) => Promise<boolean>;
@@ -42,7 +42,7 @@ function validateConfiguration(config: ProviderConfiguration): void {
 }
 export function protectedResourceMetadata(config: ProviderConfiguration) {
   validateConfiguration(config);
-  return { resource: config.resource, authorization_servers: [config.issuer], scopes_supported: ['catalog:read'], bearer_methods_supported: ['header'] };
+  return { resource: config.resource, authorization_servers: [config.issuer], scopes_supported: [...SCOPES], bearer_methods_supported: ['header'] };
 }
 export function authenticationChallenge(config: ProviderConfiguration, scope: Scope): Record<string, string> {
   validateConfiguration(config);
@@ -110,7 +110,7 @@ export function createResourceAuthenticator(config: ProviderConfiguration | null
       try {
         // Every request resolves the verified persisted binding; typed email/customer
         // IDs in claims or request bodies are deliberately ignored.
-        if (!await dependencies.isTokenActive(identity)) throw new BookingApiError('unauthorized');
+        if (!await dependencies.isTokenActive({ ...identity, requiredScope, scopes })) throw new BookingApiError('unauthorized');
         const stablePrincipal: Principal = { ...identity, audience: config.resource, scopes };
         const principal = operatorId ? await resolveOperatorCustomer(stablePrincipal, operatorId, dependencies) : stablePrincipal;
         if (!await dependencies.enforceRateLimit(principal, request)) throw new BookingApiError('rate_limited');
