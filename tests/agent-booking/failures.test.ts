@@ -57,7 +57,9 @@ describe('safe availability and actual runtime quote composition',()=>{
   });
   it.each([{active:false,status:401},{failIntrospection:true,status:503},{missingCustomer:true,status:401},{limit:false,status:429},{scope:'catalog:read',status:401}])('denies revocation/provider failure/missing onboarding/rate limit before quote persistence %j',async(options)=>{
     const {handler,calls}=runtime(options);const response=await handler(new Request('https://api.example.invalid/v1/quotes',{method:'POST',headers:{authorization:`Bearer ${await token()}`,'content-type':'application/json'},body:JSON.stringify(input)}));
-    expect(response.status).toBe(options.status);expect(calls.some(call=>call.name==='external_create_quote')).toBe(false);expect(JSON.stringify(await response.json())).not.toContain('secret');
+    const error=await response.json();
+    expect(response.status).toBe(options.status);expect(calls.some(call=>call.name==='external_create_quote')).toBe(false);expect(JSON.stringify(error)).not.toContain('secret');
+    expect(response.headers.get('X-Request-Id')).toBe(error.request_id);
     if(options.missingCustomer)expect(response.headers.get('Link')).toBe(`<${config.consentOrigin}/agent/account/${operator}>; rel="customer-account"`);
   });
   it('checks token revocation on every request rather than cache active state',async()=>{
