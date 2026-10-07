@@ -60,6 +60,7 @@ BEGIN
  body:=public.external_create_customer_owned_handoff(iss,'renter','hosted',aud,ref,'checkout',repeat('e',64),'test');
  claim:=public.external_claim_customer_handoff(iss,'renter','hosted',aud,repeat('e',64));
  ctx:=public.external_provider_handoff_context(repeat('e',64),(claim->>'claim_token')::uuid,'checkout');
+ BEGIN PERFORM public.external_reserve_rental_checkout(ref,'malformed-token','test','legacy','https://customer.example.invalid',NULL,NULL,'rent-checkout-'||ref||'-synthetic-due');RAISE EXCEPTION 'malformed UUID credential admitted';EXCEPTION WHEN raise_exception THEN IF SQLERRM<>'not_found' THEN RAISE;END IF;END;
  body:=public.external_reserve_rental_checkout(ref,claim->>'confirmation_token','test','external','https://customer.example.invalid',repeat('e',64),(claim->>'claim_token')::uuid,'rent-checkout-'||ref||'-synthetic-due');
  replay:=public.external_reserve_rental_checkout(ref,claim->>'confirmation_token','test','external','https://customer.example.invalid',repeat('e',64),(claim->>'claim_token')::uuid,'rent-checkout-'||ref||'-synthetic-due');
  IF body IS DISTINCT FROM replay THEN RAISE EXCEPTION 'checkout reservation not stable';END IF;

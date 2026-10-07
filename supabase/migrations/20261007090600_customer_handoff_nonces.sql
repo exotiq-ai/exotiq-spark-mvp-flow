@@ -330,7 +330,7 @@ DECLARE b public.bookings%ROWTYPE;ctx jsonb;moment timestamptz:=clock_timestamp(
 BEGIN
  IF _attempt_key IS NULL OR length(_attempt_key)>256 OR left(_attempt_key,length('rent-checkout-'||_ref||'-')) IS DISTINCT FROM 'rent-checkout-'||_ref||'-' OR _mode IS NULL OR _mode NOT IN('test','live') OR _kind IS NULL OR _kind NOT IN('legacy','external') OR _origin IS NULL OR _origin!~'^https://[A-Za-z0-9.-]+(:443)?$' THEN RAISE EXCEPTION 'invalid_input';END IF;
  IF _kind='external' THEN ctx:=public.external_provider_handoff_context(_nonce_hash,_claim_token,'checkout');IF ctx->>'booking_ref' IS DISTINCT FROM _ref OR ctx->>'mode' IS DISTINCT FROM _mode THEN RAISE EXCEPTION 'not_found';END IF;END IF;
- SELECT * INTO b FROM public.bookings WHERE booking_ref=_ref AND booking_source='marketplace' AND confirmation_token=_token FOR UPDATE;
+ SELECT * INTO b FROM public.bookings WHERE booking_ref=_ref AND booking_source='marketplace' AND confirmation_token::text=_token FOR UPDATE;
  IF NOT FOUND THEN RAISE EXCEPTION 'not_found';END IF;
  IF b.status<>'pending_payment' OR b.paid_at IS NOT NULL OR coalesce(b.operator_payment_intent_id,'')<>'' OR coalesce(b.exotiq_payment_intent_id,'')<>'' OR EXISTS(SELECT FROM public.external_payment_settlements WHERE booking_id=b.id) OR EXISTS(SELECT FROM public.external_lifecycle_reconciliation_queue WHERE booking_id=b.id) THEN RAISE EXCEPTION 'forbidden';END IF;
  IF b.payment_due_at IS NULL OR b.payment_due_at<=moment THEN RAISE EXCEPTION 'payment_window_expired';END IF;
