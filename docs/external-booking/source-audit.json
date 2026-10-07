@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "sourceFingerprint": "8fafe1bad0757b6d18a20b6572f719cc194b8ba875ec4eae6f6afbef636ac63d",
+  "sourceFingerprint": "e83233a93651d400d12bd9b99193e6fc6a844400d1b57f499228c0295470f098",
   "files": [
     {
       "file": "scripts/rari/cross-surface-parity-check.ts",
@@ -3964,7 +3964,7 @@
     },
     {
       "file": "supabase/migrations/20261007090200_shared_inventory_guard.sql",
-      "sha256": "6e754adb371c63f677f17f25104f07a12ea672fd31edb80163215943489ffffa"
+      "sha256": "7035b9e076d0ff314502aa6c6b409e6607ea7f38d7e49fd882fc55d7e5cb92ae"
     },
     {
       "file": "supabase/migrations/20261007090300_inventory_policy_read_parity.sql",
@@ -4687,7 +4687,7 @@
       "file": "supabase/migrations/20261007090200_shared_inventory_guard.sql",
       "line": 10,
       "evidence": "UPDATE public.bookings",
-      "sha256": "6e754adb371c63f677f17f25104f07a12ea672fd31edb80163215943489ffffa",
+      "sha256": "7035b9e076d0ff314502aa6c6b409e6607ea7f38d7e49fd882fc55d7e5cb92ae",
       "table": "bookings",
       "operation": "update",
       "kind": "sql-candidate"
@@ -10563,7 +10563,7 @@
       "file": "supabase/migrations/20261007090200_shared_inventory_guard.sql",
       "line": 19,
       "evidence": "CREATE FUNCTION public.agent_inventory_blocking(",
-      "sha256": "6e754adb371c63f677f17f25104f07a12ea672fd31edb80163215943489ffffa",
+      "sha256": "7035b9e076d0ff314502aa6c6b409e6607ea7f38d7e49fd882fc55d7e5cb92ae",
       "name": "public.agent_inventory_blocking",
       "identity": "public.agent_inventory_blocking(text)",
       "arguments": [
@@ -10588,7 +10588,7 @@
       "file": "supabase/migrations/20261007090200_shared_inventory_guard.sql",
       "line": 24,
       "evidence": "CREATE FUNCTION public.agent_inventory_span(",
-      "sha256": "6e754adb371c63f677f17f25104f07a12ea672fd31edb80163215943489ffffa",
+      "sha256": "7035b9e076d0ff314502aa6c6b409e6607ea7f38d7e49fd882fc55d7e5cb92ae",
       "name": "public.agent_inventory_span",
       "identity": "public.agent_inventory_span(timestamptz,timestamptz,integer)",
       "arguments": [
@@ -10608,7 +10608,7 @@
       "file": "supabase/migrations/20261007090200_shared_inventory_guard.sql",
       "line": 29,
       "evidence": "CREATE FUNCTION public.agent_inventory_lock(",
-      "sha256": "6e754adb371c63f677f17f25104f07a12ea672fd31edb80163215943489ffffa",
+      "sha256": "7035b9e076d0ff314502aa6c6b409e6607ea7f38d7e49fd882fc55d7e5cb92ae",
       "name": "public.agent_inventory_lock",
       "identity": "public.agent_inventory_lock(uuid,uuid)",
       "arguments": [
@@ -10627,30 +10627,30 @@
       "file": "supabase/migrations/20261007090200_shared_inventory_guard.sql",
       "line": 52,
       "evidence": "CREATE FUNCTION public.agent_inventory_booking_guard(",
-      "sha256": "6e754adb371c63f677f17f25104f07a12ea672fd31edb80163215943489ffffa",
+      "sha256": "7035b9e076d0ff314502aa6c6b409e6607ea7f38d7e49fd882fc55d7e5cb92ae",
       "name": "public.agent_inventory_booking_guard",
       "identity": "public.agent_inventory_booking_guard()",
       "arguments": [],
       "defaults": [],
       "securityDefiner": true,
-      "bodySha256": "eb17bfec742e2b09f0ff8f67d043a12b4be6eea84bdbb0e7ec18e01cf32dfdbd",
-      "bodyEndLine": 92,
+      "bodySha256": "fca6ecf188272455a03461ffe4b2da7358353d898a499c60f3b619a1c4ce00ca",
+      "bodyEndLine": 103,
       "touchesInventory": true,
       "lifecycleStates": [],
       "deployment": "unverified"
     },
     {
       "file": "supabase/migrations/20261007090200_shared_inventory_guard.sql",
-      "line": 94,
+      "line": 105,
       "evidence": "CREATE FUNCTION public.agent_inventory_blocked_guard(",
-      "sha256": "6e754adb371c63f677f17f25104f07a12ea672fd31edb80163215943489ffffa",
+      "sha256": "7035b9e076d0ff314502aa6c6b409e6607ea7f38d7e49fd882fc55d7e5cb92ae",
       "name": "public.agent_inventory_blocked_guard",
       "identity": "public.agent_inventory_blocked_guard()",
       "arguments": [],
       "defaults": [],
       "securityDefiner": true,
       "bodySha256": "208754208fce09ae3061bbb0f2d381708419b7dea19c8a172103f41d9d56ceac",
-      "bodyEndLine": 118,
+      "bodyEndLine": 129,
       "touchesInventory": true,
       "lifecycleStates": [],
       "deployment": "unverified"
@@ -12686,9 +12686,9 @@
     },
     {
       "file": "supabase/migrations/20261007090200_shared_inventory_guard.sql",
-      "line": 120,
+      "line": 131,
       "evidence": "REVOKE ALL ON FUNCTION public.agent_inventory_blocking(text), public.agent_inventory_span(timestamptz,timestamptz,integer), public.agent_inventory_lock(uuid,uuid), public.agent_inventory_booking_guard(), public.agent_inventory_blocked_guard() FROM PUBLIC,anon,authenticated;",
-      "sha256": "6e754adb371c63f677f17f25104f07a12ea672fd31edb80163215943489ffffa"
+      "sha256": "7035b9e076d0ff314502aa6c6b409e6607ea7f38d7e49fd882fc55d7e5cb92ae"
     },
     {
       "file": "supabase/migrations/20261007090300_inventory_policy_read_parity.sql",
@@ -13540,33 +13540,33 @@
     },
     {
       "file": "supabase/migrations/20261007090200_shared_inventory_guard.sql",
-      "line": 130,
+      "line": 141,
       "evidence": "DROP TRIGGER IF EXISTS trg_guard_marketplace_blocked_dates ON public.bookings;",
-      "sha256": "6e754adb371c63f677f17f25104f07a12ea672fd31edb80163215943489ffffa"
+      "sha256": "7035b9e076d0ff314502aa6c6b409e6607ea7f38d7e49fd882fc55d7e5cb92ae"
     },
     {
       "file": "supabase/migrations/20261007090200_shared_inventory_guard.sql",
-      "line": 131,
+      "line": 142,
       "evidence": "CREATE TRIGGER a_agent_inventory_booking_guard BEFORE INSERT OR UPDATE OR DELETE ON public.bookings FOR EACH ROW EXECUTE FUNCTION public.agent_inventory_booking_guard();",
-      "sha256": "6e754adb371c63f677f17f25104f07a12ea672fd31edb80163215943489ffffa"
+      "sha256": "7035b9e076d0ff314502aa6c6b409e6607ea7f38d7e49fd882fc55d7e5cb92ae"
     },
     {
       "file": "supabase/migrations/20261007090200_shared_inventory_guard.sql",
-      "line": 133,
+      "line": 144,
       "evidence": "CREATE TRIGGER z_agent_inventory_booking_guard AFTER INSERT OR UPDATE OR DELETE ON public.bookings FOR EACH ROW EXECUTE FUNCTION public.agent_inventory_booking_guard();",
-      "sha256": "6e754adb371c63f677f17f25104f07a12ea672fd31edb80163215943489ffffa"
+      "sha256": "7035b9e076d0ff314502aa6c6b409e6607ea7f38d7e49fd882fc55d7e5cb92ae"
     },
     {
       "file": "supabase/migrations/20261007090200_shared_inventory_guard.sql",
-      "line": 135,
+      "line": 146,
       "evidence": "CREATE TRIGGER a_agent_inventory_blocked_guard BEFORE INSERT OR UPDATE OR DELETE ON public.vehicle_blocked_dates FOR EACH ROW EXECUTE FUNCTION public.agent_inventory_blocked_guard();",
-      "sha256": "6e754adb371c63f677f17f25104f07a12ea672fd31edb80163215943489ffffa"
+      "sha256": "7035b9e076d0ff314502aa6c6b409e6607ea7f38d7e49fd882fc55d7e5cb92ae"
     },
     {
       "file": "supabase/migrations/20261007090200_shared_inventory_guard.sql",
-      "line": 137,
+      "line": 148,
       "evidence": "CREATE TRIGGER z_agent_inventory_blocked_guard AFTER INSERT OR UPDATE OR DELETE ON public.vehicle_blocked_dates FOR EACH ROW EXECUTE FUNCTION public.agent_inventory_blocked_guard();",
-      "sha256": "6e754adb371c63f677f17f25104f07a12ea672fd31edb80163215943489ffffa"
+      "sha256": "7035b9e076d0ff314502aa6c6b409e6607ea7f38d7e49fd882fc55d7e5cb92ae"
     }
   ],
   "policies": [
@@ -18961,7 +18961,7 @@
           "state": "pending_documents",
           "file": "supabase/migrations/20261007090200_shared_inventory_guard.sql",
           "line": 22,
-          "sha256": "6e754adb371c63f677f17f25104f07a12ea672fd31edb80163215943489ffffa"
+          "sha256": "7035b9e076d0ff314502aa6c6b409e6607ea7f38d7e49fd882fc55d7e5cb92ae"
         }
       ]
     },
@@ -19194,7 +19194,7 @@
           "state": "requested",
           "file": "supabase/migrations/20261007090200_shared_inventory_guard.sql",
           "line": 22,
-          "sha256": "6e754adb371c63f677f17f25104f07a12ea672fd31edb80163215943489ffffa"
+          "sha256": "7035b9e076d0ff314502aa6c6b409e6607ea7f38d7e49fd882fc55d7e5cb92ae"
         }
       ]
     },
@@ -19421,7 +19421,7 @@
           "state": "pending_payment",
           "file": "supabase/migrations/20261007090200_shared_inventory_guard.sql",
           "line": 22,
-          "sha256": "6e754adb371c63f677f17f25104f07a12ea672fd31edb80163215943489ffffa"
+          "sha256": "7035b9e076d0ff314502aa6c6b409e6607ea7f38d7e49fd882fc55d7e5cb92ae"
         }
       ]
     },
@@ -20008,7 +20008,7 @@
           "state": "confirmed",
           "file": "supabase/migrations/20261007090200_shared_inventory_guard.sql",
           "line": 22,
-          "sha256": "6e754adb371c63f677f17f25104f07a12ea672fd31edb80163215943489ffffa"
+          "sha256": "7035b9e076d0ff314502aa6c6b409e6607ea7f38d7e49fd882fc55d7e5cb92ae"
         }
       ]
     },
@@ -20457,7 +20457,7 @@
           "state": "active",
           "file": "supabase/migrations/20261007090200_shared_inventory_guard.sql",
           "line": 22,
-          "sha256": "6e754adb371c63f677f17f25104f07a12ea672fd31edb80163215943489ffffa"
+          "sha256": "7035b9e076d0ff314502aa6c6b409e6607ea7f38d7e49fd882fc55d7e5cb92ae"
         }
       ]
     },
@@ -20978,7 +20978,7 @@
           "state": "pending",
           "file": "supabase/migrations/20261007090200_shared_inventory_guard.sql",
           "line": 22,
-          "sha256": "6e754adb371c63f677f17f25104f07a12ea672fd31edb80163215943489ffffa"
+          "sha256": "7035b9e076d0ff314502aa6c6b409e6607ea7f38d7e49fd882fc55d7e5cb92ae"
         }
       ]
     },
@@ -21956,16 +21956,16 @@
     },
     {
       "file": "supabase/migrations/20261007090200_shared_inventory_guard.sql",
-      "line": 94,
+      "line": 105,
       "evidence": "CREATE FUNCTION public.agent_inventory_blocked_guard(",
-      "sha256": "6e754adb371c63f677f17f25104f07a12ea672fd31edb80163215943489ffffa",
+      "sha256": "7035b9e076d0ff314502aa6c6b409e6607ea7f38d7e49fd882fc55d7e5cb92ae",
       "name": "public.agent_inventory_blocked_guard",
       "identity": "public.agent_inventory_blocked_guard()",
       "arguments": [],
       "defaults": [],
       "securityDefiner": true,
       "bodySha256": "208754208fce09ae3061bbb0f2d381708419b7dea19c8a172103f41d9d56ceac",
-      "bodyEndLine": 118,
+      "bodyEndLine": 129,
       "touchesInventory": true,
       "lifecycleStates": [],
       "deployment": "unverified",
@@ -21975,14 +21975,14 @@
       "file": "supabase/migrations/20261007090200_shared_inventory_guard.sql",
       "line": 52,
       "evidence": "CREATE FUNCTION public.agent_inventory_booking_guard(",
-      "sha256": "6e754adb371c63f677f17f25104f07a12ea672fd31edb80163215943489ffffa",
+      "sha256": "7035b9e076d0ff314502aa6c6b409e6607ea7f38d7e49fd882fc55d7e5cb92ae",
       "name": "public.agent_inventory_booking_guard",
       "identity": "public.agent_inventory_booking_guard()",
       "arguments": [],
       "defaults": [],
       "securityDefiner": true,
-      "bodySha256": "eb17bfec742e2b09f0ff8f67d043a12b4be6eea84bdbb0e7ec18e01cf32dfdbd",
-      "bodyEndLine": 92,
+      "bodySha256": "fca6ecf188272455a03461ffe4b2da7358353d898a499c60f3b619a1c4ce00ca",
+      "bodyEndLine": 103,
       "touchesInventory": true,
       "lifecycleStates": [],
       "deployment": "unverified",
