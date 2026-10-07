@@ -20,4 +20,10 @@ describe('runtime configuration and bounded remote transport',()=> {
     const slow:typeof fetch=async(_input,init)=>{return new Promise((_,reject)=>init?.signal?.addEventListener('abort',()=>reject(new Error('secret'))));};
     await expect(boundedJson(slow,'https://fixed.test',{},100,20)).rejects.toThrow('remote_unavailable');
   });
+  it('aborts rejected upstream streams and accepts standard JWKS JSON media type',async()=>{
+    let signal:AbortSignal|undefined;
+    await expect(boundedJson(async(_url,init)=>{signal=init?.signal as AbortSignal;return new Response('{}',{headers:{'content-type':'application/json','content-length':'100000'}});},'https://fixed.test',{},100)).rejects.toThrow('remote_unavailable');
+    expect(signal?.aborted).toBe(true);
+    expect((await boundedJson(async()=>new Response('{"keys":[]}',{headers:{'content-type':'application/jwk-set+json'}}),'https://fixed.test')).body).toEqual({keys:[]});
+  });
 });
