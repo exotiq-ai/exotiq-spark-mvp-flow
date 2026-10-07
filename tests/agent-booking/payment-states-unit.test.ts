@@ -1,7 +1,7 @@
 import {describe,it,expect} from 'vitest';
 import {readFileSync} from 'node:fs';
 import {transpileModule,ModuleKind,ScriptTarget} from 'typescript';
-import {settlementEvidence,applyIdentityEvent,reconcileBooking,sourceAmountCents,snapshotFeeCents} from '../../supabase/functions/_shared/external-booking/lifecycle';
+import {settlementEvidence,applyIdentityEvent,reconcileBooking,recordSettlement,sourceAmountCents,snapshotFeeCents} from '../../supabase/functions/_shared/external-booking/lifecycle';
 const expected={bookingRef:'agent-test-booking',leg:'operator' as const,mode:'test' as const,amountCents:10000,currency:'usd',operatorAccount:'acct_synthetic'};
 const intent=()=>({id:'pi_synthetic',status:'succeeded',amount:10000,amount_received:10000,currency:'usd',livemode:false,metadata:{booking_ref:expected.bookingRef,leg:'operator_rental',stripe_mode:'test'},transfer_data:{destination:'acct_synthetic'}});
 /** Execute the actual edge handler source with offline SDK/transport doubles.
@@ -13,7 +13,8 @@ function edgeHandler(path:string,db:unknown,stripe:unknown){
   if(name.includes('/http/server'))return {serve:(callback:typeof handler)=>{handler=callback;}};
   if(name.includes('esm.sh/stripe'))return {default:function StripeFixture(){return stripe;}};
   if(name.includes('esm.sh/@supabase'))return {createClient:()=>db};
-  if(name.includes('external-booking/lifecycle'))return {applyIdentityEvent,reconcileBooking,settlementEvidence};
+  if(name.includes('external-booking/lifecycle'))return {applyIdentityEvent,reconcileBooking,recordSettlement,sourceAmountCents,snapshotFeeCents,settlementEvidence};
+  if(name.includes('stripeMode'))return {resolveStripeMode:()=> 'test'};
   if(name.includes('rentEmail'))return {sendRenterEmail:async()=>({message_id:'synthetic'}),resolveRenterReplyTo:()=>''};
   if(name.includes('rentFormat'))return {computePaymentDueAt:()=>new Date().toISOString()};
   throw new Error('Unconfigured source import: '+name);
@@ -63,5 +64,16 @@ describe('trusted financial and identity lifecycle',()=>{
   const db={auth:{getUser:async()=>({data:{user:{id:'renter'}},error:null})},from:(table:string)=>{const chain={select:()=>chain,eq:()=>chain,maybeSingle:async()=>({data:table==='bookings'?{id:'synthetic-booking',team_id:'operator',status:'requested',booking_source:'marketplace'}:null,error:null}),update:()=>{writes++;return chain;}};return chain;},rpc:async()=>({data:false,error:null})};
   const handler=edgeHandler('supabase/functions/rent-approve-booking/index.ts',db,{});
   expect((await handler(new Request('https://api.example.invalid/rent-approve-booking',{method:'POST',headers:{Authorization:'Bearer synthetic'},body:JSON.stringify({booking_id:'synthetic-booking'})}))).status).toBe(403);expect(writes).toBe(0);
+ });
+ it('actual payment handler repeats identical charge parameters after an ambiguous response across distinct deliveries',async()=>{
+  let eventNumber=0;const creates:Array<{parameters:unknown;options:unknown}>=[];
+  const booking={id:'synthetic',status:'pending_payment',total_value:100,team_id:'operator',platform_fee_cents:1000,protection_total_cents:0,state_fee_cents:0,processing_fee_cents:0,exotiq_payment_intent_id:null,exotiq_leg_attempt:0};
+  const db={from:(table:string)=>{const chain:any={select:()=>chain,eq:()=>chain,is:()=>chain,update:(patch:Record<string,unknown>)=>{if(patch.exotiq_leg_attempt)booking.exotiq_leg_attempt=Number(patch.exotiq_leg_attempt);return chain;},insert:()=>chain,single:async()=>({data:table==='teams'?{currency:'USD',stripe_test_account_id:'acct_synthetic'}:booking,error:null}),maybeSingle:async()=>({data:booking,error:null}),then:(resolve:(value:unknown)=>unknown)=>Promise.resolve({data:null,error:null}).then(resolve)};return chain;},rpc:async(name:string)=>({data:name==='external_claim_rent_event'?{state:'claimed',claim_token:'synthetic'}:name==='external_claim_exotiq_charge'?{state:'ready',idempotency_key:'persisted-one-charge-key'}:true,error:null})};
+  const stripe={webhooks:{constructEventAsync:async()=>({id:'evt_'+(++eventNumber),type:'checkout.session.completed',livemode:false,data:{object:{payment_intent:'pi_synthetic',customer:'cus_untrusted_session',metadata:{booking_ref:expected.bookingRef,leg:'operator_rental'}}}})},paymentIntents:{retrieve:async()=>({...intent(),payment_method:'pm_saved',customer:'cus_captured'}),create:async(parameters:unknown,options:unknown)=>{creates.push({parameters,options});throw new Error('Ambiguous provider transport failure');}}};
+  const handler=edgeHandler('supabase/functions/rent-payment-webhook/index.ts',db,stripe);
+  const request=()=>new Request('https://api.example.invalid/rent-payment-webhook',{method:'POST',headers:{'stripe-signature':'synthetic'},body:'{}'});
+  expect((await handler(request())).status).toBe(500);expect((await handler(request())).status).toBe(500);
+  expect(creates).toHaveLength(2);expect(creates[0]).toEqual(creates[1]);
+  expect(creates[0]).toMatchObject({parameters:{customer:'cus_captured',amount:1000},options:{idempotencyKey:'persisted-one-charge-key'}});
  });
 });
