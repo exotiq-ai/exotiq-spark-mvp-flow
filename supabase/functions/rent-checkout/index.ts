@@ -150,6 +150,7 @@ serve(async (req) => {
       if(internal)await finishExternalCheckout(admin,body,existing.id,mode);
       return json(internal?{session_id:existing.id,url}:{url});
     }
+    if(!Number.isInteger(reservation.provider_expires_at)||reservation.provider_expires_at*1000>Date.parse(booking.payment_due_at)||reservation.provider_expires_at<=Math.floor(Date.now()/1000)+1800)return json({error:'Insufficient payment window for a new hosted session'},410);
 
     // Platform customer: dedupe by renter email (Lovable flag #9).
     const email = String(booking.customer_email || "").toLowerCase();
@@ -175,6 +176,7 @@ serve(async (req) => {
         // Exotiq leg (M6a README / Lovable flag #2).
         payment_method_types: ["card"],
         mode: "payment",
+        expires_at:reservation.provider_expires_at,
         line_items: [
           {
             price_data: {
