@@ -15,12 +15,13 @@ let keys:Awaited<ReturnType<typeof generateKeyPair>>, resolver:ReturnType<typeof
 beforeAll(async()=>{keys=await generateKeyPair('ES256',{extractable:true});resolver=createLocalJWKSet({keys:[{...await exportJWK(keys.publicKey),alg:'ES256',kid:'test'}]});});
 async function token(extra:Record<string,unknown>={}) {return new SignJWT({iss:provider.issuer,aud:provider.resource,sub:'synthetic-subject',jti:'synthetic-jti',client_id:'synthetic-client',scope:'quotes:create',iat:seconds,nbf:seconds,exp:seconds+600,...extra}).setProtectedHeader({alg:'ES256',typ:'at+jwt',kid:'test'}).sign(keys.privateKey);}
 function quoteRow() {return {quote_id:'30000000-0000-4000-8000-000000000001',subject:'synthetic-subject',customer_id:customer,issuer:provider.issuer,audience:provider.resource,client_id:'synthetic-client',created_at:new Date(now).toISOString(),expires_at:new Date(now+900000).toISOString(),pricing_version:'a'.repeat(64),terms_version:'b'.repeat(64),terms_hash:'b'.repeat(64),authority:{window:input,selected_options:['premium'],availability:'AVAILABLE',availability_checked_at:new Date(now).toISOString(),pricing:{currency:'USD',rental_days:2,daily_rate_cents:10000,rental_subtotal_cents:20000,deposit_cents:0,operator_total_cents:21200,platform_fee_percent:10,platform_fee_cents:2000,protection_tier:'premium',protection_daily_cents:28900,protection_total_cents:57800,state_fee_cents:400,processing_fee_cents:2187,exotiq_total_cents:62387,grand_total_cents:83587,state_code:'FL',state_fee_label:'State fee',state_fee_daily_cents:200,operator_tax_rate:6,operator_tax_cents:1200,operator_tax_label:'Tax'},terms:{operator_tax_inclusive:false,cancellation_policy:'72-hour cancellation',pickup_address:'Synthetic Miami',pickup_instructions:null,mileage_limit:100,mileage_overage_rate:'3.50',deposit_disclosure:'Separate deposit',currency:'USD',operator_tax_rate_percent:'6',platform_fee_percent:'10'}}};}
-function runtime(options:{active?:boolean;failIntrospection?:boolean;limit?:boolean;quoteError?:boolean;missingCustomer?:boolean;availability?:unknown;scope?:string}={}) {
+function runtime(options:{active?:boolean;failIntrospection?:boolean;limit?:boolean;quoteError?:boolean;missingCustomer?:boolean;availability?:unknown;scope?:string;flags?:unknown;failFlags?:boolean}={}) {
   const calls:{destination:string;name:string;authorization:string|null}[]=[];
   const fetcher=async(raw:string|URL|Request,init?:RequestInit)=>{
     const url=new URL(String(raw));const name=url.pathname.split('/').at(-1)!;calls.push({destination:url.hostname,name,authorization:new Headers(init?.headers).get('authorization')});
     if(url.hostname==='issuer.example.invalid') {if(options.failIntrospection)throw new Error('secret provider');return new Response(JSON.stringify({active:options.active??true,iss:provider.issuer,aud:provider.resource,sub:'synthetic-subject',jti:'synthetic-jti',client_id:'synthetic-client',scope:options.scope??'quotes:create',exp:seconds+600}));}
-    const value:Record<string,unknown>={check_rate_limit:options.limit??true,external_api_target:[target],external_resolve_customer_link:options.missingCustomer?[]:[{customer_id:customer,operator_id:operator,verified:true,revoked:false}],external_create_quote:[quoteRow()],agent_inventory_available:options.availability??true};
+    if(options.failFlags&&name==='external_read_operation_flags')throw new Error('secret flag provider');
+    const value:Record<string,unknown>={external_read_operation_flags:options.flags===undefined?{new_writes_enabled:true,operator_enabled:true}:options.flags,check_rate_limit:options.limit??true,external_api_target:[target],external_resolve_customer_link:options.missingCustomer?[]:[{customer_id:customer,operator_id:operator,verified:true,revoked:false}],external_create_quote:[quoteRow()],agent_inventory_available:options.availability??true};
     if(options.quoteError&&name==='external_create_quote')return new Response(JSON.stringify({message:'upstream_unavailable'}),{status:500});
     return new Response(JSON.stringify(value[name]??[]));
   };
@@ -67,6 +68,19 @@ describe('safe availability and actual runtime quote composition',()=>{
     expect(response.status).toBe(options.status);expect(calls.some(call=>call.name==='external_create_quote')).toBe(false);expect(JSON.stringify(error)).not.toContain('secret');
     expect(response.headers.get('X-Request-Id')).toBe(error.request_id);
     if(options.missingCustomer)expect(response.headers.get('Link')).toBe(`<${config.consentOrigin}/agent/account/${operator}>; rel="customer-account"`);
+  });
+  it.each([
+    {flags:{new_writes_enabled:false,operator_enabled:true},code:'external_writes_disabled'},
+    {flags:{new_writes_enabled:true,operator_enabled:false},code:'external_writes_disabled'},
+    {flags:null,code:'configuration_unavailable'},
+    {flags:{new_writes_enabled:'true',operator_enabled:true},code:'configuration_unavailable'},
+    {failFlags:true,code:'configuration_unavailable'},
+  ])('checks fresh authoritative flags before quote persistence %j',async(options)=>{
+    const {handler,calls}=runtime(options);
+    const response=await handler(new Request('https://api.example.invalid/v1/quotes',{method:'POST',headers:{authorization:`Bearer ${await token()}`,'content-type':'application/json'},body:JSON.stringify(input)}));
+    expect(response.status).toBe(503);expect((await response.json()).error.code).toBe(options.code);
+    expect(calls.some(call=>call.name==='external_create_quote')).toBe(false);
+    expect(calls.filter(call=>call.name==='external_read_operation_flags')).toHaveLength(1);
   });
   it('checks token revocation on every request rather than cache active state',async()=>{
     const {handler,calls}=runtime();const bearer=await token();
