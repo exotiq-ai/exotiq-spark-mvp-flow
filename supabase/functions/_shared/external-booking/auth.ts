@@ -3,7 +3,7 @@ import { SCOPES } from './contracts.ts';
 import { BookingApiError } from './errors.ts';
 
 export type Scope = typeof SCOPES[number];
-export interface Principal { subject: string; customerId: string; issuer: string; audience: string; scopes: readonly Scope[]; clientId: string; tokenId: string; }
+export interface Principal { subject: string; customerId?: string; operatorId?: string; issuer: string; audience: string; scopes: readonly Scope[]; clientId: string; tokenId: string; }
 export interface ProviderConfiguration {
   issuer: string; resource: string; jwksUri: string; metadataUrl: string;
   allowedHosts: readonly string[]; algorithms: readonly ('ES256' | 'RS256' | 'PS256' | 'EdDSA')[];
@@ -13,7 +13,7 @@ export interface AuthDependencies {
   /** Test-only injection uses jose's actual local key resolver, not a claims mock. */
   keyResolver?: JWTVerifyGetKey;
   now?: () => Date;
-  resolveCustomer: (issuer: string, subject: string) => Promise<{ customerId: string; verified: boolean; revoked: boolean } | null>;
+  resolveCustomer: (issuer: string, subject: string, operatorId: string) => Promise<{ customerId: string; operatorId: string; verified: boolean; revoked: boolean } | null>;
   /** MUST query current revocation/session policy or introspection on EVERY request.
    * A JWT signature is insufficient for provider revocation. Throw on unavailable store. */
   isTokenActive: (identity: { issuer: string; subject: string; tokenId: string; clientId: string }) => Promise<boolean>;
@@ -57,6 +57,23 @@ export function validateAuthorizationRequest(input: { redirectUri: string; resou
     || redirectAllowlist.some((uri) => uri.includes('*')) || input.resource !== resource
     || input.codeChallengeMethod !== 'S256' || !/^[A-Za-z0-9_-]{43}$/.test(input.codeChallenge)) throw new BookingApiError('invalid_input');
 }
+export function validateAuthorizationResponse(responseIssuer: string | undefined, expectedIssuer: string, issuerParameterSupported: boolean): void {
+  if ((issuerParameterSupported && responseIssuer === undefined) || (responseIssuer !== undefined && responseIssuer !== expectedIssuer)) throw new BookingApiError('unauthorized');
+}
+
+/** Legacy customers are tenant-scoped. The same issuer/subject can own distinct
+ * verified Miami/Tampa customer records, never linked by caller-provided email. */
+export async function resolveOperatorCustomer(principal: Principal, operatorId: string, dependencies: AuthDependencies): Promise<Principal & { customerId: string; operatorId: string }> {
+  if (!uuid.test(operatorId)) throw new BookingApiError('invalid_input');
+  try {
+    const link = await dependencies.resolveCustomer(principal.issuer, principal.subject, operatorId);
+    if (!link || !link.verified || link.revoked || link.operatorId !== operatorId || !uuid.test(link.customerId)) throw new BookingApiError('unauthorized');
+    return { ...principal, customerId: link.customerId, operatorId };
+  } catch (error) {
+    if (error instanceof BookingApiError) throw error;
+    throw new BookingApiError('upstream_unavailable');
+  }
+}
 
 export function createResourceAuthenticator(config: ProviderConfiguration | null, dependencies: AuthDependencies) {
   let resolver: JWTVerifyGetKey | undefined;
@@ -66,7 +83,8 @@ export function createResourceAuthenticator(config: ProviderConfiguration | null
     resolver = dependencies.keyResolver ?? createRemoteJWKSet(new URL(config.jwksUri), { timeoutDuration: 3000, cooldownDuration: 1000, cacheMaxAge: 300000 });
   }
   return {
-    async requirePrincipal(request: Request, requiredScope: Scope): Promise<Principal> {
+    resolveOperatorCustomer: (principal: Principal, operatorId: string) => resolveOperatorCustomer(principal, operatorId, dependencies),
+    async requirePrincipal(request: Request, requiredScope: Scope, operatorId?: string): Promise<Principal> {
       if (!config || !resolver) throw new BookingApiError('upstream_unavailable');
       const url = new URL(request.url);
       if (url.protocol !== 'https:' || url.origin !== new URL(config.resource).origin || url.searchParams.has('access_token')) throw new BookingApiError('unauthorized');
@@ -86,14 +104,15 @@ export function createResourceAuthenticator(config: ProviderConfiguration | null
           || typeof claims.scope !== 'string' || claims.scope.length > 1024) throw new Error('invalid claims');
       } catch { throw new BookingApiError('unauthorized'); }
       const scopes = claims.scope!.split(' ') as Scope[];
-      if (!SCOPES.includes(requiredScope) || scopes.some((scope) => !SCOPES.includes(scope)) || !scopes.includes(requiredScope)) throw new BookingApiError('unauthorized');
+      if (!SCOPES.includes(requiredScope) || scopes.some((scope) => !SCOPES.includes(scope))) throw new BookingApiError('unauthorized');
+      if (!scopes.includes(requiredScope)) throw new BookingApiError('forbidden');
       const identity = { issuer: config.issuer, subject: claims.sub!, tokenId: claims.jti!, clientId: claims.client_id as string };
       try {
         // Every request resolves the verified persisted binding; typed email/customer
         // IDs in claims or request bodies are deliberately ignored.
-        const link = await dependencies.resolveCustomer(identity.issuer, identity.subject);
-        if (!link || !link.verified || link.revoked || !uuid.test(link.customerId) || !await dependencies.isTokenActive(identity)) throw new BookingApiError('unauthorized');
-        const principal: Principal = { ...identity, audience: config.resource, customerId: link.customerId, scopes };
+        if (!await dependencies.isTokenActive(identity)) throw new BookingApiError('unauthorized');
+        const stablePrincipal: Principal = { ...identity, audience: config.resource, scopes };
+        const principal = operatorId ? await resolveOperatorCustomer(stablePrincipal, operatorId, dependencies) : stablePrincipal;
         if (!await dependencies.enforceRateLimit(principal, request)) throw new BookingApiError('rate_limited');
         return principal;
       } catch (error) {
@@ -105,7 +124,7 @@ export function createResourceAuthenticator(config: ProviderConfiguration | null
 }
 /** Unconfigured callers fail closed. Composition at the API/MCP ingress injects
  * separately reviewed provider/store dependencies; there is no global fallback. */
-export async function requirePrincipal(request: Request, requiredScope: Scope, options?: { config: ProviderConfiguration; dependencies: AuthDependencies }): Promise<Principal> {
+export async function requirePrincipal(request: Request, requiredScope: Scope, options?: { config: ProviderConfiguration; dependencies: AuthDependencies; operatorId?: string }): Promise<Principal> {
   if (!options) throw new BookingApiError('upstream_unavailable');
-  return createResourceAuthenticator(options.config, options.dependencies).requirePrincipal(request, requiredScope);
+  return createResourceAuthenticator(options.config, options.dependencies).requirePrincipal(request, requiredScope, options.operatorId);
 }
