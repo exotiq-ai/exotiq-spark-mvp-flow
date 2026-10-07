@@ -5,10 +5,10 @@ describe('shared inventory guard on actual isolated PostgreSQL', () => {
   let sql: ReturnType<typeof inventorySql>;
   beforeAll(async () => {
     sql = inventorySql();
-    const ids=Array.from({length:20},(_,i)=>`'${vehicle(i+1)}'`).join(',');
+    const ids=Array.from({length:29},(_,i)=>`'${vehicle(i+1)}'`).join(',');
     expect((await sql(`DELETE FROM public.vehicle_blocked_dates WHERE team_id='${testTeam}' AND vehicle_id IN(${ids}); DELETE FROM public.bookings WHERE team_id='${testTeam}' AND vehicle_id IN(${ids});`)).ok).toBe(true);
     expect((await sql(`INSERT INTO public.teams(id,name,owner_id,slug,marketplace_visible,marketplace_request_status) VALUES('${testTeam}','agent-test-inventory','${testTeam}','agent-test-inventory',true,'approved') ON CONFLICT DO NOTHING;
-      INSERT INTO public.vehicles(id,team_id,name,slug,marketplace_visible) SELECT ('20000000-0000-4000-8000-'||lpad(i::text,12,'0'))::uuid,'${testTeam}','agent-test-inventory','agent-test-'||i,true FROM generate_series(1,40) i ON CONFLICT DO NOTHING;`)).ok).toBe(true);
+      INSERT INTO public.vehicles(id,team_id,name,slug,marketplace_visible) SELECT ('20000000-0000-4000-8000-'||lpad(i::text,12,'0'))::uuid,'${testTeam}','agent-test-inventory','agent-test-'||i,true FROM generate_series(1,29) i ON CONFLICT DO NOTHING;`)).ok).toBe(true);
   });
   it('accepts exactly one of 20 concurrent mixed-source overlaps', async () => {
     const results = await Promise.all(Array.from({ length: 20 }, (_, i) => sql(`BEGIN; ${bookingInsert(vehicle(1), '2030-01-01 10:00Z', '2030-01-02 10:00Z', ['marketplace','direct','operator','import'][i % 4])} SELECT pg_sleep(0.05); COMMIT;`)));
@@ -16,9 +16,12 @@ describe('shared inventory guard on actual isolated PostgreSQL', () => {
     expect(results.filter((r) => !r.ok).every((r) => /40001|23P01/.test(r.error))).toBe(true);
     expect((await sql(`SELECT count(*) FROM public.bookings WHERE vehicle_id='${vehicle(1)}';`)).output).toMatch(/\n1$/);
   }, 30000);
-  it('rechecks fresh snapshots after a transaction starts before another commits', async () => {
+  it('rechecks fresh trigger snapshots when the INSERT command starts before another commits', async () => {
     const a = sql(`BEGIN; ${bookingInsert(vehicle(2),'2030-01-01 10:00Z','2030-01-02 10:00Z')} SELECT pg_sleep(0.2); COMMIT;`);
-    const b = sql(`BEGIN; SELECT pg_sleep(0.5); ${bookingInsert(vehicle(2),'2030-01-01 10:00Z','2030-01-02 10:00Z','import')} COMMIT;`);
+    // The INSERT command snapshot predates a's commit. Its SELECT delays trigger
+    // execution inside that SAME command, rather than starting a later command.
+    const delayed=bookingInsert(vehicle(2),'2030-01-01 10:00Z','2030-01-02 10:00Z','import').replace('VALUES(','SELECT ').replace(');',' FROM (SELECT pg_sleep(0.5)) delay;');
+    const b = sql(`BEGIN; ${delayed} COMMIT;`);
     const results = await Promise.all([a,b]); expect(results[0].ok).toBe(true); expect(results[1].error).toMatch(/23P01/);
   });
   it('rejects snapshot isolation rather than silently permitting a phantom', async () => {
@@ -77,5 +80,18 @@ describe('shared inventory guard on actual isolated PostgreSQL', () => {
     expect(results.filter((r) => r.ok)).toHaveLength(1);
     expect(results.find((r) => !r.ok)?.error).toMatch(/40001/);
     expect(results.some((r) => /40P01|57014/.test(r.error))).toBe(false);
+  });
+  it('checks final intervals and buffer after a later BEFORE trigger rewrites input',async()=>{
+    expect((await sql(bookingInsert(vehicle(21),'2030-01-01 10:00Z','2030-01-02 10:00Z'))).ok).toBe(true);
+    const late=await sql(`BEGIN;
+      CREATE FUNCTION public.agent_test_late() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN NEW.start_date='2030-01-01 10:00Z'; NEW.end_date='2030-01-02 10:00Z'; RETURN NEW; END $$;
+      CREATE TRIGGER b_agent_test_late BEFORE INSERT ON public.bookings FOR EACH ROW EXECUTE FUNCTION public.agent_test_late();
+      ${bookingInsert(vehicle(21),'2030-01-03 10:00Z','2030-01-04 10:00Z')} COMMIT;`);
+    expect(late.error).toMatch(/23P01/);
+    const buffer=await sql(`BEGIN;
+      CREATE FUNCTION public.agent_test_late() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN NEW.inventory_buffer_minutes=0; RETURN NEW; END $$;
+      CREATE TRIGGER b_agent_test_late BEFORE INSERT ON public.bookings FOR EACH ROW EXECUTE FUNCTION public.agent_test_late();
+      ${bookingInsert(vehicle(22),'2030-01-03 10:00Z','2030-01-04 10:00Z')} COMMIT;`);
+    expect(buffer.error).toMatch(/22023/);
   });
 });

@@ -125,6 +125,9 @@ FROM PUBLIC,anon,authenticated;
 -- AFTER sees the final values after ALL existing BEFORE triggers, protecting
 -- against a later trigger rewriting intervals/vehicles/status. Snapshot derivation
 -- requires BEFORE; a second AFTER pass validates the final row under the same lock.
+-- Replace the audited source INSERT-only/raw-range marketplace check. Keeping
+-- it would incorrectly reject terminal historical imports in maintenance ranges.
+DROP TRIGGER IF EXISTS trg_guard_marketplace_blocked_dates ON public.bookings;
 CREATE TRIGGER a_agent_inventory_booking_guard BEFORE INSERT OR UPDATE OR DELETE ON public.bookings
 FOR EACH ROW EXECUTE FUNCTION public.agent_inventory_booking_guard();
 CREATE TRIGGER z_agent_inventory_booking_guard AFTER INSERT OR UPDATE OR DELETE ON public.bookings

@@ -48,7 +48,9 @@ equivalent bounded retry handling before rollout. A committed conflict returns
 BEFORE triggers derive immutable snapshots and validate; AFTER triggers recheck
 the final row after other BEFORE triggers. Same-transaction repeated and multirow
 overlaps abort without partial rows. Existing marketplace GiST exclusion stays.
-No widened exclusion, historical cleanup, or data deletion is performed here.
+The audited INSERT-only marketplace blocked-date trigger is replaced by the
+universal guards. No widened exclusion, historical cleanup, or data deletion is
+performed here.
 
 Privileged actors can disable triggers, use replication-role bypass or TRUNCATE;
 the trigger is not a defense against a database owner. Audit and restrict those
