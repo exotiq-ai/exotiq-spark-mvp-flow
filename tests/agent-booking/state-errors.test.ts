@@ -98,7 +98,7 @@ describe('safe structured errors and scopes', () => {
     expect(safeApiError(new BookingApiError('rate_limited', { retry_after_seconds: 90000 }), requestId).body.details?.retry_after_seconds).toBe(30);
   });
   it('documents only customer capabilities with no agent approval or payment authority', () => {
-    expect(SCOPES).toEqual(['catalog:read', 'quotes:create', 'rental_requests:create', 'rental_requests:read', 'checkout:handoff']);
+    expect(SCOPES).toEqual(['catalog:read', 'quotes:create', 'rental_requests:create', 'rental_requests:read', 'checkout:handoff', 'identity:handoff']);
     expect(SCOPES.join(' ')).not.toMatch(/approval|approve|charge/);
   });
 });
