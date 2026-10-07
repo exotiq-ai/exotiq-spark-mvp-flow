@@ -46,7 +46,9 @@ export function createApiClient(config:ApiClientConfig,apiToken:string,fetcher:t
     if(!(error instanceof ApiFailure)||!['grant_expired','grant_revoked'].includes(String(error.body.code)))throw error;
     let result=await request('POST',`/v1/rental-requests/${ref}/grant-renewals`,'GrantRenewalResult',{});
     if(result.state==='authorized'){
+      const renewalId=result.renewal_id;
       result=await request('GET',`/v1/grant-renewals/${encodeURIComponent(String(result.renewal_id))}`,'GrantRenewalResult');
+      if(result.renewal_id!==renewalId)throw unavailable();
       if(result.state==='authorized')return retry(); // One retry; no recursive grant creation.
     }
     const u=new URL(String(result.customer_url));if(u.origin!==customer.origin||!u.pathname.startsWith('/agent/')||u.search||u.hash)throw unavailable();

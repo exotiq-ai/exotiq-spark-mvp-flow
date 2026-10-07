@@ -54,7 +54,7 @@ export function createMcpApplication(config:ApplicationConfig,fetcher:typeof fet
           const bytes=new Uint8Array(size);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length;}parsed=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));
         }catch{return new Response(null,{status:400});}
         if(!record(parsed))return new Response(null,{status:400});
-        if(parsed.method==='tools/call'&&record(parsed.params)&&typeof parsed.params.name==='string')scope=toolScopes[parsed.params.name];
+        if(parsed.method==='tools/call'&&record(parsed.params)&&typeof parsed.params.name==='string'&&Object.hasOwn(toolScopes,parsed.params.name))scope=toolScopes[parsed.params.name];
       }
       let delegation:Delegation;try{delegation=await authenticator.authenticate(request,scope);}catch(error){return authenticator.challenge(error instanceof AuthFailure?error:new AuthFailure(503));}
       const handler=createMcpHandler(()=>server(delegation),{legacy:'stateless',responseMode:'json',maxRequestBodySize:65536});
