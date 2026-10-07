@@ -4,6 +4,8 @@ DELETE FROM public.external_customer_handoffs WHERE operator_id='a1410000-0000-4
 DELETE FROM public.external_booking_outbox WHERE booking_id IN(SELECT id FROM public.bookings WHERE team_id='a1410000-0000-4000-8000-000000000001');
 DELETE FROM public.external_request_idempotency WHERE operator_id='a1410000-0000-4000-8000-000000000001';
 DELETE FROM public.external_booking_grants WHERE operator_id='a1410000-0000-4000-8000-000000000001';
+DELETE FROM public.external_payment_settlements WHERE booking_id IN(SELECT id FROM public.bookings WHERE team_id='a1410000-0000-4000-8000-000000000001');
+DELETE FROM public.external_lifecycle_reconciliation_queue WHERE booking_id IN(SELECT id FROM public.bookings WHERE team_id='a1410000-0000-4000-8000-000000000001');
 DELETE FROM public.external_consent_receipts WHERE operator_id='a1410000-0000-4000-8000-000000000001';
 -- Superuser laboratory cleanup only: the production immutable quote trigger
 -- correctly refuses DELETE. Its transactional disable is limited to this
