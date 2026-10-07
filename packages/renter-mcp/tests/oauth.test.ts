@@ -1,6 +1,8 @@
 import { describe, expect, it, beforeAll, afterAll } from 'vitest';
 import { createServer } from 'node:http';
 import { decodeJwt, exportJWK, generateKeyPair, SignJWT } from 'jose';
+import { startAuthorization,prepareAuthorizationCodeRequest,validateAuthorizationResponseIssuer } from '@modelcontextprotocol/client';
+import { createHash } from 'node:crypto';
 import { createAuthenticator, AuthFailure, type AuthConfig } from '../src/auth.ts';
 
 const issuer='https://identity.example.test', resource='https://mcp.example.test/mcp', api='https://api.example.test';
@@ -79,5 +81,17 @@ describe('signed OAuth resource and fresh provider bindings',()=> {
     const now=Math.floor(Date.now()/1000);
     const expired=await new SignJWT({client_id:'consumer-a',scope:'catalog:read'}).setProtectedHeader({alg:'ES256',kid:'fixture',typ:'at+jwt'}).setIssuer(issuer).setSubject('customer-a').setAudience(resource).setIssuedAt(now-400).setNotBefore(now-400).setExpirationTime(now-1).setJti('expired').sign(keys.privateKey);
     for(const bearer of [await token(resource,{},'JWT'),await token([resource,api]),await token(resource,{client_id:'unregistered'}),await token(resource,{scope:'admin:approve'}),expired])await expect(auth.authenticate(new Request(resource,{headers:{Authorization:'Bearer '+bearer}}),'catalog:read')).rejects.toMatchObject({status:401});
+  });
+  for(const clientId of ['consumer-a','consumer-b'])it(clientId+' official authorization helpers bind PKCE, state, resource and callback issuer',async()=>{
+    const metadata={issuer,authorization_endpoint:issuer+'/authorize',token_endpoint:issuer+'/token',response_types_supported:['code'],code_challenge_methods_supported:['S256'],authorization_response_iss_parameter_supported:true};
+    const state=crypto.randomUUID();const redirect='https://consumer.example.test/'+clientId+'/callback';
+    const result=await startAuthorization(issuer,{metadata,clientInformation:{client_id:clientId},redirectUrl:redirect,resource,scope:'catalog:read',state});
+    const query=result.authorizationUrl.searchParams;
+    expect(result.authorizationUrl.origin).toBe(issuer);expect(query.get('client_id')).toBe(clientId);expect(query.get('resource')).toBe(resource);expect(query.get('state')).toBe(state);expect(query.get('redirect_uri')).toBe(redirect);expect(query.get('code_challenge_method')).toBe('S256');
+    expect(query.get('code_challenge')).toBe(createHash('sha256').update(result.codeVerifier).digest('base64url'));
+    expect(prepareAuthorizationCodeRequest('synthetic-code',result.codeVerifier,redirect).get('code_verifier')).toBe(result.codeVerifier);
+    expect(()=>validateAuthorizationResponseIssuer({iss:issuer,expectedIssuer:issuer,issParameterSupported:true})).not.toThrow();
+    expect(()=>validateAuthorizationResponseIssuer({iss:'https://attacker.test',expectedIssuer:issuer,issParameterSupported:true})).toThrow();
+    expect(()=>validateAuthorizationResponseIssuer({iss:undefined,expectedIssuer:issuer,issParameterSupported:true})).toThrow();
   });
 });
