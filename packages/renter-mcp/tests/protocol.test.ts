@@ -18,7 +18,8 @@ const clientFetch:typeof fetch=async(input,init)=>{const url=new URL(input insta
 beforeAll(async()=> {
   key=await generateKeyPair('ES256');const jwk={...await exportJWK(key.publicKey),alg:'ES256',kid:'local'};
   upstream=createServer(async(req,res)=>{const parts:Buffer[]=[];for await(const chunk of req)parts.push(Buffer.from(chunk));const raw=Buffer.concat(parts).toString();const body=new URLSearchParams(raw);res.setHeader('content-type','application/json');
-    if(req.url==='/identity/jwks')res.end(JSON.stringify({keys:[jwk]}));
+    if(req.url==='/identity/.well-known/oauth-authorization-server')res.end(JSON.stringify({issuer,jwks_uri:issuer+'/jwks',token_endpoint:issuer+'/token',introspection_endpoint:issuer+'/introspect',code_challenge_methods_supported:['S256'],grant_types_supported:['authorization_code','urn:ietf:params:oauth:grant-type:token-exchange'],token_endpoint_auth_methods_supported:['client_secret_basic']}));
+    else if(req.url==='/identity/jwks')res.end(JSON.stringify({keys:[jwk]}));
     else if(req.url==='/identity/introspect'){const claims=decodeJwt(body.get('token')!);res.end(JSON.stringify({active:true,...claims}));}
     else if(req.url==='/identity/token'){const claims=decodeJwt(body.get('subject_token')!);res.end(JSON.stringify({access_token:await jwt(String(claims.client_id),api),token_type:'Bearer',issued_token_type:'urn:ietf:params:oauth:token-type:access_token'}));}
     else {calls.push({path:req.url!,token:req.headers.authorization??'',body:raw});
