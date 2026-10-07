@@ -78,7 +78,7 @@ describe('authoritative booking states', () => {
   });
 });
 describe('safe structured errors and scopes', () => {
-  const statuses = { invalid_input: 400, unauthorized: 401, forbidden: 403, not_found: 404, dates_unavailable: 409, quote_changed: 409, idempotency_conflict: 409, request_in_flight: 409, consent_mismatch: 409, quote_expired: 410, consent_expired: 410, payment_window_expired: 410, rate_limited: 429, upstream_unavailable: 503 };
+  const statuses = { invalid_input: 400, unauthorized: 401, forbidden: 403, not_found: 404, dates_unavailable: 409, quote_changed: 409, idempotency_conflict: 409, request_in_flight: 409, consent_mismatch: 409, quote_expired: 410, consent_expired: 410, payment_window_expired: 410, grant_expired:409,grant_revoked:409,configuration_unavailable:503,external_writes_disabled:503,rate_limited: 429, upstream_unavailable: 503 };
   it.each(ERROR_CODES)('maps %s with no exception, token or customer disclosure', async (code) => {
     const error = new BookingApiError(code);
     expect(safeApiError(error, requestId).status).toBe(statuses[code]);

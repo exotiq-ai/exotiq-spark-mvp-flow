@@ -10,6 +10,7 @@ export interface StateEvidence {
   pickup_at: string;
   payment_due_at: string | null;
   identity_verified: boolean | null;
+  reconciliation_pending?: boolean;
   operator_payment: { present: boolean; settled: boolean | null };
   exotiq_payment: { present: boolean; settled: boolean | null };
 }
@@ -64,7 +65,7 @@ export function mapRentalState(evidence: StateEvidence, now: number) {
       if (paymentDue === null) throw new BookingApiError('upstream_unavailable');
       deadline = paymentDue;
       if (evidence.identity_verified === false) next_action = 'verify_identity';
-      else if (evidence.identity_verified !== true || fullySettled || paymentDue <= now || evidence.operator_payment.settled === null || evidence.exotiq_payment.settled === null) next_action = 'await_reconciliation';
+      else if (evidence.identity_verified !== true || evidence.reconciliation_pending === true || fullySettled || paymentDue <= now || evidence.operator_payment.settled === null || evidence.exotiq_payment.settled === null) next_action = 'await_reconciliation';
       else if (evidence.operator_payment.present || evidence.exotiq_payment.present || evidence.operator_payment.settled || evidence.exotiq_payment.settled) next_action = 'await_payment_settlement';
       else { next_action = 'hosted_checkout'; can_checkout = true; }
       break;

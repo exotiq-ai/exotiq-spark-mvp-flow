@@ -15,6 +15,8 @@ export function validated(name:ContractName,body:unknown,output=false) {if(!vali
 export async function consentRpc(deps:ConsentDependencies,name:string,args:Record<string,unknown>):Promise<unknown>{
  const {data,error}=await deps.rpc.rpc(name,args);
  if(error){const message=error&&typeof error==='object'?(error as {message?:unknown}).message:undefined;
+  const code=error&&typeof error==='object'?(error as {code?:unknown}).code:undefined;
+  if(['55P03','57014','40001'].includes(String(code)))throw new BookingApiError('upstream_unavailable',{retry_after_seconds:1});
   if(['invalid_input','not_found','dates_unavailable','quote_expired','quote_changed','consent_mismatch','consent_expired','forbidden'].includes(String(message)))throw new BookingApiError(message as 'not_found');
   if(message==='renewal_expired')throw new BookingApiError('consent_expired');
   if(message==='grant_revoked')throw new BookingApiError('forbidden');
