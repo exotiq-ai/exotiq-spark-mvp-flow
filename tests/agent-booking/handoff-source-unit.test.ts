@@ -35,3 +35,9 @@ it('actual signed source checkout returns to the exact authenticated generic acc
  expect(source.checkoutParameters().success_url).toBe(expected);expect(source.checkoutParameters().cancel_url).toBe(expected);expect(JSON.stringify(source.checkoutParameters())).not.toContain('legacy');
  expect(source.checkoutParameters().expires_at).toBeTypeOf('number');expect(source.checkoutParameters().expires_at*1000).toBeLessThanOrEqual(Date.now()+3600000);
 });
+it('actual public source checkout retains its token-gated return and ignores caller totals',async()=>{
+ const source=sourceHandler('supabase/functions/rent-checkout/index.ts'),result=await source.handler(new Request('https://api.example.test/rent-checkout',{method:'POST',headers:{origin:'https://book.example.test'},body:JSON.stringify({booking_ref:'synthetic',token:'legacy',total_value:0.01})}));
+ expect(result.status).toBe(200);expect(await result.json()).toEqual({url:'https://checkout.stripe.com/c/pay/test'});
+ expect(source.checkoutParameters()).toMatchObject({success_url:'https://book.example.test/booking/synthetic?t=legacy&payment=success',cancel_url:'https://book.example.test/booking/synthetic?t=legacy&payment=cancelled'});
+ expect(source.checkoutParameters().line_items[0].price_data.unit_amount).toBe(10000);
+});

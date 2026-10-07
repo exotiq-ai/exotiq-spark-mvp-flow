@@ -1,6 +1,11 @@
 -- FOLLOWUP ONLY for root's already updated, explicitly marked partial lab.
 ALTER TABLE public.external_customer_handoffs ADD COLUMN IF NOT EXISTS provider_attempt_created_at timestamptz NOT NULL DEFAULT clock_timestamp();
 ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS rental_checkout_expires_at timestamptz;
+DO $$ BEGIN
+ IF NOT EXISTS(SELECT FROM pg_constraint WHERE conrelid='public.external_customer_handoffs'::regclass AND conname='external_customer_handoffs_customer_id_fkey') THEN ALTER TABLE public.external_customer_handoffs ADD CONSTRAINT external_customer_handoffs_customer_id_fkey FOREIGN KEY(customer_id) REFERENCES public.customers(id);END IF;
+ IF NOT EXISTS(SELECT FROM pg_constraint WHERE conrelid='public.external_customer_handoffs'::regclass AND conname='external_customer_handoffs_operator_id_fkey') THEN ALTER TABLE public.external_customer_handoffs ADD CONSTRAINT external_customer_handoffs_operator_id_fkey FOREIGN KEY(operator_id) REFERENCES public.teams(id);END IF;
+ IF NOT EXISTS(SELECT FROM pg_constraint WHERE conrelid='public.external_customer_handoffs'::regclass AND conname='external_customer_handoffs_booking_id_fkey') THEN ALTER TABLE public.external_customer_handoffs ADD CONSTRAINT external_customer_handoffs_booking_id_fkey FOREIGN KEY(booking_id) REFERENCES public.bookings(id);END IF;
+END $$;
 CREATE OR REPLACE FUNCTION public.external_handoff_context(_issuer text,_subject text,_audience text,_nonce_hash text,_check_action boolean)
 RETURNS public.external_customer_handoffs LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public SET lock_timeout='500ms' SET statement_timeout='4s' AS $$
 DECLARE h public.external_customer_handoffs%ROWTYPE;b public.bookings%ROWTYPE;g public.external_booking_grants%ROWTYPE;moment timestamptz;
