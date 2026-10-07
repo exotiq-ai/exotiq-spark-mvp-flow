@@ -36,9 +36,15 @@ export async function reserveCheckout(db:Db,body:any,mode:'test'|'live',origin:s
 }
 export async function recordCheckoutCustomer(db:Db,bookingId:string,attempt:string,customerId:string){await rpc(db,'external_record_checkout_customer',{_booking_id:bookingId,_attempt_key:attempt,_customer_ref:customerId});}
 export async function recordCheckoutSession(db:Db,bookingId:string,attempt:string,sessionId:string){await rpc(db,'external_record_checkout_session',{_booking_id:bookingId,_attempt_key:attempt,_session_ref:sessionId});}
-export function validateCheckoutSession(session:any,booking:any,mode:'test'|'live',returnBase:string){
- if(!session||session.status!=='open'||session.payment_status!=='unpaid'||session.livemode!==(mode==='live')||!Number.isInteger(session.expires_at)||session.expires_at*1000<=Date.now()||session.amount_total!==sourceAmountCents(booking.total_value)||session.currency!=='usd'||session.metadata?.booking_ref!==booking.booking_ref||session.metadata?.leg!=='operator_rental'||session.metadata?.stripe_mode!==mode||session.success_url!==returnBase+'&payment=success'||session.cancel_url!==returnBase+'&payment=cancelled')throw new BookingApiError('forbidden');
- return safeProviderUrl(session.url,'checkout');
+export function validateCheckoutSession(session:any,booking:any,mode:'test'|'live',returnBase:string,currency='usd',external=true){
+ const paymentDeadline=Date.parse(booking.payment_due_at);
+ if(!Number.isFinite(paymentDeadline)||session?.expires_at*1000>paymentDeadline)throw new BookingApiError('forbidden');
+ if(!session||session.status!=='open'||session.payment_status!=='unpaid'||session.livemode!==(mode==='live')||!Number.isInteger(session.expires_at)||session.expires_at*1000<=Date.now()||session.amount_total!==sourceAmountCents(booking.total_value)||session.currency!==currency||session.metadata?.booking_ref!==booking.booking_ref||session.metadata?.leg!=='operator_rental'||session.metadata?.stripe_mode!==mode||session.success_url!==(external?returnBase:returnBase+'&payment=success')||session.cancel_url!==(external?returnBase:returnBase+'&payment=cancelled'))throw new BookingApiError('forbidden');
+ if(external)return safeProviderUrl(session.url,'checkout');
+ // The existing public source flow retains Stripe's opaque hosted fragment.
+ // External browser/agent projection remains governed by the stricter contract.
+ let url:URL;try{url=new URL(session.url);}catch{throw new BookingApiError('forbidden');}
+ if(url.protocol!=='https:'||url.hostname!=='checkout.stripe.com'||url.username||url.password||url.port&&url.port!=='443')throw new BookingApiError('forbidden');return url.href;
 }
 export async function finishExternalCheckout(db:Db,body:any,sessionId:string,mode:'test'|'live'){
  await rpc(db,'external_record_handoff_provider_session',{_nonce_hash:body.external_handoff.nonce_hash,_claim_token:body.external_handoff.claim_token,_action:'checkout',_provider_session_ref:sessionId,_mode:mode});

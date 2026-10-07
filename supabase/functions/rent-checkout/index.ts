@@ -134,6 +134,7 @@ serve(async (req) => {
     const operatorAccountId = teamConnectedAccountId(team, mode);
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, { apiVersion: "2025-08-27.basil",timeout:5000,maxNetworkRetries:0 });
     const currency = (team.currency || "USD").toLowerCase();
+    if(context&&String(team.currency).toUpperCase()!=='USD')return json({error:'Payment currency configuration unavailable'},503);
 
     const rentalCents = Math.round(Number(booking.total_value) * 100);
     if (!Number.isFinite(rentalCents) || rentalCents <= 0) {
@@ -145,10 +146,11 @@ serve(async (req) => {
     const reservation=await reserveCheckout(admin,{...body,booking_ref:bookingRef,token},mode,origin,context,booking.payment_due_at);
     if(reservation.session_ref){
       const existing=await stripe.checkout.sessions.retrieve(reservation.session_ref);
-      const url=validateCheckoutSession(existing,booking,mode,returnBase);
+      const url=validateCheckoutSession(existing,booking,mode,returnBase,currency,internal);
       if(internal)await finishExternalCheckout(admin,body,existing.id,mode);
       return json(internal?{session_id:existing.id,url}:{url});
     }
+    if(!Number.isInteger(reservation.provider_expires_at)||reservation.provider_expires_at*1000>Date.parse(booking.payment_due_at)||reservation.provider_expires_at<=Math.floor(Date.now()/1000)+1800)return json({error:'Insufficient payment window for a new hosted session'},410);
 
     // Platform customer: dedupe by renter email (Lovable flag #9).
     const email = String(booking.customer_email || "").toLowerCase();
@@ -174,6 +176,7 @@ serve(async (req) => {
         // Exotiq leg (M6a README / Lovable flag #2).
         payment_method_types: ["card"],
         mode: "payment",
+        expires_at:reservation.provider_expires_at,
         line_items: [
           {
             price_data: {
@@ -200,8 +203,8 @@ serve(async (req) => {
             stripe_mode: mode,
           },
         },
-        success_url: `${returnBase}&payment=success`,
-        cancel_url: `${returnBase}&payment=cancelled`,
+        success_url: internal?returnBase:`${returnBase}&payment=success`,
+        cancel_url: internal?returnBase:`${returnBase}&payment=cancelled`,
         metadata: {
           booking_ref: booking.booking_ref,
           leg: "operator_rental",
@@ -210,7 +213,7 @@ serve(async (req) => {
       },
       { idempotencyKey: reservation.attempt_key },
     );
-    const url=validateCheckoutSession(session,booking,mode,returnBase);
+    const url=validateCheckoutSession(session,booking,mode,returnBase,currency,internal);
     await recordCheckoutSession(admin,booking.id,reservation.attempt_key,session.id);
     if(internal)await finishExternalCheckout(admin,body,session.id,mode);
     logStep("Checkout session ready", {mode});

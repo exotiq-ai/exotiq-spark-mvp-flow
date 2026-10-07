@@ -61,7 +61,7 @@ export const CheckoutHandoffResult = object({ ...metadata, customer_url: httpsUr
 export const IdentityHandoffResult = object({...metadata,customer_url:httpsUrl,expires_at:timestamp,state:enumeration('pending_documents','pending_payment'),next_action:{const:'verify_identity'}});
 export const CustomerHandoffResolveInput = object({action:{const:'continue'}});
 export const CustomerHandoffReviewResult = object({...metadata,ref:RentalRequestResult.properties!.ref,operator_name:text(160),vehicle_name:text(160),action:enumeration('identity','checkout'),status:enumeration(...BACKEND_STATUSES),expires_at:timestamp});
-export const CustomerHandoffResolveResult = object({...metadata,action:enumeration('identity','checkout'),provider_url:httpsUrl,expires_at:timestamp});
+export const CustomerHandoffResolveResult = object({...metadata,action:enumeration('identity','checkout'),provider_url:{...text(4096),format:'provider-https-url',pattern:'^https://'},expires_at:timestamp});
 export const CustomerRentalStatusResult = object({...metadata,ref:RentalRequestResult.properties!.ref,operator_id:uuid,operator_name:text(160),vehicle_name:text(160),status:enumeration(...BACKEND_STATUSES),next_action:enumeration(...NEXT_ACTIONS),hold_expires_at:nullable(timestamp),payment_due_at:nullable(timestamp)});
 export const ConsentResult = object({ ...metadata, quote_id: uuid, state: enumeration('waiting', 'authorized'), consent_receipt_id: uuid, expires_at: timestamp }, ['consent_receipt_id', 'expires_at']);
 export const RecoveryResult = object({ ...metadata, ref: text(80), state: enumeration('authorization_required', 'authorized'), customer_url: httpsUrl, expires_at: timestamp });
@@ -108,7 +108,18 @@ function zonedWall(instant: number, timezone: string): number {
   const fields = Object.fromEntries(parts.map(({ type, value }) => [type, Number(value)]));
   return Date.UTC(fields.year, fields.month - 1, fields.day, fields.hour, fields.minute, fields.second) + ((instant % 1000) + 1000) % 1000;
 }
+/** Stripe's documented Checkout fragment is opaque provider data, not a URL
+ * redirect or credential query. This exception is confined to provider results. */
+export function validProviderHttpsUrl(value:string):boolean{
+ try{
+  const url=new URL(value);
+  if(value.length>4096||url.protocol!=='https:'||!['checkout.stripe.com','verify.stripe.com'].includes(url.hostname)||url.username||url.password||url.port&&url.port!=='443'||url.pathname==='/'||[...url.searchParams.keys()].some(key=>/(?:token|secret|credential|email|nonce|authorization|booking_ref|^t$)/i.test(key)))return false;
+  if(!url.hash)return true;
+  return url.hostname==='checkout.stripe.com'&&/^#fidkd(?:[A-Za-z0-9]|%[0-9A-Fa-f]{2}){1,2048}$/.test(url.hash)&&/^fidkd[A-Za-z0-9+/]+={0,2}$/.test(decodeURIComponent(url.hash.slice(1)));
+ }catch{return false;}
+}
 function validFormat(format: string, value: string): boolean {
+  if(format==='provider-https-url')return validProviderHttpsUrl(value);
   if (format === 'uuid') return uuidPattern.test(value);
   if (format === 'date-time') return parseTimestamp(value) !== null;
   if (format === 'iana-timezone') return validTimezone(value);
@@ -189,7 +200,7 @@ export function validateContract(name: ContractName, value: unknown, context: { 
     if (name === 'QuoteReviewResult' && !validateContract('QuoteResult',value.quote,context).ok) issues.push('$.quote');
     if(name==='CustomerHandoffResolveResult'){
       const url=new URL(value.provider_url as string),host=value.action==='checkout'?'checkout.stripe.com':'verify.stripe.com';
-      if(url.hostname!==host||url.username||url.password||url.hash||(url.port&&url.port!=='443')||url.pathname==='/'||[...url.searchParams.keys()].some(key=>/(?:token|secret|credential|email|nonce|authorization|booking_ref)/i.test(key)))issues.push('$.provider_url');
+      if(url.hostname!==host||!validProviderHttpsUrl(String(value.provider_url)))issues.push('$.provider_url');
     }
     if (name === 'ConsentResult' && (value.state === 'authorized' ? !value.consent_receipt_id || !value.expires_at : value.consent_receipt_id !== undefined || !value.expires_at)) issues.push('$.state');
   }

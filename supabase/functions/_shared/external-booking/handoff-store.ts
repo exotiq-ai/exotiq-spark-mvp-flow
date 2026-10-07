@@ -2,6 +2,7 @@ import {BookingApiError} from './errors.ts';
 import type {QuoteRpcClient} from './quotes.ts';
 import type {Principal} from './auth.ts';
 import {actorArgs} from './consent-routes.ts';
+import {validProviderHttpsUrl} from './contracts.ts';
 export type HandoffAction='identity'|'checkout';
 export const opaqueNonce=/^[A-Za-z0-9_-]{43}$/;
 export async function handoffHash(value:string){return [...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value)))].map(n=>n.toString(16).padStart(2,'0')).join('');}
@@ -12,8 +13,8 @@ export function safeProviderUrl(raw:unknown,action:HandoffAction):string{
  if(typeof raw!=='string'||raw.length>4096)throw new BookingApiError('upstream_unavailable');
  let url:URL;try{url=new URL(raw);}catch{throw new BookingApiError('upstream_unavailable');}
  const host=action==='checkout'?'checkout.stripe.com':'verify.stripe.com';
- if(url.protocol!=='https:'||url.hostname!==host||url.username||url.password||url.hash||(url.port&&url.port!=='443')||url.pathname==='/'||[...url.searchParams.keys()].some(key=>/(?:token|secret|credential|email|nonce|authorization|booking_ref)/i.test(key)))throw new BookingApiError('upstream_unavailable');
- return url.href;
+ if(url.hostname!==host||!validProviderHttpsUrl(raw))throw new BookingApiError('upstream_unavailable');
+ return raw;
 }
 export interface ProviderClaim {nonce_hash:string;claim_token:string;action:HandoffAction;booking_ref:string;confirmation_token:string;provider_session_ref:string|null;provider_attempt_key:string;mode:'test'|'live';expires_at:string}
 export interface HostedHandoffProvider {resolve(claim:ProviderClaim):Promise<{url:string;sessionId:string}>}
