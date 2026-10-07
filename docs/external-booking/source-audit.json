@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "sourceFingerprint": "052047ea440626d3863e921517f00f327ddd028c358e2b6305f82ae5616cd424",
+  "sourceFingerprint": "999e650cca916f65accbcb24e625d466df38fecbdd4502858aa9998404c33252",
   "files": [
     {
       "file": "scripts/rari/cross-surface-parity-check.ts",
@@ -2535,16 +2535,28 @@
       "sha256": "188bc97647989ce64228ebed20fa297b7a316563fc11433d7cbba2257793d667"
     },
     {
+      "file": "supabase/functions/_shared/external-booking/consent-routes.ts",
+      "sha256": "6b73b5ef23db2598071a013887a67bfa4e0fea79f6dbd453fdb3cc1f42557787"
+    },
+    {
       "file": "supabase/functions/_shared/external-booking/contracts.ts",
-      "sha256": "4186f30b01892ea484f588ca7cbeea4f300e5d7087132ff984bf8b55a752d81a"
+      "sha256": "28ddb0bd09fb2f225959e80ee744ff72c9e55b4dce69ceec4f96cab330e298b6"
     },
     {
       "file": "supabase/functions/_shared/external-booking/errors.ts",
       "sha256": "87a2488cb3598480b1d9ea765505eb3b9fd87aff0f00d40e9892b2844f727dbb"
     },
     {
+      "file": "supabase/functions/_shared/external-booking/grant-recovery-routes.ts",
+      "sha256": "53aa0b3d41b2ba2556f30bf888b81e603f54fe06cace54ea94a5a40ae2989b85"
+    },
+    {
       "file": "supabase/functions/_shared/external-booking/grants.ts",
       "sha256": "362cfb882404ce6bc9c6113e710df3c4d65c9d29fe67714ec88efbf730398d9c"
+    },
+    {
+      "file": "supabase/functions/_shared/external-booking/hosted-proof.ts",
+      "sha256": "36d0488a5fd865635fb8b50251a726b107b811b8bb4296723f43c3f8786d4bab"
     },
     {
       "file": "supabase/functions/_shared/external-booking/outbox.ts",
@@ -2552,7 +2564,7 @@
     },
     {
       "file": "supabase/functions/_shared/external-booking/quote-routes.ts",
-      "sha256": "3705656cc6202acd3ff632f5455608d24f495eeca060daa25041fbf463080b80"
+      "sha256": "bbb68bdd1500dcf9449f7ff7e8558bace9e370afa120f81c78e8857f12dfb7e9"
     },
     {
       "file": "supabase/functions/_shared/external-booking/quote-validation.ts",
@@ -2560,11 +2572,11 @@
     },
     {
       "file": "supabase/functions/_shared/external-booking/quotes.ts",
-      "sha256": "0ae113b9ca0a0868dbe7c45f708db9ba9d525112f6021d58df6af015aab37f71"
+      "sha256": "06f3487779720bc73469119e7db5ec36ae36cb6112e3bb73634961bf840ac30f"
     },
     {
       "file": "supabase/functions/_shared/external-booking/requests.ts",
-      "sha256": "5eb675baf1acc40e56fccea3245316859b95c2b5e45dd6d86debfde1923a7910"
+      "sha256": "1534d1ead2a1be3e73408c403c67cc4ddeab23c8406cda1dcde15ee05c1a0f7f"
     },
     {
       "file": "supabase/functions/_shared/external-booking/state.ts",
@@ -2724,7 +2736,7 @@
     },
     {
       "file": "supabase/functions/external-booking-api/index.ts",
-      "sha256": "d4e11dddbf5e9ba5e17e8eec01a670f6ea317a90b38ab896b4d310eb3ec2d77f"
+      "sha256": "17f44bbd8be0fe245189e80d58826ef36296cdc3a047c24d1fd2a26d0bd10b6e"
     },
     {
       "file": "supabase/functions/fill-rental-template/index.ts",
@@ -3992,7 +4004,11 @@
     },
     {
       "file": "supabase/migrations/20261007090400_consented_request_transaction.sql",
-      "sha256": "800d6d9398c8e17bdec40051016092c95c1493881d0e45f23bad525438b1ec83"
+      "sha256": "a1267a9c9bc21a2f16112dc0d3d06db06525145465db14e2452c8e07c24409f6"
+    },
+    {
+      "file": "supabase/migrations/20261007090470_hosted_consent_bridge.sql",
+      "sha256": "3bf425e7c6c9547458f0d450ac631651de4223cd218151d97335cca853f0e0af"
     },
     {
       "file": "supabase/migrations/20261007090480_external_api_read_boundary.sql",
@@ -10771,7 +10787,7 @@
       "file": "supabase/migrations/20261007090400_consented_request_transaction.sql",
       "line": 47,
       "evidence": "CREATE FUNCTION public.external_submit_rental_request(",
-      "sha256": "800d6d9398c8e17bdec40051016092c95c1493881d0e45f23bad525438b1ec83",
+      "sha256": "a1267a9c9bc21a2f16112dc0d3d06db06525145465db14e2452c8e07c24409f6",
       "name": "public.external_submit_rental_request",
       "identity": "public.external_submit_rental_request(uuid,uuid,text,text,text,text,uuid,uuid,text,text)",
       "arguments": [
@@ -10788,8 +10804,8 @@
       ],
       "defaults": [],
       "securityDefiner": true,
-      "bodySha256": "fa6c8c82bbe790d448967c7006f03ad38fe9dd6771266f2dc472a4b10dcff813",
-      "bodyEndLine": 158,
+      "bodySha256": "bece73e856c91ec3843d6218d8beb3f58b0898cecd46a506683113d07ad53dec",
+      "bodyEndLine": 161,
       "touchesInventory": true,
       "lifecycleStates": [
         "pending_documents",
@@ -10799,9 +10815,9 @@
     },
     {
       "file": "supabase/migrations/20261007090400_consented_request_transaction.sql",
-      "line": 164,
+      "line": 167,
       "evidence": "CREATE FUNCTION public.external_claim_booking_outbox(",
-      "sha256": "800d6d9398c8e17bdec40051016092c95c1493881d0e45f23bad525438b1ec83",
+      "sha256": "a1267a9c9bc21a2f16112dc0d3d06db06525145465db14e2452c8e07c24409f6",
       "name": "public.external_claim_booking_outbox",
       "identity": "public.external_claim_booking_outbox(integer)",
       "arguments": [
@@ -10812,7 +10828,7 @@
       ],
       "securityDefiner": true,
       "bodySha256": "9ff22885e3468d2f3257bb031c6363488150e39603cd1a72eb0453ae25d7471a",
-      "bodyEndLine": 175,
+      "bodyEndLine": 178,
       "touchesInventory": false,
       "lifecycleStates": [
         "pending"
@@ -10821,9 +10837,9 @@
     },
     {
       "file": "supabase/migrations/20261007090400_consented_request_transaction.sql",
-      "line": 176,
+      "line": 179,
       "evidence": "CREATE FUNCTION public.external_ack_booking_outbox(",
-      "sha256": "800d6d9398c8e17bdec40051016092c95c1493881d0e45f23bad525438b1ec83",
+      "sha256": "a1267a9c9bc21a2f16112dc0d3d06db06525145465db14e2452c8e07c24409f6",
       "name": "public.external_ack_booking_outbox",
       "identity": "public.external_ack_booking_outbox(uuid,uuid,text)",
       "arguments": [
@@ -10834,7 +10850,7 @@
       "defaults": [],
       "securityDefiner": true,
       "bodySha256": "0c5a0894f8a3f1b90ea6565b03cc530b84a64cf984c77e12cc78d22e38cd8032",
-      "bodyEndLine": 183,
+      "bodyEndLine": 186,
       "touchesInventory": false,
       "lifecycleStates": [
         "pending"
@@ -10843,9 +10859,9 @@
     },
     {
       "file": "supabase/migrations/20261007090400_consented_request_transaction.sql",
-      "line": 184,
+      "line": 187,
       "evidence": "CREATE FUNCTION public.external_retry_booking_outbox(",
-      "sha256": "800d6d9398c8e17bdec40051016092c95c1493881d0e45f23bad525438b1ec83",
+      "sha256": "a1267a9c9bc21a2f16112dc0d3d06db06525145465db14e2452c8e07c24409f6",
       "name": "public.external_retry_booking_outbox",
       "identity": "public.external_retry_booking_outbox(uuid,uuid)",
       "arguments": [
@@ -10855,7 +10871,7 @@
       "defaults": [],
       "securityDefiner": true,
       "bodySha256": "721aa72fe03bb9b1d45722c6099de2b8e9b485e5c1bb1d1a5ec11d95815ac23b",
-      "bodyEndLine": 189,
+      "bodyEndLine": 192,
       "touchesInventory": false,
       "lifecycleStates": [
         "pending"
@@ -10864,9 +10880,9 @@
     },
     {
       "file": "supabase/migrations/20261007090400_consented_request_transaction.sql",
-      "line": 190,
+      "line": 193,
       "evidence": "CREATE FUNCTION public.external_outbox_notification_context(",
-      "sha256": "800d6d9398c8e17bdec40051016092c95c1493881d0e45f23bad525438b1ec83",
+      "sha256": "a1267a9c9bc21a2f16112dc0d3d06db06525145465db14e2452c8e07c24409f6",
       "name": "public.external_outbox_notification_context",
       "identity": "public.external_outbox_notification_context(uuid,uuid)",
       "arguments": [
@@ -10876,11 +10892,264 @@
       "defaults": [],
       "securityDefiner": true,
       "bodySha256": "d29f4bdb8802d1cf63e10ee5f0785930335be0ec4f5749cefc6acbf7f6df97b3",
-      "bodyEndLine": 194,
+      "bodyEndLine": 197,
       "touchesInventory": false,
       "lifecycleStates": [
         "pending"
       ],
+      "deployment": "unverified"
+    },
+    {
+      "file": "supabase/migrations/20261007090470_hosted_consent_bridge.sql",
+      "line": 9,
+      "evidence": "CREATE FUNCTION public.external_quote_review_names(",
+      "sha256": "3bf425e7c6c9547458f0d450ac631651de4223cd218151d97335cca853f0e0af",
+      "name": "public.external_quote_review_names",
+      "identity": "public.external_quote_review_names()",
+      "arguments": [],
+      "defaults": [],
+      "securityDefiner": true,
+      "bodySha256": "c0f254b6c6d7d9f244f528c3b3e084f7df55c123e2815a82f52608483db5d4f7",
+      "bodyEndLine": 16,
+      "touchesInventory": false,
+      "lifecycleStates": [],
+      "deployment": "unverified"
+    },
+    {
+      "file": "supabase/migrations/20261007090470_hosted_consent_bridge.sql",
+      "line": 20,
+      "evidence": "CREATE FUNCTION public.external_hosted_link_customer(",
+      "sha256": "3bf425e7c6c9547458f0d450ac631651de4223cd218151d97335cca853f0e0af",
+      "name": "public.external_hosted_link_customer",
+      "identity": "public.external_hosted_link_customer(text,text,text,text,uuid,text,boolean,text,text,boolean)",
+      "arguments": [
+        "_issuer text",
+        "_subject text",
+        "_client_id text",
+        "_audience text",
+        "_operator_id uuid",
+        "_email text",
+        "_email_verified boolean",
+        "_full_name text",
+        "_phone text",
+        "_consented boolean"
+      ],
+      "defaults": [],
+      "securityDefiner": true,
+      "bodySha256": "afe13101a4988c620f3b81b2f79db64c1819d1924d9370813c2a9a5879789e71",
+      "bodyEndLine": 53,
+      "touchesInventory": false,
+      "lifecycleStates": [],
+      "deployment": "unverified"
+    },
+    {
+      "file": "supabase/migrations/20261007090470_hosted_consent_bridge.sql",
+      "line": 55,
+      "evidence": "CREATE FUNCTION public.external_review_quote(",
+      "sha256": "3bf425e7c6c9547458f0d450ac631651de4223cd218151d97335cca853f0e0af",
+      "name": "public.external_review_quote",
+      "identity": "public.external_review_quote(text,text,text,text,uuid,boolean)",
+      "arguments": [
+        "_issuer text",
+        "_subject text",
+        "_client_id text",
+        "_audience text",
+        "_quote_id uuid",
+        "_hosted boolean"
+      ],
+      "defaults": [],
+      "securityDefiner": true,
+      "bodySha256": "57a6fb57aee7c08c9cb19fa19ca3743a848f3e85e7e51f0e5e28b95eaae1e2ef",
+      "bodyEndLine": 67,
+      "touchesInventory": false,
+      "lifecycleStates": [],
+      "deployment": "unverified"
+    },
+    {
+      "file": "supabase/migrations/20261007090470_hosted_consent_bridge.sql",
+      "line": 69,
+      "evidence": "CREATE OR REPLACE FUNCTION public.external_validate_receipt_binding(",
+      "sha256": "3bf425e7c6c9547458f0d450ac631651de4223cd218151d97335cca853f0e0af",
+      "name": "public.external_validate_receipt_binding",
+      "identity": "public.external_validate_receipt_binding()",
+      "arguments": [],
+      "defaults": [],
+      "securityDefiner": true,
+      "bodySha256": "6222239040da4414ddd5a662dceefe6762d9474128d022e0ddc8a561fcd8804b",
+      "bodyEndLine": 82,
+      "touchesInventory": false,
+      "lifecycleStates": [],
+      "deployment": "unverified"
+    },
+    {
+      "file": "supabase/migrations/20261007090470_hosted_consent_bridge.sql",
+      "line": 84,
+      "evidence": "CREATE FUNCTION public.external_hosted_authorize_quote(",
+      "sha256": "3bf425e7c6c9547458f0d450ac631651de4223cd218151d97335cca853f0e0af",
+      "name": "public.external_hosted_authorize_quote",
+      "identity": "public.external_hosted_authorize_quote(text,text,text,text,uuid,text,text,text)",
+      "arguments": [
+        "_issuer text",
+        "_subject text",
+        "_client_id text",
+        "_audience text",
+        "_quote_id uuid",
+        "_terms_hash text",
+        "_action text",
+        "_csrf_hash text"
+      ],
+      "defaults": [],
+      "securityDefiner": true,
+      "bodySha256": "d540a9a1af37fc063d12a6b626cc38137f245467527472c045fe8cccbc524b23",
+      "bodyEndLine": 108,
+      "touchesInventory": false,
+      "lifecycleStates": [],
+      "deployment": "unverified"
+    },
+    {
+      "file": "supabase/migrations/20261007090470_hosted_consent_bridge.sql",
+      "line": 110,
+      "evidence": "CREATE FUNCTION public.external_quote_consent_result(",
+      "sha256": "3bf425e7c6c9547458f0d450ac631651de4223cd218151d97335cca853f0e0af",
+      "name": "public.external_quote_consent_result",
+      "identity": "public.external_quote_consent_result(text,text,text,text,uuid)",
+      "arguments": [
+        "_issuer text",
+        "_subject text",
+        "_client_id text",
+        "_audience text",
+        "_quote_id uuid"
+      ],
+      "defaults": [],
+      "securityDefiner": true,
+      "bodySha256": "83d4b87fa3fbcd3be9703cf42f77d6560abe7337ed3d11e83b4332650f1e8b7a",
+      "bodyEndLine": 127,
+      "touchesInventory": false,
+      "lifecycleStates": [],
+      "deployment": "unverified"
+    },
+    {
+      "file": "supabase/migrations/20261007090470_hosted_consent_bridge.sql",
+      "line": 129,
+      "evidence": "CREATE FUNCTION public.external_hosted_revoke_grant(",
+      "sha256": "3bf425e7c6c9547458f0d450ac631651de4223cd218151d97335cca853f0e0af",
+      "name": "public.external_hosted_revoke_grant",
+      "identity": "public.external_hosted_revoke_grant(text,text,text,text,uuid,text)",
+      "arguments": [
+        "_issuer text",
+        "_subject text",
+        "_client_id text",
+        "_audience text",
+        "_grant_id uuid",
+        "_csrf_hash text"
+      ],
+      "defaults": [],
+      "securityDefiner": true,
+      "bodySha256": "b937a30e28bf1505eabf0ae851c367495938b7be342eeeecbfecef0dafaa7ef0",
+      "bodyEndLine": 139,
+      "touchesInventory": false,
+      "lifecycleStates": [],
+      "deployment": "unverified"
+    },
+    {
+      "file": "supabase/migrations/20261007090470_hosted_consent_bridge.sql",
+      "line": 141,
+      "evidence": "CREATE FUNCTION public.external_begin_grant_recovery(",
+      "sha256": "3bf425e7c6c9547458f0d450ac631651de4223cd218151d97335cca853f0e0af",
+      "name": "public.external_begin_grant_recovery",
+      "identity": "public.external_begin_grant_recovery(text,text,text,text,uuid,text,text)",
+      "arguments": [
+        "_issuer text",
+        "_subject text",
+        "_client_id text",
+        "_audience text",
+        "_grant_id uuid",
+        "_csrf_hash text",
+        "_customer_origin text"
+      ],
+      "defaults": [],
+      "securityDefiner": true,
+      "bodySha256": "e1b9ac252c82ee4abbf0d61e512153eaadacdbde1068b250ff4d2b3dd1ee12cd",
+      "bodyEndLine": 151,
+      "touchesInventory": false,
+      "lifecycleStates": [],
+      "deployment": "unverified"
+    },
+    {
+      "file": "supabase/migrations/20261007090470_hosted_consent_bridge.sql",
+      "line": 153,
+      "evidence": "CREATE FUNCTION public.external_review_grant_renewal(",
+      "sha256": "3bf425e7c6c9547458f0d450ac631651de4223cd218151d97335cca853f0e0af",
+      "name": "public.external_review_grant_renewal",
+      "identity": "public.external_review_grant_renewal(text,text,text,text,uuid,boolean,text)",
+      "arguments": [
+        "_issuer text",
+        "_subject text",
+        "_client_id text",
+        "_audience text",
+        "_renewal_id uuid",
+        "_hosted boolean",
+        "_customer_origin text"
+      ],
+      "defaults": [],
+      "securityDefiner": true,
+      "bodySha256": "e589be6aa4ef52e2bad528d300e2a981597a5f92ba20ff29970e954fae3b2725",
+      "bodyEndLine": 177,
+      "touchesInventory": true,
+      "lifecycleStates": [
+        "pending_documents",
+        "requested",
+        "pending"
+      ],
+      "deployment": "unverified"
+    },
+    {
+      "file": "supabase/migrations/20261007090470_hosted_consent_bridge.sql",
+      "line": 179,
+      "evidence": "CREATE FUNCTION public.external_hosted_review_grant_renewal(",
+      "sha256": "3bf425e7c6c9547458f0d450ac631651de4223cd218151d97335cca853f0e0af",
+      "name": "public.external_hosted_review_grant_renewal",
+      "identity": "public.external_hosted_review_grant_renewal(text,text,text,text,uuid,text)",
+      "arguments": [
+        "_issuer text",
+        "_subject text",
+        "_client_id text",
+        "_audience text",
+        "_renewal_id uuid",
+        "_csrf_hash text"
+      ],
+      "defaults": [],
+      "securityDefiner": true,
+      "bodySha256": "b47de6b83a6cdf34f45a3ecd68b57b38efac566dafb721de80eeb159e386228e",
+      "bodyEndLine": 190,
+      "touchesInventory": false,
+      "lifecycleStates": [],
+      "deployment": "unverified"
+    },
+    {
+      "file": "supabase/migrations/20261007090470_hosted_consent_bridge.sql",
+      "line": 192,
+      "evidence": "CREATE FUNCTION public.external_hosted_complete_grant_renewal(",
+      "sha256": "3bf425e7c6c9547458f0d450ac631651de4223cd218151d97335cca853f0e0af",
+      "name": "public.external_hosted_complete_grant_renewal",
+      "identity": "public.external_hosted_complete_grant_renewal(text,text,text,text,uuid,text,text[],boolean,boolean)",
+      "arguments": [
+        "_issuer text",
+        "_subject text",
+        "_client_id text",
+        "_audience text",
+        "_renewal_id uuid",
+        "_csrf_hash text",
+        "_scopes text[]",
+        "_explicit_new_delegation boolean",
+        "_consented boolean"
+      ],
+      "defaults": [],
+      "securityDefiner": true,
+      "bodySha256": "3a06839e76265688ec20a97fe88557d67267d5049b9eec8ec0cce165982e597c",
+      "bodyEndLine": 201,
+      "touchesInventory": false,
+      "lifecycleStates": [],
       "deployment": "unverified"
     },
     {
@@ -11201,7 +11470,7 @@
       "file": "supabase/migrations/20261007090400_consented_request_transaction.sql",
       "line": 7,
       "evidence": "DROP FUNCTION IF EXISTS public.create_marketplace_booking(text,text,date,date,text,text,text,text,numeric,numeric,text,text,bigint,bigint,bigint,bigint,bigint);",
-      "sha256": "800d6d9398c8e17bdec40051016092c95c1493881d0e45f23bad525438b1ec83",
+      "sha256": "a1267a9c9bc21a2f16112dc0d3d06db06525145465db14e2452c8e07c24409f6",
       "identity": "public.create_marketplace_booking(text,text,date,date,text,text,text,text,numeric,numeric,text,text,bigint,bigint,bigint,bigint,bigint)"
     }
   ],
@@ -13016,37 +13285,55 @@
       "file": "supabase/migrations/20261007090400_consented_request_transaction.sql",
       "line": 44,
       "evidence": "REVOKE ALL ON TABLE public.external_request_idempotency, public.external_booking_outbox FROM PUBLIC,anon,authenticated,service_role;",
-      "sha256": "800d6d9398c8e17bdec40051016092c95c1493881d0e45f23bad525438b1ec83"
+      "sha256": "a1267a9c9bc21a2f16112dc0d3d06db06525145465db14e2452c8e07c24409f6"
     },
     {
       "file": "supabase/migrations/20261007090400_consented_request_transaction.sql",
       "line": 45,
       "evidence": "GRANT SELECT ON TABLE public.external_request_idempotency, public.external_booking_outbox TO service_role;",
-      "sha256": "800d6d9398c8e17bdec40051016092c95c1493881d0e45f23bad525438b1ec83"
+      "sha256": "a1267a9c9bc21a2f16112dc0d3d06db06525145465db14e2452c8e07c24409f6"
     },
     {
       "file": "supabase/migrations/20261007090400_consented_request_transaction.sql",
-      "line": 159,
+      "line": 162,
       "evidence": "REVOKE ALL ON FUNCTION public.external_submit_rental_request(uuid,uuid,text,text,text,text,uuid,uuid,text,text) FROM PUBLIC,anon,authenticated;",
-      "sha256": "800d6d9398c8e17bdec40051016092c95c1493881d0e45f23bad525438b1ec83"
+      "sha256": "a1267a9c9bc21a2f16112dc0d3d06db06525145465db14e2452c8e07c24409f6"
     },
     {
       "file": "supabase/migrations/20261007090400_consented_request_transaction.sql",
-      "line": 160,
+      "line": 163,
       "evidence": "GRANT EXECUTE ON FUNCTION public.external_submit_rental_request(uuid,uuid,text,text,text,text,uuid,uuid,text,text) TO service_role;",
-      "sha256": "800d6d9398c8e17bdec40051016092c95c1493881d0e45f23bad525438b1ec83"
+      "sha256": "a1267a9c9bc21a2f16112dc0d3d06db06525145465db14e2452c8e07c24409f6"
     },
     {
       "file": "supabase/migrations/20261007090400_consented_request_transaction.sql",
-      "line": 195,
+      "line": 198,
       "evidence": "REVOKE ALL ON FUNCTION public.external_claim_booking_outbox(integer),public.external_ack_booking_outbox(uuid,uuid,text),public.external_retry_booking_outbox(uuid,uuid),public.external_outbox_notification_context(uuid,uuid) FROM PUBLIC,anon,authenticated;",
-      "sha256": "800d6d9398c8e17bdec40051016092c95c1493881d0e45f23bad525438b1ec83"
+      "sha256": "a1267a9c9bc21a2f16112dc0d3d06db06525145465db14e2452c8e07c24409f6"
     },
     {
       "file": "supabase/migrations/20261007090400_consented_request_transaction.sql",
-      "line": 196,
+      "line": 199,
       "evidence": "GRANT EXECUTE ON FUNCTION public.external_claim_booking_outbox(integer),public.external_ack_booking_outbox(uuid,uuid,text),public.external_retry_booking_outbox(uuid,uuid),public.external_outbox_notification_context(uuid,uuid) TO service_role;",
-      "sha256": "800d6d9398c8e17bdec40051016092c95c1493881d0e45f23bad525438b1ec83"
+      "sha256": "a1267a9c9bc21a2f16112dc0d3d06db06525145465db14e2452c8e07c24409f6"
+    },
+    {
+      "file": "supabase/migrations/20261007090470_hosted_consent_bridge.sql",
+      "line": 18,
+      "evidence": "REVOKE ALL ON FUNCTION public.external_quote_review_names() FROM PUBLIC,anon,authenticated,service_role;",
+      "sha256": "3bf425e7c6c9547458f0d450ac631651de4223cd218151d97335cca853f0e0af"
+    },
+    {
+      "file": "supabase/migrations/20261007090470_hosted_consent_bridge.sql",
+      "line": 203,
+      "evidence": "REVOKE ALL ON FUNCTION public.external_hosted_link_customer(text,text,text,text,uuid,text,boolean,text,text,boolean), public.external_review_quote(text,text,text,text,uuid,boolean), public.external_hosted_authorize_quote(text,text,text,text,uuid,text,text,text), public.external_quote_consent_result(text,text,text,text,uuid), public.external_hosted_revoke_grant(text,text,text,text,uuid,text), public.external_begin_grant_recovery(text,text,text,text,uuid,text,text), public.external_review_grant_renewal(text,text,text,text,uuid,boolean,text), public.external_hosted_review_grant_renewal(text,text,text,text,uuid,text), public.external_hosted_complete_grant_renewal(text,text,text,text,uuid,text,text[],boolean,boolean) FROM PUBLIC,anon,authenticated;",
+      "sha256": "3bf425e7c6c9547458f0d450ac631651de4223cd218151d97335cca853f0e0af"
+    },
+    {
+      "file": "supabase/migrations/20261007090470_hosted_consent_bridge.sql",
+      "line": 214,
+      "evidence": "GRANT EXECUTE ON FUNCTION public.external_hosted_link_customer(text,text,text,text,uuid,text,boolean,text,text,boolean), public.external_review_quote(text,text,text,text,uuid,boolean), public.external_hosted_authorize_quote(text,text,text,text,uuid,text,text,text), public.external_quote_consent_result(text,text,text,text,uuid), public.external_hosted_revoke_grant(text,text,text,text,uuid,text), public.external_begin_grant_recovery(text,text,text,text,uuid,text,text), public.external_review_grant_renewal(text,text,text,text,uuid,boolean,text), public.external_hosted_review_grant_renewal(text,text,text,text,uuid,text), public.external_hosted_complete_grant_renewal(text,text,text,text,uuid,text,text[],boolean,boolean) TO service_role;",
+      "sha256": "3bf425e7c6c9547458f0d450ac631651de4223cd218151d97335cca853f0e0af"
     },
     {
       "file": "supabase/migrations/20261007090480_external_api_read_boundary.sql",
@@ -13949,6 +14236,12 @@
       "line": 148,
       "evidence": "CREATE TRIGGER z_agent_inventory_blocked_guard AFTER INSERT OR UPDATE OR DELETE ON public.vehicle_blocked_dates FOR EACH ROW EXECUTE FUNCTION public.agent_inventory_blocked_guard();",
       "sha256": "7035b9e076d0ff314502aa6c6b409e6607ea7f38d7e49fd882fc55d7e5cb92ae"
+    },
+    {
+      "file": "supabase/migrations/20261007090470_hosted_consent_bridge.sql",
+      "line": 17,
+      "evidence": "CREATE TRIGGER external_quote_review_names BEFORE INSERT ON public.external_quotes FOR EACH ROW EXECUTE FUNCTION public.external_quote_review_names();",
+      "sha256": "3bf425e7c6c9547458f0d450ac631651de4223cd218151d97335cca853f0e0af"
     }
   ],
   "policies": [
@@ -18516,13 +18809,13 @@
       "file": "supabase/migrations/20261007090400_consented_request_transaction.sql",
       "line": 42,
       "evidence": "ALTER TABLE public.external_request_idempotency ENABLE ROW LEVEL SECURITY;",
-      "sha256": "800d6d9398c8e17bdec40051016092c95c1493881d0e45f23bad525438b1ec83"
+      "sha256": "a1267a9c9bc21a2f16112dc0d3d06db06525145465db14e2452c8e07c24409f6"
     },
     {
       "file": "supabase/migrations/20261007090400_consented_request_transaction.sql",
       "line": 43,
       "evidence": "ALTER TABLE public.external_booking_outbox ENABLE ROW LEVEL SECURITY;",
-      "sha256": "800d6d9398c8e17bdec40051016092c95c1493881d0e45f23bad525438b1ec83"
+      "sha256": "a1267a9c9bc21a2f16112dc0d3d06db06525145465db14e2452c8e07c24409f6"
     },
     {
       "file": "supabase/migrations/20261007090480_external_api_read_boundary.sql",
@@ -18963,16 +19256,16 @@
     },
     {
       "file": "supabase/functions/_shared/external-booking/quotes.ts",
-      "line": 109,
+      "line": 110,
       "evidence": ".rpc('external_create_quote'",
-      "sha256": "0ae113b9ca0a0868dbe7c45f708db9ba9d525112f6021d58df6af015aab37f71",
+      "sha256": "06f3487779720bc73469119e7db5ec36ae36cb6112e3bb73634961bf840ac30f",
       "name": "external_create_quote"
     },
     {
       "file": "supabase/functions/_shared/external-booking/requests.ts",
       "line": 28,
       "evidence": ".rpc('external_submit_rental_request'",
-      "sha256": "5eb675baf1acc40e56fccea3245316859b95c2b5e45dd6d86debfde1923a7910",
+      "sha256": "1534d1ead2a1be3e73408c403c67cc4ddeab23c8406cda1dcde15ee05c1a0f7f",
       "name": "external_submit_rental_request"
     },
     {
@@ -19061,16 +19354,16 @@
     },
     {
       "file": "supabase/functions/external-booking-api/index.ts",
-      "line": 172,
+      "line": 181,
       "evidence": ".rpc('check_rate_limit'",
-      "sha256": "d4e11dddbf5e9ba5e17e8eec01a670f6ea317a90b38ab896b4d310eb3ec2d77f",
+      "sha256": "17f44bbd8be0fe245189e80d58826ef36296cdc3a047c24d1fd2a26d0bd10b6e",
       "name": "check_rate_limit"
     },
     {
       "file": "supabase/functions/external-booking-api/index.ts",
-      "line": 180,
+      "line": 189,
       "evidence": ".rpc('external_resolve_customer_link'",
-      "sha256": "d4e11dddbf5e9ba5e17e8eec01a670f6ea317a90b38ab896b4d310eb3ec2d77f",
+      "sha256": "17f44bbd8be0fe245189e80d58826ef36296cdc3a047c24d1fd2a26d0bd10b6e",
       "name": "external_resolve_customer_link"
     },
     {
@@ -19250,7 +19543,7 @@
           "state": "pending_documents",
           "file": "supabase/functions/_shared/external-booking/contracts.ts",
           "line": 33,
-          "sha256": "4186f30b01892ea484f588ca7cbeea4f300e5d7087132ff984bf8b55a752d81a"
+          "sha256": "28ddb0bd09fb2f225959e80ee744ff72c9e55b4dce69ceec4f96cab330e298b6"
         },
         {
           "state": "pending_documents",
@@ -19429,8 +19722,14 @@
         {
           "state": "pending_documents",
           "file": "supabase/migrations/20261007090400_consented_request_transaction.sql",
-          "line": 123,
-          "sha256": "800d6d9398c8e17bdec40051016092c95c1493881d0e45f23bad525438b1ec83"
+          "line": 126,
+          "sha256": "a1267a9c9bc21a2f16112dc0d3d06db06525145465db14e2452c8e07c24409f6"
+        },
+        {
+          "state": "pending_documents",
+          "file": "supabase/migrations/20261007090470_hosted_consent_bridge.sql",
+          "line": 175,
+          "sha256": "3bf425e7c6c9547458f0d450ac631651de4223cd218151d97335cca853f0e0af"
         }
       ]
     },
@@ -19489,7 +19788,7 @@
           "state": "requested",
           "file": "supabase/functions/_shared/external-booking/contracts.ts",
           "line": 33,
-          "sha256": "4186f30b01892ea484f588ca7cbeea4f300e5d7087132ff984bf8b55a752d81a"
+          "sha256": "28ddb0bd09fb2f225959e80ee744ff72c9e55b4dce69ceec4f96cab330e298b6"
         },
         {
           "state": "requested",
@@ -19668,8 +19967,14 @@
         {
           "state": "requested",
           "file": "supabase/migrations/20261007090400_consented_request_transaction.sql",
-          "line": 123,
-          "sha256": "800d6d9398c8e17bdec40051016092c95c1493881d0e45f23bad525438b1ec83"
+          "line": 126,
+          "sha256": "a1267a9c9bc21a2f16112dc0d3d06db06525145465db14e2452c8e07c24409f6"
+        },
+        {
+          "state": "requested",
+          "file": "supabase/migrations/20261007090470_hosted_consent_bridge.sql",
+          "line": 175,
+          "sha256": "3bf425e7c6c9547458f0d450ac631651de4223cd218151d97335cca853f0e0af"
         }
       ]
     },
@@ -19716,7 +20021,7 @@
           "state": "pending_payment",
           "file": "supabase/functions/_shared/external-booking/contracts.ts",
           "line": 33,
-          "sha256": "4186f30b01892ea484f588ca7cbeea4f300e5d7087132ff984bf8b55a752d81a"
+          "sha256": "28ddb0bd09fb2f225959e80ee744ff72c9e55b4dce69ceec4f96cab330e298b6"
         },
         {
           "state": "pending_payment",
@@ -20177,7 +20482,7 @@
           "state": "confirmed",
           "file": "supabase/functions/_shared/external-booking/contracts.ts",
           "line": 33,
-          "sha256": "4186f30b01892ea484f588ca7cbeea4f300e5d7087132ff984bf8b55a752d81a"
+          "sha256": "28ddb0bd09fb2f225959e80ee744ff72c9e55b4dce69ceec4f96cab330e298b6"
         },
         {
           "state": "confirmed",
@@ -20686,7 +20991,7 @@
           "state": "active",
           "file": "supabase/functions/_shared/external-booking/contracts.ts",
           "line": 33,
-          "sha256": "4186f30b01892ea484f588ca7cbeea4f300e5d7087132ff984bf8b55a752d81a"
+          "sha256": "28ddb0bd09fb2f225959e80ee744ff72c9e55b4dce69ceec4f96cab330e298b6"
         },
         {
           "state": "active",
@@ -21147,7 +21452,7 @@
           "state": "pending",
           "file": "supabase/functions/_shared/external-booking/contracts.ts",
           "line": 33,
-          "sha256": "4186f30b01892ea484f588ca7cbeea4f300e5d7087132ff984bf8b55a752d81a"
+          "sha256": "28ddb0bd09fb2f225959e80ee744ff72c9e55b4dce69ceec4f96cab330e298b6"
         },
         {
           "state": "pending",
@@ -21459,7 +21764,13 @@
           "state": "pending",
           "file": "supabase/migrations/20261007090400_consented_request_transaction.sql",
           "line": 39,
-          "sha256": "800d6d9398c8e17bdec40051016092c95c1493881d0e45f23bad525438b1ec83"
+          "sha256": "a1267a9c9bc21a2f16112dc0d3d06db06525145465db14e2452c8e07c24409f6"
+        },
+        {
+          "state": "pending",
+          "file": "supabase/migrations/20261007090470_hosted_consent_bridge.sql",
+          "line": 175,
+          "sha256": "3bf425e7c6c9547458f0d450ac631651de4223cd218151d97335cca853f0e0af"
         }
       ]
     },
@@ -21650,7 +21961,7 @@
           "state": "cancelled",
           "file": "supabase/functions/_shared/external-booking/contracts.ts",
           "line": 33,
-          "sha256": "4186f30b01892ea484f588ca7cbeea4f300e5d7087132ff984bf8b55a752d81a"
+          "sha256": "28ddb0bd09fb2f225959e80ee744ff72c9e55b4dce69ceec4f96cab330e298b6"
         },
         {
           "state": "cancelled",
@@ -21787,7 +22098,7 @@
           "state": "expired",
           "file": "supabase/functions/_shared/external-booking/contracts.ts",
           "line": 32,
-          "sha256": "4186f30b01892ea484f588ca7cbeea4f300e5d7087132ff984bf8b55a752d81a"
+          "sha256": "28ddb0bd09fb2f225959e80ee744ff72c9e55b4dce69ceec4f96cab330e298b6"
         },
         {
           "state": "expired",
@@ -21852,7 +22163,7 @@
           "state": "declined",
           "file": "supabase/functions/_shared/external-booking/contracts.ts",
           "line": 33,
-          "sha256": "4186f30b01892ea484f588ca7cbeea4f300e5d7087132ff984bf8b55a752d81a"
+          "sha256": "28ddb0bd09fb2f225959e80ee744ff72c9e55b4dce69ceec4f96cab330e298b6"
         },
         {
           "state": "declined",
@@ -22121,7 +22432,7 @@
           "state": "completed",
           "file": "supabase/functions/_shared/external-booking/contracts.ts",
           "line": 33,
-          "sha256": "4186f30b01892ea484f588ca7cbeea4f300e5d7087132ff984bf8b55a752d81a"
+          "sha256": "28ddb0bd09fb2f225959e80ee744ff72c9e55b4dce69ceec4f96cab330e298b6"
         },
         {
           "state": "completed",
@@ -22348,7 +22659,7 @@
           "state": "refunded",
           "file": "supabase/functions/_shared/external-booking/contracts.ts",
           "line": 33,
-          "sha256": "4186f30b01892ea484f588ca7cbeea4f300e5d7087132ff984bf8b55a752d81a"
+          "sha256": "28ddb0bd09fb2f225959e80ee744ff72c9e55b4dce69ceec4f96cab330e298b6"
         },
         {
           "state": "refunded",
@@ -22615,10 +22926,39 @@
       "action": "create"
     },
     {
+      "file": "supabase/migrations/20261007090470_hosted_consent_bridge.sql",
+      "line": 153,
+      "evidence": "CREATE FUNCTION public.external_review_grant_renewal(",
+      "sha256": "3bf425e7c6c9547458f0d450ac631651de4223cd218151d97335cca853f0e0af",
+      "name": "public.external_review_grant_renewal",
+      "identity": "public.external_review_grant_renewal(text,text,text,text,uuid,boolean,text)",
+      "arguments": [
+        "_issuer text",
+        "_subject text",
+        "_client_id text",
+        "_audience text",
+        "_renewal_id uuid",
+        "_hosted boolean",
+        "_customer_origin text"
+      ],
+      "defaults": [],
+      "securityDefiner": true,
+      "bodySha256": "e589be6aa4ef52e2bad528d300e2a981597a5f92ba20ff29970e954fae3b2725",
+      "bodyEndLine": 177,
+      "touchesInventory": true,
+      "lifecycleStates": [
+        "pending_documents",
+        "requested",
+        "pending"
+      ],
+      "deployment": "unverified",
+      "action": "create"
+    },
+    {
       "file": "supabase/migrations/20261007090400_consented_request_transaction.sql",
       "line": 47,
       "evidence": "CREATE FUNCTION public.external_submit_rental_request(",
-      "sha256": "800d6d9398c8e17bdec40051016092c95c1493881d0e45f23bad525438b1ec83",
+      "sha256": "a1267a9c9bc21a2f16112dc0d3d06db06525145465db14e2452c8e07c24409f6",
       "name": "public.external_submit_rental_request",
       "identity": "public.external_submit_rental_request(uuid,uuid,text,text,text,text,uuid,uuid,text,text)",
       "arguments": [
@@ -22635,8 +22975,8 @@
       ],
       "defaults": [],
       "securityDefiner": true,
-      "bodySha256": "fa6c8c82bbe790d448967c7006f03ad38fe9dd6771266f2dc472a4b10dcff813",
-      "bodyEndLine": 158,
+      "bodySha256": "bece73e856c91ec3843d6218d8beb3f58b0898cecd46a506683113d07ad53dec",
+      "bodyEndLine": 161,
       "touchesInventory": true,
       "lifecycleStates": [
         "pending_documents",
