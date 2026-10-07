@@ -72,6 +72,8 @@ export class RpcCatalogRepository implements CatalogRepository {
     if (!data.length) return null;
     const row=data[0] as AvailabilityObservation;
     if (!row || Object.keys(row).some(key=>!['available','source_checked_at','buffer_policy_version'].includes(key)) || typeof row.available!=='boolean' || typeof row.source_checked_at!=='string' || !Number.isFinite(Date.parse(row.source_checked_at)) || typeof row.buffer_policy_version!=='string' || !/^post-return-snapshot-v1\/(?:0|[1-9][0-9]{0,4})$/.test(row.buffer_policy_version) || Number(row.buffer_policy_version.split('/')[1])>10080) throw new BookingApiError('upstream_unavailable');
-    return row;
+    // PostgreSQL renders timestamptz with microsecond precision. Normalize at
+    // the DTO boundary so a valid database observation remains KNOWN.
+    return {...row,source_checked_at:new Date(row.source_checked_at).toISOString()};
   }
 }

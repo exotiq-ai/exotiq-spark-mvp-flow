@@ -1647,6 +1647,11 @@
                   "AVAILABLE",
                   "UNAVAILABLE"
                 ]
+              },
+              "buffer_policy_version": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
               }
             },
             "required": [
@@ -1657,7 +1662,8 @@
               "pickup_at",
               "return_at",
               "timezone",
-              "availability"
+              "availability",
+              "buffer_policy_version"
             ],
             "additionalProperties": false
           },
@@ -1709,6 +1715,9 @@
               "availability": {
                 "const": "UNKNOWN"
               },
+              "buffer_policy_version": {
+                "type": "null"
+              },
               "reason_code": {
                 "type": "string",
                 "enum": [
@@ -1730,6 +1739,7 @@
               "return_at",
               "timezone",
               "availability",
+              "buffer_policy_version",
               "reason_code",
               "retry_after_seconds"
             ],
