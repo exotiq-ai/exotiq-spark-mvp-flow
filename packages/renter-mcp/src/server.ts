@@ -12,6 +12,26 @@ function canonical(name:ContractName){return standard(schemas[name],v=>validateC
 const refSchema:JsonSchema={type:'object',properties:{ref:{type:'string',minLength:1,maxLength:80,pattern:'^[A-Za-z0-9_-]+$'}},required:['ref'],additionalProperties:false};
 const submitSchema:JsonSchema={type:'object',properties:{quote_id:schemas.QuoteRequest.properties!.operator_id,idempotency_key:{type:'string',minLength:16,maxLength:128,pattern:'^[A-Za-z0-9._:-]+$'}},required:['quote_id','idempotency_key'],additionalProperties:false};
 function strictKeys(v:Record<string,unknown>,keys:string[]){return Object.keys(v).length===keys.length&&keys.every(k=>Object.hasOwn(v,k));}
+class BodyFailure extends Error {constructor(readonly status:number){super('invalid_request_body');}}
+async function readBody(request:Request):Promise<unknown>{
+  const reader=request.body?.getReader();let timer:ReturnType<typeof setTimeout>|undefined;let abort=()=>{};
+  const deadline=new Promise<never>((_,reject)=>{
+    abort=()=>reject(new BodyFailure(400));
+    request.signal.addEventListener('abort',abort,{once:true});
+    timer=setTimeout(()=>reject(new BodyFailure(408)),5000);
+  });
+  try{
+    if(request.signal.aborted)throw new BodyFailure(400);
+    const chunks:Uint8Array[]=[];let size=0;
+    if(reader)for(;;){const part=await Promise.race([reader.read(),deadline]);if(request.signal.aborted)throw new BodyFailure(400);if(part.done)break;size+=part.value.byteLength;if(size>65536)throw new BodyFailure(413);chunks.push(part.value);}
+    const bytes=new Uint8Array(size);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length;}
+    return JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));
+  }finally{
+    clearTimeout(timer);request.signal.removeEventListener('abort',abort);
+    // An untrusted stream's cancellation promise must never extend the deadline.
+    if(reader)void reader.cancel().catch(()=>{});
+  }
+}
 export function createMcpApplication(config:ApplicationConfig,fetcher:typeof fetch=fetch) {
   const authenticator=createAuthenticator(config.auth,fetcher);const resource=new URL(config.auth.resource),metadata=new URL(config.auth.resourceMetadataUri);
   const customer=new URL(config.customerOrigin);if(customer.protocol!=='https:'||customer.pathname!=='/'||customer.search||customer.hash||customer.username||customer.password)throw new Error('invalid_configuration');
@@ -49,10 +69,7 @@ export function createMcpApplication(config:ApplicationConfig,fetcher:typeof fet
       let parsed:unknown,scope:string|undefined;
       if(request.method==='POST'){
         if(!request.headers.get('content-type')?.toLowerCase().startsWith('application/json'))return new Response(null,{status:415});
-        try{const reader=request.body?.getReader();const chunks:Uint8Array[]=[];let size=0;
-          if(reader)try{for(;;){const part=await reader.read();if(part.done)break;size+=part.value.byteLength;if(size>65536)return new Response(null,{status:413});chunks.push(part.value);}}finally{await reader.cancel().catch(()=>{});}
-          const bytes=new Uint8Array(size);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length;}parsed=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));
-        }catch{return new Response(null,{status:400});}
+        try{parsed=await readBody(request);}catch(error){return new Response(null,{status:error instanceof BodyFailure?error.status:400,headers:{'Cache-Control':'no-store'}});}
         if(!record(parsed))return new Response(null,{status:400});
         if(parsed.method==='tools/call'&&record(parsed.params)&&typeof parsed.params.name==='string'&&Object.hasOwn(toolScopes,parsed.params.name))scope=toolScopes[parsed.params.name];
       }

@@ -25,4 +25,11 @@ describe('bounded unauthenticated ingress',()=>{
     try{const result=await Promise.race([new Promise<number>((resolve,reject)=>{req=httpRequest(`http://127.0.0.1:${port}/mcp`,{method:'POST',headers:{Host:'mcp.example.test','content-type':'application/json',authorization:'Bearer synthetic'}},res=>{res.resume();resolve(res.statusCode!);});req.on('error',reject);req.flushHeaders();req.write('{');}),new Promise<null>(r=>setTimeout(()=>r(null),5700))]);expect(result).toBe(408);expect(calls()).toBe(0);}
     finally{req?.destroy();server.closeAllConnections();await new Promise<void>(r=>server.close(()=>r()));}
   },6500);
+  it('actual HTTP disconnect releases the in-progress body read before authentication',async()=>{
+    const {app,calls}=application();let entered!:()=>void,finished!:()=>void;const entry=new Promise<void>(r=>{entered=r;}),completion=new Promise<void>(r=>{finished=r;});
+    const server=createNodeServer({fetch:async(request)=>{entered();try{return await app.fetch(request);}finally{finished();}}},resource);await new Promise<void>(r=>server.listen(0,'127.0.0.1',r));
+    const req=httpRequest(`http://127.0.0.1:${(server.address() as {port:number}).port}/mcp`,{method:'POST',headers:{Host:'mcp.example.test','content-type':'application/json'}});req.on('error',()=>{});
+    try{req.flushHeaders();req.write('{');await entry;await new Promise(r=>setTimeout(r,40));req.destroy();expect(await Promise.race([completion.then(()=>true),new Promise<boolean>(r=>setTimeout(()=>r(false),500))])).toBe(true);expect(calls()).toBe(0);}
+    finally{req.destroy();server.closeAllConnections();await new Promise<void>(r=>server.close(()=>r()));}
+  });
 });

@@ -48,6 +48,8 @@ Configuration is supplied through the deployment secret/configuration manager; n
 
 A concrete per-process budget of 60 requests/minute and eight concurrent authentication operations apply before provider network calls. A reviewed distributed gateway limiter is a **release requirement**; the configuration profile is only an attestation and cannot prove that gateway exists. Every delegated API call additionally passes the API's persisted limiter and its customer/operator/grant checks. Restarting or horizontally scaling the adapter must not be used to avoid the distributed limit. Public metadata needs the gateway's unauthenticated request limit too.
 
+Unauthenticated POST bodies are limited to64KiB and five seconds total, including senders that continue trickling bytes. Inbound abort releases a pending read, and cancellation is not awaited. The actual Node ingress streams through this same reader rather than buffering first. Four local regression cases prove stalled/slow reads, hostile cancellation, actual HTTP timeout and disconnect cause no AS/API dispatch. Final offline package checks pass50 tests with five explicit SQL skips; typecheck and build pass.
+
 Verified locally on 2026-10-07: official server 2.3.1, official client 2.3.1, jose 6.2.3, zod 4.6.5, TypeScript 5.9.3, Vitest 4.1.11, Node 22.22.3 and Node type definitions 24.12.0. All dependency versions are locked. Vitest was patched from 4.1.6 to 4.1.11 following the [primary Vitest advisory](https://github.com/vitest-dev/vitest/security/advisories/GHSA-82fw-gwwq-j7x9); the exposed development mocker traversal affects versions before 4.1.11. The scoped package audit reports zero vulnerabilities after the compatible patch.
 
 | Local profile | Registered fixture client | Protocol | Evidence |
