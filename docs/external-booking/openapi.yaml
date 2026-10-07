@@ -2248,7 +2248,7 @@
               "active",
               "declined",
               "cancelled",
-              "expired",
+              "payment_expired",
               "completed",
               "refunded"
             ]
@@ -2371,7 +2371,7 @@
               "active",
               "declined",
               "cancelled",
-              "expired",
+              "payment_expired",
               "completed",
               "refunded"
             ]

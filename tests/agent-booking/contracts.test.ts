@@ -44,6 +44,7 @@ describe('canonical contracts', () => {
     expect(validateRentalWindow(window, { tenantTimezone: 'America/Chicago' }).ok).toBe(false);
     expect(validateRentalWindow({ ...window, timezone: 'UTC' }).ok).toBe(false);
     expect(validateRentalWindow({ ...window, return_at: window.pickup_at }).ok).toBe(false);
+    expect(validateRentalWindow({ ...window, return_at: '2026-11-01T14:30:00-05:00' }).ok).toBe(false);
     expect(validateRentalWindow({ ...window, return_at: '2027-11-03T10:00:00-04:00' }).ok).toBe(false);
     expect(validateRentalWindow(window, { now: Date.parse('2026-12-01T00:00:00Z') }).ok).toBe(false);
   });

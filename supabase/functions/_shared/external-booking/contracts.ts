@@ -27,7 +27,10 @@ const slug: JsonSchema = { ...text(80), pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$' };
 const metadata = { api_version: { const: 'v1' }, source_checked_at: timestamp };
 const rentalWindow = { operator_id: uuid, vehicle_id: uuid, pickup_at: timestamp, return_at: timestamp, timezone: { ...text(80), format: 'iana-timezone' } };
 const options: JsonSchema = { ...array(enumeration('premium', 'standard', 'decline'), 1, 1), uniqueItems: true, description: 'Current backend protection IDs. No unrecognized add-ons or client amounts.' };
-export const BACKEND_STATUSES = ['pending_documents', 'requested', 'pending', 'pending_payment', 'confirmed', 'active', 'declined', 'cancelled', 'expired', 'completed', 'refunded'] as const;
+// Exact latest source bookings_status_check: 20260724015013_c1c8f150-*.sql.
+// Payment expiry stores payment_expired; unverified/request hold expiry stores
+// cancelled plus cancellation_reason. Generic 'expired' is not a stored booking state.
+export const BACKEND_STATUSES = ['pending_documents', 'requested', 'pending', 'pending_payment', 'confirmed', 'active', 'declined', 'cancelled', 'payment_expired', 'completed', 'refunded'] as const;
 export const NEXT_ACTIONS = ['verify_identity', 'await_operator', 'hosted_checkout', 'await_payment_settlement', 'await_reconciliation', 'confirmed', 'rental_active', 'declined', 'cancelled', 'expired', 'completed', 'refunded', 'recover_authorization'] as const;
 export const ERROR_CODES = ['invalid_input', 'unauthorized', 'forbidden', 'not_found', 'dates_unavailable', 'quote_changed', 'idempotency_conflict', 'consent_mismatch', 'quote_expired', 'consent_expired', 'payment_window_expired', 'rate_limited', 'upstream_unavailable'] as const;
 export const SCOPES = ['catalog:read', 'quotes:create', 'rental_requests:create', 'rental_requests:read', 'checkout:handoff'] as const;
@@ -74,6 +77,7 @@ function parseTimestamp(value: string): { instant: number; wall: number; offset:
   if (zone !== 'Z' && (Number(zone.slice(1, 3)) > 14 || Number(zone.slice(4, 6)) > 59 || Math.abs(offset) > 840)) return null;
   return { instant: wall - offset * 60000, wall, offset };
 }
+export function timestampInstant(value: string): number | null { return parseTimestamp(value)?.instant ?? null; }
 function validTimezone(value: string): boolean {
   if (value !== 'UTC' && !/^[A-Za-z_]+(?:\/[A-Za-z0-9_+-]+)+$/.test(value)) return false;
   try { new Intl.DateTimeFormat('en', { timeZone: value }).format(0); return true; } catch { return false; }
@@ -99,6 +103,7 @@ function validFormat(format: string, value: string): boolean {
 function schemaIssues(schema: JsonSchema, value: unknown, path = '$'): string[] {
   const vocabulary = new Set(['type', 'properties', 'required', 'additionalProperties', 'items', 'minItems', 'maxItems', 'uniqueItems', 'minLength', 'maxLength', 'pattern', 'format', 'minimum', 'maximum', 'enum', 'const', 'anyOf', 'oneOf', 'description', 'default']);
   for (const key of Object.keys(schema)) if (!vocabulary.has(key)) throw new Error(`Unsupported contract keyword: ${key}`);
+  if (schema.type && !['null', 'boolean', 'integer', 'string', 'array', 'object'].includes(schema.type)) throw new Error(`Unsupported contract type: ${schema.type}`);
   if (schema.anyOf) return schema.anyOf.some((branch) => !schemaIssues(branch, value, path).length) ? [] : [path];
   if (schema.oneOf) return schema.oneOf.filter((branch) => !schemaIssues(branch, value, path).length).length === 1 ? [] : [path];
   if ('const' in schema && value !== schema.const) return [path];
@@ -130,7 +135,9 @@ export function validateRentalWindow(value: { pickup_at: string; return_at: stri
   const start = parseTimestamp(value.pickup_at), end = parseTimestamp(value.return_at);
   if (!start || !end || !validTimezone(value.timezone) || (context.tenantTimezone !== undefined && context.tenantTimezone !== value.timezone)) return { ok: false, issues: ['$.timezone'] };
   if (zonedWall(start.instant, value.timezone) !== start.wall || zonedWall(end.instant, value.timezone) !== end.wall) return { ok: false, issues: ['$.pickup_at', '$.return_at'] };
-  if (end.instant <= start.instant || end.instant - start.instant > (context.maxDurationDays ?? 365) * 86400000 || (context.now !== undefined && start.instant < context.now)) return { ok: false, issues: ['$.pickup_at', '$.return_at'] };
+  // Existing public_vehicle_quote bills distinct local calendar dates and rejects
+  // same-day rentals. Do not advertise an interval its authority cannot quote.
+  if (Math.floor(end.wall / 86400000) <= Math.floor(start.wall / 86400000) || end.instant <= start.instant || end.instant - start.instant > (context.maxDurationDays ?? 365) * 86400000 || (context.now !== undefined && start.instant < context.now)) return { ok: false, issues: ['$.pickup_at', '$.return_at'] };
   return { ok: true };
 }
 export function validateContract(name: ContractName, value: unknown, context: { now?: number; tenantTimezone?: string } = {}): ValidationResult {
@@ -153,7 +160,7 @@ export function validateContract(name: ContractName, value: unknown, context: { 
       if (schedule.filter((leg) => leg.payee === 'operator' && BigInt(leg.amount_cents) === operator && leg.due === 'after_operator_approval').length !== 1 || schedule.filter((leg) => leg.payee === 'exotiq' && BigInt(leg.amount_cents) === exotiq && leg.due === 'after_operator_charge').length !== 1) issues.push('$.payment_schedule');
       if ((value.principal_scope as JsonObject).operator_id !== value.operator_id) issues.push('$.principal_scope');
       const checked = Date.parse(value.source_checked_at as string), expires = Date.parse(value.expires_at as string), available = Date.parse(value.availability_checked_at as string);
-      if (expires <= checked || available > checked || (context.now !== undefined && expires <= context.now)) issues.push('$.expires_at');
+      if (expires <= checked || available > checked || (context.now !== undefined && (expires <= context.now || checked > context.now))) issues.push('$.expires_at');
     }
     if (name === 'ConsentResult' && (value.state === 'authorized' ? !value.consent_receipt_id || !value.expires_at : value.consent_receipt_id !== undefined || value.expires_at !== undefined)) issues.push('$.state');
   }

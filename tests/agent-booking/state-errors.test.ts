@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { BACKEND_STATUSES, ERROR_CODES, SCOPES, validateContract } from '../../supabase/functions/_shared/external-booking/contracts';
 import { mapRentalState, mapAvailability, requireBookingRead, computePaymentDueAt } from '../../supabase/functions/_shared/external-booking/state';
 import { safeApiError, errorResponse, BookingApiError } from '../../supabase/functions/_shared/external-booking/errors';
@@ -39,8 +40,18 @@ describe('authoritative booking states', () => {
     expect(() => mapRentalState({ ...base(), status: 'active' }, now)).toThrow(BookingApiError);
     expect(mapRentalState({ ...paid(), status: 'active' }, now).next_action).toBe('rental_active');
   });
-  it.each(['declined', 'cancelled', 'expired', 'completed', 'refunded'])('maps actual terminal %s without hold or checkout', (status) => {
+  it.each(['declined', 'cancelled', 'completed', 'refunded'])('maps actual terminal %s without hold or checkout', (status) => {
     expect(mapRentalState({ ...base(), status }, now)).toMatchObject({ status, next_action: status, hold_expires_at: null, inventory_blocked: false, can_checkout: false });
+  });
+  it('uses exact source booking CHECK states, payment_expired terminal and cancelled hold expiry', () => {
+    const source = readFileSync('supabase/migrations/20260724015013_c1c8f150-af28-400e-8b5d-aae1e1515305.sql', 'utf8');
+    const check = /CHECK \(status = ANY \(ARRAY\[([\s\S]*?)\]\)\)/.exec(source)![1];
+    expect([...check.matchAll(/'([a-z_]+)'/g)].map((match) => match[1]).sort()).toEqual([...BACKEND_STATUSES].sort());
+    expect(mapRentalState({ ...base(), status: 'payment_expired' }, now)).toMatchObject({ status: 'payment_expired', next_action: 'expired', inventory_blocked: false });
+    expect(() => mapRentalState({ ...base(), status: 'expired' }, now)).toThrow(BookingApiError);
+    const expiry = readFileSync('supabase/migrations/20260728152708_256354b7-9f0f-4e1d-a9a0-33e45ca82d04.sql', 'utf8');
+    expect(expiry).toContain("SET status = 'cancelled'");
+    expect(expiry).toContain("'unverified_hold_expired'");
   });
   it('fails safely on unknown status, unverified source and invalid dates', () => {
     for (const override of [{ status: 'approved' }, { authoritative: false }, { created_at: 'bad' }, { created_at: '2026-02-30T12:00:00Z' }, { created_at: '2026-10-09T12:00:00Z' }, { status: 'pending_payment', payment_due_at: null }]) expect(() => mapRentalState({ ...base(), ...override }, now)).toThrow(BookingApiError);
