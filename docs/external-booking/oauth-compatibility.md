@@ -1,0 +1,37 @@
+# Delegated authorization compatibility and release gate
+
+Status: resource-side implementation and signed offline verification only. No provider has been selected, registered, contacted, or proven interoperable. Public agent writes must remain disabled until the provider spike and dedicated staging evidence pass. Supabase website login is not proof of delegated OAuth access.
+
+## Verified implementation boundary
+
+`auth.ts` uses pinned `jose` 6.2.3 JWT verification, a configured HTTPS issuer/JWKS, asymmetric algorithm allowlist, `at+jwt`, exact single resource audience, mandatory expiry/not-before/issued-at, maximum 10-minute lifetime, subject, token identifier, registered client identifier and canonical least scopes. Requiring `jti`, `client_id`, `nbf`, and a single audience is this service's compatibility profile; a provider must issue that profile or a reviewed standards-based exchange must issue appropriate API tokens. JWTs without those claims, opaque tokens, ID tokens and adapter-audience tokens fail closed. Do not relax checks merely to accept a provider.
+
+Every request queries verified issuer+subject/customer binding and current token/session revocation authority; persistent rate limiting is mandatory through ingress composition. No typed email, token `customer_id`, catalog text or browser-supplied ownership is trusted. Tenant and exact booking/action grants are a separate required check. Store errors fail closed; errors contain no token or upstream details. Dependency injection is a trusted server composition boundary, never client input. No default provider, homemade issuer, production credentials or token introspection stub is supplied.
+
+The protected-resource metadata and challenge advertise the configured issuer/resource/scopes. An authorization-client validator requires exact registered HTTPS redirects, resource indicator and PKCE S256. This is a resource integration guard, not a substitute authorization server. Metadata URLs are administrator-pinned; `jku`, `x5u`, token issuer URLs and arbitrary external navigation never select a fetch target. HTTPS/public-host allowlisting rejects IP literals, localhost and internal suffixes. Deployment egress must also deny private DNS answers/rebinding and redirects; parser validation alone cannot prove SSRF prevention. Bound ingress bodies and unauthenticated IP limiter, HTTPS, no-store, trusted proxy IP resolution and tenant limiter are later API ingress gates.
+
+## Two consumer profiles: recorded actual evidence
+
+| Profile | Offline evidence | Required unperformed interoperability evidence |
+|---|---|---|
+| A: preregistered client, `client-profile-a` | Actual ES256 signed fixture accepted for API resource; forged/wrong-resource/expired/revoked claims denied | Real independent consumer client authorization-code/PKCE login, exact redirect registration, metadata discovery, issuer revocation/session maximum and customer approval |
+| B: client metadata registration, `client-profile-b` | Independently identified signed fixture accepted; keys rotated in pinned JWKS; adapter audience rejected | Different consumer client, provider client-ID metadata support with SSRF defenses (or reviewed preregistration; DCR only if needed), same negative cases and appropriate audience exchange |
+
+These fixtures are **not** two provider/client interoperability successes. No real provider spike ran: the user requested isolated local tests and has no separate hosted staging/provider sandboxes. This release gate remains unresolved rather than inventing a provider or claiming local signatures prove onboarding. Plan 10 integrates adapter metadata; plan 08 integrates hosted customer consent/recovery. Before release, record provider/version, resource registrations, client implementations/versions, sanitized actual outcomes, rotation/revocation delays and issuer discovery evidence. Keep API and MCP resource IDs distinct; do not pass MCP tokens to API without an audience-correct standards-based exchange or an API token explicitly issued for it. API access cannot be obtained from an adapter service credential alone.
+
+## Customer grants and renewal
+
+Provider access token lifetime defaults to 10 minutes and provider refresh/session maximum to 24 hours; shorter provider policy prevails. Booking grants expire within 24 hours (terminal policy may shorten them), receipts within the earlier quote expiry or 15 minutes, renewal transactions within 15 minutes. Token renewal does not renew booking grants. Provider refresh revocation and maximum session are provider obligations to verify, not local unsigned settings that manufacture fresh credentials.
+
+Expired access token: 401 and fresh provider login/PKCE as required. Expired booking grant: 403 `grant_expired` for verified owner, with hosted recovery after fresh customer authentication. Revoked grant: 403 `grant_revoked`; old ID never revives. Explicit new delegation after customer acknowledgement receives a new ID. Cross-owner resources return 404. After 25 or 71 hours, recovery must not extend inventory holds or modify request/idempotency ledger. Routes and hosted interaction are wired in plan 08; this plan supplies durable internal schema and policy.
+
+Endpoint contract: `POST /v1/grants/{id}/revoke` returns 204 only to owner (404 to others). `POST /v1/rental-requests/{ref}/grant-renewals` requires valid `rental_requests:read`, original verified customer link and exact client delegation, returning 202 hosted transaction. Completion requires authenticated customer session, hashed CSRF state, exact issuer/subject/client/customer/operator/booking/actions and explicit scope review; 201 yields a fresh grant. Poll original transaction at `GET .../grant-renewals/{renewal_id}`: 202 waiting or 200 ready to matching original principal only. Receipt reference is not a bearer secret: consent-result retrieval and consumption must authenticate exact principal/quote/action binding; retrieval after consumption supports ledger-first retries without resurrecting consent.
+
+## Primary documentation checked
+
+- [MCP authorization specification](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization): protected-resource metadata, client registration approaches, resource binding, authorization-code protection and no token passthrough. The plan named 2026-07-28; do not assume that revision exists or is supported. Reverify the release during adapter implementation.
+- [jose maintainer documentation](https://github.com/panva/jose): maintained JWT/JWKS validation and Web-interoperable runtime support.
+- [RFC 8707](https://www.rfc-editor.org/rfc/rfc8707): resource indicators.
+- [RFC 9068](https://www.rfc-editor.org/rfc/rfc9068): access-token JWT profile. Issuer integration must meet this service's stricter documented claim profile.
+
+The backend deployment must resolve the pinned `jose` import (e.g. reviewed Deno import map `jose` → `npm:jose@6.2.3`); Node unit tests resolve the committed dependency. No Edge bundle/deployment parity is claimed by Node tests.
