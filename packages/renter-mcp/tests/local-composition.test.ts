@@ -172,7 +172,7 @@ describe.skipIf(!manifest)('owned local SQL → production API → production MC
   for(const [market,era,operatorIndex,vehicleIndex]of profiles)it(market+' × '+era+' creates through hosted consent, replays and retains disabled-write continuity',async()=>{
     const clientId=era+'-'+market,subject='synthetic-'+clientId+'-'+run,email=clientId+'-'+run+'@example.invalid';
     const operator='a1200000-0000-4000-8000-'+String(operatorIndex).padStart(12,'0'),vehicle='b1200000-0000-4000-8000-'+String(vehicleIndex).padStart(12,'0');
-    const window={operator_id:operator,vehicle_id:vehicle,pickup_at:'2035-01-01T10:00:00-05:00',return_at:'2035-01-03T10:00:00-05:00',timezone:'America/New_York'};
+    const window={operator_id:operator,vehicle_id:vehicle,pickup_at:'2035-02-01T10:00:00-05:00',return_at:'2035-02-03T10:00:00-05:00',timezone:'America/New_York'};
     const bearer=await as.token(clientId,subject,mcpResource,agentScopes);
     const client=new Client({name:'local-'+clientId,version:'1.0.0'},{versionNegotiation:{mode:era==='modern'?{pin:'2026-07-28'}:'legacy'}});
     await client.connect(new StreamableHTTPClientTransport(new URL(mcpResource),{fetch:clientFetch,requestInit:{headers:{authorization:'Bearer '+bearer}},onInsufficientScope:'throw'}));
@@ -187,7 +187,7 @@ describe.skipIf(!manifest)('owned local SQL → production API → production MC
       expect(await tool('submit_rental_request',args)).toMatchObject({status:'awaiting_customer_consent'});
       const review=await hosted(subject,email,'/v1/quotes/'+quote.quote_id,'GET');expect(review.status).toBe(200);expect((await review.json() as {quote:{terms_hash:string}}).quote.terms_hash).toBe(quote.terms_hash);
       const consent=await hosted(subject,email,'/v1/quotes/'+quote.quote_id+'/consents','POST',{terms_hash:quote.terms_hash,action:'rental_requests:create',action_scopes:['rental_requests:read']});expect(consent.status).toBe(201);expect(await consent.json()).not.toHaveProperty('consent_receipt_id');
-      const laterWindow={...window,pickup_at:'2035-01-10T10:00:00-05:00',return_at:'2035-01-12T10:00:00-05:00'},laterQuote=await tool('create_quote',{...laterWindow,selected_options:['premium']});
+      const laterWindow={...window,pickup_at:'2035-02-10T10:00:00-05:00',return_at:'2035-02-12T10:00:00-05:00'},laterQuote=await tool('create_quote',{...laterWindow,selected_options:['premium']});
       const laterConsent=await hosted(subject,email,'/v1/quotes/'+laterQuote.quote_id+'/consents','POST',{terms_hash:laterQuote.terms_hash,action:'rental_requests:create',action_scopes:['rental_requests:read']});expect(laterConsent.status).toBe(201);expect(await laterConsent.json()).not.toHaveProperty('consent_receipt_id');
       const created=await tool('submit_rental_request',args);expect(created).toMatchObject({status:'pending_documents',next_action:'verify_identity'});expect(created).not.toHaveProperty('consent_receipt_id');
       await lab.setFixtureGlobalAdmission(false);
