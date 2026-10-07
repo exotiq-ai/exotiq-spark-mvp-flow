@@ -7,6 +7,8 @@ import {Client,StreamableHTTPClientTransport} from '@modelcontextprotocol/client
 import {createMcpApplication} from '../src/server.ts';
 import {createNodeServer} from '../src/node-http.ts';
 import type {AuthConfig} from '../src/auth.ts';
+import {normalizeAuthority,canonicalQuoteWindow,stableJson,createQuote,SupabaseQuoteStore,type QuoteSnapshot} from '../../../supabase/functions/_shared/external-booking/quotes.ts';
+import {quoteResultFromSnapshot,quoteResponse} from '../../../supabase/functions/_shared/external-booking/quote-routes.ts';
 
 const issuer='https://composition-id.example.test';
 const mcpResource='https://composition-mcp.example.test/mcp';
@@ -85,6 +87,15 @@ describe('local composition authorization-server fixture',()=>{
       }
     }finally{await fixture.close();}
   });
+  it('validates persisted quote against completion time without rewriting its source timestamp',async()=>{
+    const started=Date.parse('2026-10-07T12:00:00Z');let current=started;
+    const request={operator_id:'a1200000-0000-4000-8000-000000000001',vehicle_id:'b1200000-0000-4000-8000-000000000001',pickup_at:'2035-01-01T10:00:00-05:00',return_at:'2035-01-03T10:00:00-05:00',timezone:'America/New_York',selected_options:['decline']};
+    const principal={subject:'synthetic-quote-customer',customerId:'c1200000-0000-4000-8000-000000000001',issuer,audience:apiResource,clientId:'legacy-miami',scopes:['quotes:create'] as const,tokenId:'synthetic-token'};
+    const authority={window:request,selected_options:['decline'],availability:'AVAILABLE',availability_checked_at:new Date(started+15).toISOString(),pricing:{currency:'USD',rental_days:2,daily_rate_cents:10000,rental_subtotal_cents:20000,deposit_cents:0,operator_total_cents:20000,platform_fee_percent:10,platform_fee_cents:2000,protection_tier:'decline',protection_daily_cents:0,protection_total_cents:0,state_fee_cents:400,processing_fee_cents:511,exotiq_total_cents:2911,grand_total_cents:22911,state_code:'FL',state_fee_label:'Synthetic state fee',state_fee_daily_cents:200,operator_tax_rate:0,operator_tax_label:'Synthetic tax',operator_tax_cents:0},terms:{operator_tax_inclusive:false,cancellation_policy:'Synthetic cancellation policy',pickup_address:null,pickup_instructions:null,mileage_limit:100,mileage_overage_rate:'3.50',deposit_disclosure:'Separate deposit',currency:'USD'}};
+    const store={create:async()=>{await Promise.resolve();current=started+20;return {quote_id:'d1200000-0000-4000-8000-000000000001',created_at:new Date(started+15).toISOString(),expires_at:new Date(started+900015).toISOString(),authority,principal,pricing_version:'a'.repeat(64),terms_version:'b'.repeat(64),terms_hash:'c'.repeat(64)};}};
+    const response=await quoteResponse(request,new Request(apiResource+'/v1/quotes',{method:'POST'}),{target:async()=>({operator_id:request.operator_id,vehicle_id:request.vehicle_id,operator_slug:'synthetic-operator',vehicle_slug:'synthetic-car',timezone:request.timezone,external_api_enabled:true as const}),list:async()=>[],availability:async()=>null},{requirePrincipal:async()=>principal,resolveOperatorCustomer:async()=>({...principal,operatorId:request.operator_id})},store,customerOrigin,started,()=>current);
+    expect(response.status).toBe(201);expect(await response.json()).toMatchObject({source_checked_at:new Date(started+15).toISOString(),expires_at:new Date(started+900015).toISOString(),total_cents:22911});
+  });
 });
 
 // Explicit opt-in is mandatory. The guarded transport verifies local Unix
@@ -99,6 +110,8 @@ describe.skipIf(!manifest)('owned local SQL → production API → production MC
   const bridgeKey=new Uint8Array(32).fill(27);
   const rpcNames:string[]=[];
   const rpcFailures:Array<{name:string;error:unknown}>=[];
+  const quoteTiming:unknown[]=[];
+  const apiObservations:Array<{method:string;status:number;duration_ms:number}>=[];
   const supabase='https://abcdefghijklmnopqrst.supabase.co';
   const agentScopes='catalog:read quotes:create rental_requests:create rental_requests:read';
   const run=crypto.randomUUID();
@@ -117,6 +130,20 @@ describe.skipIf(!manifest)('owned local SQL → production API → production MC
       const name=target.pathname.split('/').at(-1)!;rpcNames.push(name);
       const reply=await lab.rpc(name,JSON.parse(String(init.body)));
       if(reply.error)rpcFailures.push({name,error:reply.error});
+      if(name==='external_create_quote'&&reply.data&&typeof reply.data==='object'){
+        const row=(Array.isArray(reply.data)?reply.data[0]:reply.data) as Record<string,unknown>;
+        const authority=row.authority as Record<string,unknown>|undefined;
+        const args=JSON.parse(String(init.body));
+        const diagnostic:Record<string,unknown>={created_at:row.created_at,expires_at:row.expires_at,availability_checked_at:authority?.availability_checked_at,current_time:new Date().toISOString(),keys:Object.keys(row),principalMatches:['subject','customer_id','issuer','audience','client_id'].map(key=>row[key]===args['_'+key]),hashShapes:['pricing_version','terms_version','terms_hash'].map(key=>typeof row[key]==='string'&&/^[a-f0-9]{64}$/.test(String(row[key])))};
+        try{
+          const normalized=normalizeAuthority(authority);diagnostic.normalized=true;
+          const input={operator_id:args._operator_id,vehicle_id:args._vehicle_id,pickup_at:args._pickup_at,return_at:args._return_at,timezone:args._timezone,selected_options:args._selected_options};
+          diagnostic.windowMatches=stableJson(normalized.window)===stableJson(canonicalQuoteWindow(input));
+          try{await createQuote(input,{subject:args._subject,customerId:args._customer_id,issuer:args._issuer,audience:args._audience,clientId:args._client_id,scopes:['quotes:create']},new SupabaseQuoteStore({rpc:async()=>reply}),Date.now());diagnostic.guard=true;}catch{diagnostic.guard=false;}
+          try{quoteResultFromSnapshot({...row,authority:normalized,principal:{subject:row.subject,customerId:row.customer_id,issuer:row.issuer,audience:row.audience,clientId:row.client_id}} as unknown as QuoteSnapshot,customerOrigin,Date.now());diagnostic.projected=true;}catch{diagnostic.projected=false;}
+        }catch{diagnostic.normalized=false;}
+        quoteTiming.push(diagnostic);
+      }
       return Response.json(reply.error??reply.data,{status:reply.error?400:200});
     };
     runtime=createRuntime(config,apiFetch,{keyResolver:createRemoteJWKSet(new URL(issuer+'/jwks'),{[customFetch]:as.fetch})});
@@ -124,7 +151,7 @@ describe.skipIf(!manifest)('owned local SQL → production API → production MC
     const app=createMcpApplication({auth,customerOrigin},async(input,init)=>{
       const url=new URL(input instanceof Request?input.url:String(input));
       if(url.origin===issuer)return as.fetch(input,init);
-      if(url.origin===new URL(apiResource).origin)return runtime(new Request(input,init));
+      if(url.origin===new URL(apiResource).origin){const started=Date.now(),response=await runtime(new Request(input,init));apiObservations.push({method:init?.method??'GET',status:response.status,duration_ms:Date.now()-started});return response;}
       throw new Error('invalid_local_egress');
     });
     listener=createNodeServer(app,mcpResource);await new Promise<void>(resolve=>listener.listen(0,'127.0.0.1',resolve));local='http://127.0.0.1:'+(listener.address() as {port:number}).port;
@@ -164,7 +191,7 @@ describe.skipIf(!manifest)('owned local SQL → production API → production MC
     const bearer=await as.token(clientId,subject,mcpResource,agentScopes);
     const client=new Client({name:'local-'+clientId,version:'1.0.0'},{versionNegotiation:{mode:era==='modern'?{pin:'2026-07-28'}:'legacy'}});
     await client.connect(new StreamableHTTPClientTransport(new URL(mcpResource),{fetch:clientFetch,requestInit:{headers:{authorization:'Bearer '+bearer}},onInsufficientScope:'throw'}));
-    async function tool(name:string,args:Record<string,unknown>){const response=await client.callTool({name,arguments:args});expect(response.isError).not.toBe(true);return response.structuredContent as Record<string,unknown>;}
+    async function tool(name:string,args:Record<string,unknown>){const response=await client.callTool({name,arguments:args});expect(response.isError,JSON.stringify({tool:name,code:response.structuredContent?.code,rpcFailures,quoteTiming,apiObservations})).not.toBe(true);return response.structuredContent as Record<string,unknown>;}
     try{
       expect(client.getProtocolEra()).toBe(era);
       const onboard=await hosted(subject,email,'/v1/customers/operator-links','POST',{operator_id:operator,full_name:'Synthetic local renter',phone:'2025550101',consented:true});expect(onboard.status,JSON.stringify(rpcFailures)).toBe(201);
