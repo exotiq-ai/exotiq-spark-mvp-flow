@@ -124,7 +124,7 @@ function validFormat(format: string, value: string): boolean {
   if (format === 'date-time') return parseTimestamp(value) !== null;
   if (format === 'iana-timezone') return validTimezone(value);
   if (format === 'https-url') {
-    try { const url = new URL(value); return url.protocol === 'https:' && !url.username && !url.password && !url.hash && !/[?&](?:t|token|confirmation_token|access_token)=/i.test(url.search); } catch { return false; }
+    try { const url = new URL(value); return url.protocol === 'https:' && !url.username && !url.password && !url.hash && ![...url.searchParams.keys()].some(key=>/^t$/i.test(key)||/(?:token|secret|credential|authorization|receipt|nonce|email|booking_ref)/i.test(key)); } catch { return false; }
   }
   throw new Error(`Unsupported contract format: ${format}`);
 }
@@ -206,7 +206,7 @@ export function validateContract(name: ContractName, value: unknown, context: { 
   }
   return issues.length ? { ok: false, issues } : { ok: true };
 }
-export function validateIdempotencyKey(value: unknown): value is string { return typeof value === 'string' && /^[A-Za-z0-9_-]{16,128}$/.test(value); }
+export function validateIdempotencyKey(value: unknown): value is string { return typeof value === 'string' && /^[A-Za-z0-9._:-]{16,128}$/.test(value); }
 
 type CursorContext = { operation: string; filters: Record<string, unknown>; now: number };
 type CursorPosition = { after: string; expires_at: number };
@@ -272,7 +272,7 @@ export function generateOpenApi() {
   rendezvous.responses['202'] = response('ConsentResult','Awaiting customer consent; Retry-After: 5; no booking created');
   const onboard = created(customer(operation('linkOperatorCustomer','CustomerOperatorLinkResult',['quotes:create'],'Customer browser only. Email derives exclusively from signed verified OIDC proof, never typed email/customer selectors. Tenant binding is explicit.','CustomerOperatorLinkInput')));
   const renewalStart = created(operation('beginGrantRenewal','GrantRenewalResult',['rental_requests:read'],'Original agent requests fresh hosted customer authorization. Expired IDs may renew; revoked IDs require explicit new delegation. Holds are preserved.','GrantRenewalInput'));
-  const renewalReview = bound(operation('getGrantRenewal','GrantRenewalResult',['rental_requests:read'],'Original agent receives rendezvous state. Hosted customer BFF requires proof and receives safe GrantRenewalReviewResult. No bearer or receipt is returned. Monthly and near-72-hour holds retain ownership continuity.'),'renewal_id');
+  const renewalReview = bound(operation('getGrantRenewal','GrantRenewalResult',['rental_requests:read'],'Original agent receives rendezvous state. Hosted customer BFF requires proof and receives safe GrantRenewalReviewResult. No bearer or receipt is returned. 25h/71h holds retain ownership continuity.'),'renewal_id');
   renewalReview.responses['200'].content!['application/json'].schema = { oneOf: ['GrantRenewalResult','GrantRenewalReviewResult'].map(name=>({$ref:'#/components/schemas/'+name})) };
   const renewalBind = bound(customer(operation('bindGrantRenewalReview','GrantRenewalReviewResult',['rental_requests:read'],'Customer browser explicitly binds the freshly authenticated session to this renewal.','GrantRenewalReviewInput')),'renewal_id');
   const renewalComplete = bound(customer(operation('completeGrantRenewal','GrantRenewalReviewResult',['rental_requests:read'],'Customer explicitly authorizes stored original agent/scopes; no automatic grant revival. Revoked IDs stay revoked.','GrantRenewalCompleteInput')),'renewal_id');
@@ -292,10 +292,23 @@ export function generateOpenApi() {
   status.responses['409'].description='Verified owner only: grant_expired or grant_revoked. Link rel=grant-renewal points to the fixed ref recovery route; another principal gets404.';
   status.responses['409'].headers={Link:{schema:text(2048)}};
   status.responses['304'] = { description: 'Unchanged authorized resource; no body. Authorization/grant checks still run before conditional response.' };
-  const handoff = operation('createCheckoutHandoff', 'CheckoutHandoffResult', ['checkout:handoff'], 'Require customer/booking/action grant, operator-approved pending_payment, valid identity and unexpired payment window. Partial payment never creates another operator charge. HTTPS scoped opaque nonce resolves in authenticated customer browser; legacy booking token remains backend.', undefined);
+  const handoff = created(operation('createCheckoutHandoff', 'CheckoutHandoffResult', ['checkout:handoff'], 'Require customer/booking/action grant, operator-approved pending_payment, valid identity and unexpired payment window. Partial payment never creates another operator charge. HTTPS scoped opaque nonce resolves in authenticated customer browser; legacy booking token remains backend.', 'GrantRenewalReviewInput'));
   handoff.parameters.push(refParameter);
-  const renewal=operation('beginRequestGrantRecovery','GrantRenewalResult',['rental_requests:read'],'Verified ledger owner starts hosted customer reauthorization for this existing rental. Body is empty. No automatic delegation, resurrected grant, replacement booking or new charge. Revoked delegation requires an explicit new customer click.','GrantRenewalReviewInput');
-  renewal.parameters.push(refParameter);delete renewal.responses['200'];renewal.responses['201']=response('GrantRenewalResult','Concrete hosted customer authorization rendezvous');
+  const identity = created(operation('createIdentityHandoff','IdentityHandoffResult',['identity:handoff'],'Current explicitly consented identity grant and exact booking/customer provenance. Returns only a short-lived hosted customer URL; provider URL creation requires authenticated customer Continue.','GrantRenewalReviewInput'));
+  identity.parameters.push(refParameter);
+  const customerStatus = customer(operation('getCustomerRentalRequest','CustomerRentalStatusResult',['rental_requests:read'],'Verified customer browser and request-bound private BFF proof read the current owned request. Independent of withdrawn agent delegation; no browser-return success inference.'));
+  customerStatus.parameters.push(refParameter);
+  const customerIdentity = created(customer(operation('createCustomerIdentityHandoff','IdentityHandoffResult',['identity:handoff'],'Verified customer browser explicitly continues its own existing rental with fresh private BFF/CSRF proof. Independent of agent delegation; never expands agent scopes or creates another request.','CustomerHandoffResolveInput')));
+  customerIdentity.parameters.push(refParameter);
+  const customerCheckout = created(customer(operation('createCustomerCheckoutHandoff','CheckoutHandoffResult',['checkout:handoff'],'Verified customer browser explicitly continues its own existing rental with fresh private BFF/CSRF proof. Rechecks operator approval, identity, payment window and charge authority; independent of agent delegation.','CustomerHandoffResolveInput')));
+  customerCheckout.parameters.push(refParameter);
+  const nonceSchema:JsonSchema={...text(43,43),pattern:'^[A-Za-z0-9_-]{43}$'};
+  const nonceReview = customer(operation('reviewCustomerHandoff','CustomerHandoffReviewResult',['rental_requests:read'],'Authenticated customer review is read-only. Checks current exact owner, nonce/grant expiry, state and action. No provider session is created by GET.'));
+  nonceReview.parameters.push(parameter('nonce',nonceSchema));
+  const nonceResolve = customer(operation('resolveCustomerHandoff','CustomerHandoffResolveResult',['rental_requests:read'],'Explicit customer Continue plus private request-bound BFF/CSRF proof. Rechecks current scoped authority and booking/charge state, leases a stable provider attempt, and returns an action-specific allowlisted provider URL only to the browser. Provider URL is not stored or logged.','CustomerHandoffResolveInput'));
+  nonceResolve.parameters.push(parameter('nonce',nonceSchema));
+  const nonceRecovery=created(customer(operation('beginCustomerHandoffRecovery','GrantRenewalResult',['rental_requests:read'],'Fresh authenticated customer explicitly starts hosted recovery for the nonce original agent and stored scopes. No automatic authorization or revoked-grant revival. An expired nonce does not become payment authority.','CustomerHandoffResolveInput')));
+  nonceRecovery.parameters.push(parameter('nonce',nonceSchema));
   return {
     openapi: '3.1.2', jsonSchemaDialect: 'https://json-schema.org/draft/2020-12/schema',
     info: { title: 'Exotiq External Booking API', version: '1.0.0', description: 'Generated canonical v1 contract. Implementation and staging/provider proof remain rollout gates. No authority, ranking, onboarding or rental eligibility is guaranteed. Operator approval and hosted customer payment remain mandatory.' },
@@ -318,6 +331,13 @@ export function generateOpenApi() {
       '/v1/rental-requests': { post: requests },
       '/v1/rental-requests/{ref}': { get: status },
       '/v1/rental-requests/{ref}/checkout-handoff': { post: handoff },
+      '/v1/rental-requests/{ref}/identity-handoff': { post: identity },
+      '/v1/customers/rental-requests/{ref}': { get: customerStatus },
+      '/v1/customers/rental-requests/{ref}/identity-handoff': { post: customerIdentity },
+      '/v1/customers/rental-requests/{ref}/checkout-handoff': { post: customerCheckout },
+      '/v1/customer-handoffs/{nonce}/review': { get: nonceReview },
+      '/v1/customer-handoffs/{nonce}/resolve': { post: nonceResolve },
+      '/v1/customer-handoffs/{nonce}/grant-renewals': { post: nonceRecovery },
     },
     components: { schemas, securitySchemes: { hostedCustomerProof: { type:'apiKey', in:'header', name:'X-Exotiq-Hosted-Proof', description:'Private server-to-server request attestation, independently bound to verified customer API bearer/method/path/body/CSRF; never a customer/agent bearer.' }, customerOAuth: { type: 'oauth2', description: 'Audience-bound verified customer OAuth. OAuth scope alone never establishes per-booking authorization or consent. Issuer/two-client compatibility requires implementation evidence.', flows: { authorizationCode: { authorizationUrl: 'https://oauth.example.invalid/authorize', tokenUrl: 'https://oauth.example.invalid/token', scopes: Object.fromEntries(SCOPES.map((scope) => [scope, scope])) } } } } },
   };

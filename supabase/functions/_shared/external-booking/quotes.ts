@@ -109,7 +109,7 @@ export class SupabaseQuoteStore implements QuoteStore {
   async create({ request, principal, ttlSeconds }: { request: QuoteInput; principal: QuotePrincipal; ttlSeconds: number }): Promise<unknown> {
     const { data, error } = await this.client.rpc('external_create_quote', { _subject: principal.subject, _customer_id: principal.customerId, _issuer: principal.issuer, _audience: principal.audience, _client_id: principal.clientId, _operator_id: request.operator_id, _vehicle_id: request.vehicle_id, _pickup_at: request.pickup_at, _return_at: request.return_at, _timezone: request.timezone, _selected_options: request.selected_options, _ttl_seconds: ttlSeconds });
     if (error) {
-      if (object(error) && ['invalid_input', 'dates_unavailable', 'not_found'].includes(String(error.message))) throw new BookingApiError(error.message as 'invalid_input' | 'dates_unavailable' | 'not_found');
+      if (object(error) && ['invalid_input', 'dates_unavailable', 'not_found', 'configuration_unavailable', 'external_writes_disabled'].includes(String(error.message))) throw new BookingApiError(error.message as 'invalid_input' | 'dates_unavailable' | 'not_found' | 'configuration_unavailable' | 'external_writes_disabled');
       return fail();
     }
     const row = Array.isArray(data) ? (data.length === 1 ? data[0] : null) : data;

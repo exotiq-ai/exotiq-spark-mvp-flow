@@ -39,5 +39,23 @@ jobs:
       - name: Test
         run: npm test
 
+      - name: External booking strict runtime typecheck
+        run: npx tsc -p tsconfig.external-api.json
+
+      - name: External booking canonical documentation
+        run: node scripts/agent-booking/generate-contract.mjs --check
+
+      - name: External booking offline safety and contract tests
+        run: |
+          npm run test:agent:unit
+          npm run test:agent:contract
+
+      - name: Renter MCP pinned dependencies and compatibility
+        run: |
+          npm --prefix packages/renter-mcp ci --ignore-scripts --no-audit --no-fund
+          npm --prefix packages/renter-mcp run typecheck
+          npm --prefix packages/renter-mcp test
+          npm --prefix packages/renter-mcp run build
+
       - name: Build
         run: npm run build

@@ -19,4 +19,8 @@ describe('redacted durable operational telemetry',()=>{
   expect(await emitEvent(rpc,{...event,authorization:'secret'})).toBe(true);expect(payload).toEqual(event);
   expect(await emitEvent({rpc:async()=>{throw new Error('secret sink outage');}},event)).toBe(false);
  });
+ it('returns safely when the optional event sink stalls',async()=>{
+  const result=await Promise.race([emitEvent({rpc:()=>new Promise(()=>{})},event,10),new Promise(resolve=>setTimeout(()=>resolve('stalled'),100))]);
+  expect(result).toBe(false);
+ });
 });

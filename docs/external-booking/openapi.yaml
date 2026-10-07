@@ -1439,7 +1439,7 @@
     "/v1/grant-renewals/{renewal_id}": {
       "get": {
         "operationId": "getGrantRenewal",
-        "description": "Original agent receives rendezvous state. Hosted customer BFF requires proof and receives safe GrantRenewalReviewResult. No bearer or receipt is returned. Monthly and near-72-hour holds retain ownership continuity.",
+        "description": "Original agent receives rendezvous state. Hosted customer BFF requires proof and receives safe GrantRenewalReviewResult. No bearer or receipt is returned. 25h/71h holds retain ownership continuity.",
         "security": [
           {
             "customerOAuth": [
@@ -2224,7 +2224,7 @@
               "type": "string",
               "minLength": 16,
               "maxLength": 128,
-              "pattern": "^[A-Za-z0-9_-]+$"
+              "pattern": "^[A-Za-z0-9._:-]+$"
             }
           }
         ],
@@ -2423,7 +2423,14 @@
               },
               "Cache-Control": {
                 "schema": {
-                  "const": "private, no-cache"
+                  "const": "no-store"
+                }
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 5,
+                  "maximum": 60
                 }
               }
             }
@@ -2481,11 +2488,20 @@
             }
           },
           "409": {
-            "description": "Structured error (409); no private booking existence or exception disclosure.",
+            "description": "Verified owner only: grant_expired or grant_revoked. Link rel=grant-renewal points to the fixed ref recovery route; another principal gets404.",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "Link": {
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048
                 }
               }
             }
@@ -2566,7 +2582,7 @@
           }
         ],
         "responses": {
-          "200": {
+          "201": {
             "description": "Successful authoritative response",
             "content": {
               "application/json": {
@@ -2680,6 +2696,1087 @@
                   "minimum": 1,
                   "maximum": 3600
                 }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrantRenewalReviewInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/rental-requests/{ref}/identity-handoff": {
+      "post": {
+        "operationId": "createIdentityHandoff",
+        "description": "Current explicitly consented identity grant and exact booking/customer provenance. Returns only a short-lived hosted customer URL; provider URL creation requires authenticated customer Continue.",
+        "security": [
+          {
+            "customerOAuth": [
+              "identity:handoff"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80,
+              "pattern": "^[A-Za-z0-9_-]+$"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful authoritative response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentityHandoffResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured error (400); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Structured error (401); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                "description": "Bearer challenge; never echoes credentials."
+              }
+            }
+          },
+          "403": {
+            "description": "Structured error (403); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Structured error (404); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Structured error (409); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Structured error (410); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Structured error (429); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3600
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Structured error (503); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3600
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrantRenewalReviewInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/customers/rental-requests/{ref}": {
+      "get": {
+        "operationId": "getCustomerRentalRequest",
+        "description": "Verified customer browser and request-bound private BFF proof read the current owned request. Independent of withdrawn agent delegation; no browser-return success inference.",
+        "security": [
+          {
+            "customerOAuth": [
+              "rental_requests:read"
+            ],
+            "hostedCustomerProof": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80,
+              "pattern": "^[A-Za-z0-9_-]+$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful authoritative response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerRentalStatusResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured error (400); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Structured error (401); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                "description": "Bearer challenge; never echoes credentials."
+              }
+            }
+          },
+          "403": {
+            "description": "Structured error (403); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Structured error (404); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Structured error (409); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Structured error (410); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Structured error (429); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3600
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Structured error (503); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3600
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/customers/rental-requests/{ref}/identity-handoff": {
+      "post": {
+        "operationId": "createCustomerIdentityHandoff",
+        "description": "Verified customer browser explicitly continues its own existing rental with fresh private BFF/CSRF proof. Independent of agent delegation; never expands agent scopes or creates another request.",
+        "security": [
+          {
+            "customerOAuth": [
+              "identity:handoff"
+            ],
+            "hostedCustomerProof": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80,
+              "pattern": "^[A-Za-z0-9_-]+$"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful authoritative response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentityHandoffResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured error (400); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Structured error (401); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                "description": "Bearer challenge; never echoes credentials."
+              }
+            }
+          },
+          "403": {
+            "description": "Structured error (403); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Structured error (404); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Structured error (409); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Structured error (410); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Structured error (429); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3600
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Structured error (503); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3600
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerHandoffResolveInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/customers/rental-requests/{ref}/checkout-handoff": {
+      "post": {
+        "operationId": "createCustomerCheckoutHandoff",
+        "description": "Verified customer browser explicitly continues its own existing rental with fresh private BFF/CSRF proof. Rechecks operator approval, identity, payment window and charge authority; independent of agent delegation.",
+        "security": [
+          {
+            "customerOAuth": [
+              "checkout:handoff"
+            ],
+            "hostedCustomerProof": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80,
+              "pattern": "^[A-Za-z0-9_-]+$"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful authoritative response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutHandoffResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured error (400); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Structured error (401); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                "description": "Bearer challenge; never echoes credentials."
+              }
+            }
+          },
+          "403": {
+            "description": "Structured error (403); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Structured error (404); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Structured error (409); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Structured error (410); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Structured error (429); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3600
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Structured error (503); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3600
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerHandoffResolveInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/customer-handoffs/{nonce}/review": {
+      "get": {
+        "operationId": "reviewCustomerHandoff",
+        "description": "Authenticated customer review is read-only. Checks current exact owner, nonce/grant expiry, state and action. No provider session is created by GET.",
+        "security": [
+          {
+            "customerOAuth": [
+              "rental_requests:read"
+            ],
+            "hostedCustomerProof": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "nonce",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 43,
+              "maxLength": 43,
+              "pattern": "^[A-Za-z0-9_-]{43}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful authoritative response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerHandoffReviewResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured error (400); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Structured error (401); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                "description": "Bearer challenge; never echoes credentials."
+              }
+            }
+          },
+          "403": {
+            "description": "Structured error (403); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Structured error (404); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Structured error (409); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Structured error (410); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Structured error (429); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3600
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Structured error (503); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3600
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/customer-handoffs/{nonce}/resolve": {
+      "post": {
+        "operationId": "resolveCustomerHandoff",
+        "description": "Explicit customer Continue plus private request-bound BFF/CSRF proof. Rechecks current scoped authority and booking/charge state, leases a stable provider attempt, and returns an action-specific allowlisted provider URL only to the browser. Provider URL is not stored or logged.",
+        "security": [
+          {
+            "customerOAuth": [
+              "rental_requests:read"
+            ],
+            "hostedCustomerProof": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "nonce",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 43,
+              "maxLength": 43,
+              "pattern": "^[A-Za-z0-9_-]{43}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful authoritative response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerHandoffResolveResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured error (400); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Structured error (401); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                "description": "Bearer challenge; never echoes credentials."
+              }
+            }
+          },
+          "403": {
+            "description": "Structured error (403); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Structured error (404); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Structured error (409); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Structured error (410); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Structured error (429); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3600
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Structured error (503); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3600
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerHandoffResolveInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/customer-handoffs/{nonce}/grant-renewals": {
+      "post": {
+        "operationId": "beginCustomerHandoffRecovery",
+        "description": "Fresh authenticated customer explicitly starts hosted recovery for the nonce original agent and stored scopes. No automatic authorization or revoked-grant revival. An expired nonce does not become payment authority.",
+        "security": [
+          {
+            "customerOAuth": [
+              "rental_requests:read"
+            ],
+            "hostedCustomerProof": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "nonce",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 43,
+              "maxLength": 43,
+              "pattern": "^[A-Za-z0-9_-]{43}$"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful authoritative response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GrantRenewalResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured error (400); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Structured error (401); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                "description": "Bearer challenge; never echoes credentials."
+              }
+            }
+          },
+          "403": {
+            "description": "Structured error (403); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Structured error (404); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Structured error (409); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Structured error (410); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Structured error (429); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3600
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Structured error (503); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3600
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerHandoffResolveInput"
               }
             }
           }
@@ -4035,6 +5132,13 @@
             "maxLength": 2048,
             "format": "https-url",
             "pattern": "^https://"
+          },
+          "customer_account": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "format": "https-url",
+            "pattern": "^https://"
           }
         },
         "required": [
@@ -4141,6 +5245,13 @@
                 "pattern": "^https://"
               },
               "checkout_handoff": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048,
+                "format": "https-url",
+                "pattern": "^https://"
+              },
+              "customer_account": {
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 2048,
@@ -4269,6 +5380,13 @@
                 "maxLength": 2048,
                 "format": "https-url",
                 "pattern": "^https://"
+              },
+              "customer_account": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048,
+                "format": "https-url",
+                "pattern": "^https://"
               }
             },
             "required": [
@@ -4295,8 +5413,8 @@
           },
           "poll_after_seconds": {
             "type": "integer",
-            "minimum": 1,
-            "maximum": 3600
+            "minimum": 5,
+            "maximum": 60
           }
         },
         "required": [
@@ -4360,6 +5478,294 @@
           "expires_at",
           "state",
           "next_action"
+        ],
+        "additionalProperties": false
+      },
+      "IdentityHandoffResult": {
+        "type": "object",
+        "properties": {
+          "api_version": {
+            "const": "v1"
+          },
+          "source_checked_at": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 35,
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+          },
+          "customer_url": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "format": "https-url",
+            "pattern": "^https://"
+          },
+          "expires_at": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 35,
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "pending_documents",
+              "pending_payment"
+            ]
+          },
+          "next_action": {
+            "const": "verify_identity"
+          }
+        },
+        "required": [
+          "api_version",
+          "source_checked_at",
+          "customer_url",
+          "expires_at",
+          "state",
+          "next_action"
+        ],
+        "additionalProperties": false
+      },
+      "CustomerHandoffResolveInput": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "const": "continue"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "additionalProperties": false
+      },
+      "CustomerHandoffReviewResult": {
+        "type": "object",
+        "properties": {
+          "api_version": {
+            "const": "v1"
+          },
+          "source_checked_at": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 35,
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+          },
+          "ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "pattern": "^[A-Za-z0-9_-]+$"
+          },
+          "operator_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "vehicle_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "identity",
+              "checkout"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending_documents",
+              "requested",
+              "pending",
+              "pending_payment",
+              "confirmed",
+              "active",
+              "declined",
+              "cancelled",
+              "payment_expired",
+              "completed",
+              "refunded"
+            ]
+          },
+          "expires_at": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 35,
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+          }
+        },
+        "required": [
+          "api_version",
+          "source_checked_at",
+          "ref",
+          "operator_name",
+          "vehicle_name",
+          "action",
+          "status",
+          "expires_at"
+        ],
+        "additionalProperties": false
+      },
+      "CustomerHandoffResolveResult": {
+        "type": "object",
+        "properties": {
+          "api_version": {
+            "const": "v1"
+          },
+          "source_checked_at": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 35,
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "identity",
+              "checkout"
+            ]
+          },
+          "provider_url": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "format": "https-url",
+            "pattern": "^https://"
+          },
+          "expires_at": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 35,
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+          }
+        },
+        "required": [
+          "api_version",
+          "source_checked_at",
+          "action",
+          "provider_url",
+          "expires_at"
+        ],
+        "additionalProperties": false
+      },
+      "CustomerRentalStatusResult": {
+        "type": "object",
+        "properties": {
+          "api_version": {
+            "const": "v1"
+          },
+          "source_checked_at": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 35,
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+          },
+          "ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "pattern": "^[A-Za-z0-9_-]+$"
+          },
+          "operator_id": {
+            "type": "string",
+            "minLength": 36,
+            "maxLength": 36,
+            "format": "uuid"
+          },
+          "operator_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "vehicle_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending_documents",
+              "requested",
+              "pending",
+              "pending_payment",
+              "confirmed",
+              "active",
+              "declined",
+              "cancelled",
+              "payment_expired",
+              "completed",
+              "refunded"
+            ]
+          },
+          "next_action": {
+            "type": "string",
+            "enum": [
+              "verify_identity",
+              "await_operator",
+              "hosted_checkout",
+              "await_payment_settlement",
+              "await_reconciliation",
+              "confirmed",
+              "rental_active",
+              "declined",
+              "cancelled",
+              "expired",
+              "completed",
+              "refunded",
+              "recover_authorization"
+            ]
+          },
+          "hold_expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 35,
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "payment_due_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 35,
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "api_version",
+          "source_checked_at",
+          "ref",
+          "operator_id",
+          "operator_name",
+          "vehicle_name",
+          "status",
+          "next_action",
+          "hold_expires_at",
+          "payment_due_at"
         ],
         "additionalProperties": false
       },
@@ -4472,11 +5878,26 @@
           },
           "action": {
             "const": "rental_requests:create"
+          },
+          "action_scopes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "rental_requests:read",
+                "checkout:handoff",
+                "identity:handoff"
+              ]
+            },
+            "maxItems": 3,
+            "minItems": 1,
+            "uniqueItems": true
           }
         },
         "required": [
           "terms_hash",
-          "action"
+          "action",
+          "action_scopes"
         ],
         "additionalProperties": false
       },
@@ -5057,10 +6478,11 @@
               "type": "string",
               "enum": [
                 "rental_requests:read",
-                "checkout:handoff"
+                "checkout:handoff",
+                "identity:handoff"
               ]
             },
-            "maxItems": 2,
+            "maxItems": 3,
             "minItems": 1,
             "uniqueItems": true
           },
@@ -5205,10 +6627,11 @@
               "type": "string",
               "enum": [
                 "rental_requests:read",
-                "checkout:handoff"
+                "checkout:handoff",
+                "identity:handoff"
               ]
             },
-            "maxItems": 2,
+            "maxItems": 3,
             "minItems": 1,
             "uniqueItems": true
           },
@@ -5329,6 +6752,10 @@
               "quote_expired",
               "consent_expired",
               "payment_window_expired",
+              "grant_expired",
+              "grant_revoked",
+              "configuration_unavailable",
+              "external_writes_disabled",
               "rate_limited",
               "upstream_unavailable"
             ]
@@ -5404,7 +6831,8 @@
               "quotes:create": "quotes:create",
               "rental_requests:create": "rental_requests:create",
               "rental_requests:read": "rental_requests:read",
-              "checkout:handoff": "checkout:handoff"
+              "checkout:handoff": "checkout:handoff",
+              "identity:handoff": "identity:handoff"
             }
           }
         }

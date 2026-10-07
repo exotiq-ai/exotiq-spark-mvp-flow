@@ -24,11 +24,17 @@ export function redactedEvent(raw:unknown):RedactedEvent {
 export async function principalPseudonym(secret:Uint8Array,issuer:string,subject:string):Promise<string>{
  if(secret.byteLength<32||secret.byteLength>64||typeof issuer!=='string'||issuer.length>2048||typeof subject!=='string'||!subject||subject.length>256)throw new Error('Invalid pseudonym configuration');
  const key=await crypto.subtle.importKey('raw',secret as BufferSource,{name:'HMAC',hash:'SHA-256'},false,['sign']);
- const signature=await crypto.subtle.sign('HMAC',key,new TextEncoder().encode(JSON.stringify([issuer,subject])));
+ const signature=await crypto.subtle.sign('HMAC',key,new TextEncoder().encode(JSON.stringify(['external-operational-principal-v1',issuer,subject])));
  return Array.from(new Uint8Array(signature),value=>value.toString(16).padStart(2,'0')).join('');
 }
 /** Optional telemetry cannot undo an already committed booking. Required
  * request/financial evidence stays in its authoritative transaction ledgers. */
-export async function emitEvent(client:FlagRpc,event:unknown):Promise<boolean>{
- try{const safe=redactedEvent(event);const {data,error}=await client.rpc('external_enqueue_redacted_event',{_event:safe});return !error&&data===true;}catch{return false;}
+export async function emitEvent(client:FlagRpc,event:unknown,timeoutMs=2000):Promise<boolean>{
+ let timer:ReturnType<typeof setTimeout>|undefined;
+ try{
+  if(!Number.isInteger(timeoutMs)||timeoutMs<1||timeoutMs>5000)return false;
+  const safe=redactedEvent(event);
+  const result=await Promise.race([Promise.resolve(client.rpc('external_enqueue_redacted_event',{_event:safe})),new Promise<null>(resolve=>{timer=setTimeout(()=>resolve(null),timeoutMs);})]);
+  return result!==null&&!result.error&&result.data===true;
+ }catch{return false;}finally{if(timer)clearTimeout(timer);}
 }

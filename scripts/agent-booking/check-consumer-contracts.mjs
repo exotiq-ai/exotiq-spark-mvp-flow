@@ -1,0 +1,10 @@
+import {readFileSync} from 'node:fs';
+import {resolve} from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {assertBrowserContract} from './consumer-contract.mjs';
+const frontend=process.argv[2];
+if(!frontend||!frontend.startsWith('/'))throw Error('Pass the explicit absolute frontend checkout path; no repository discovery or network fallback.');
+const root=fileURLToPath(new URL('../../',import.meta.url));
+const canonical=readFileSync(resolve(root,'supabase/functions/_shared/external-booking/contracts.ts'),'utf8');
+assertBrowserContract(canonical,readFileSync(resolve(frontend,'domain/booking/externalContracts.generated.ts'),'utf8'));
+console.log('Frontend validator and exact canonical provenance match.');
