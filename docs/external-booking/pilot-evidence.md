@@ -58,3 +58,12 @@ has not been delivered or executed. Its provider/browser choreography must be
 finished against the selected dedicated staging environment; the local
 composition suite and release evaluator are executable now, and do not stand
 in for that driver. No passing stub or fabricated hosted record is supplied.
+
+A real two-connection delayed-settlement versus expiry test passed in326ms
+with one complete transaction retry; the settlement was stored once and
+inventory remained blocked. A separate customer nonce rotation test completed
+in432ms with two nonces, one active nonce and one inherited provider key/age.
+These are SQL concurrency proofs in the owned partial schema, not provider
+delivery proofs. Unresolved checkout reservations now retain inventory and
+enter bounded manual review. Automatic provider cleanup/clearance remains
+unimplemented, and pre-migration legacy sessions require rollout reconciliation.

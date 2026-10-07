@@ -17,3 +17,17 @@ Full hosted OAuth/Stripe/identity/complete-schema parity and safe deployment/rol
 The source persistent limiter previously admitted requests indefinitely at capacity. The additive `20261007090720_persistent_rate_limit_capacity.sql` repair reserves each slot atomically, denies further calls, retains the server-only signature and bounds lock/statement waits. Include it in reviewed applied-schema and concurrency acceptance; API signature checks alone cannot compensate for an incorrectly implemented budget.
 
 See [pilot evidence](pilot-evidence.md) for the distinction between local composition and hosted release acceptance.
+
+The additive `20261007090730_preserve_unresolved_checkout_inventory.sql`
+preserves inventory for an issued or ambiguous checkout reservation even before
+a payment intent or webhook is recorded. Reservation metadata cannot be cleared
+to bypass cancellation guards. The existing payment scheduler queues these
+rows in a bounded oldest-first, SKIP LOCKED manual-review batch before expiry;
+a failed queue call refuses the expiry sweep. A real two-connection settlement
+vs expiry test retains the hold. This is a deliberate safe fallback: automatic
+provider-authoritative Checkout expiry/retrieval and a clearance RPC are not
+implemented. Uncertain holds can persist until reviewed reconciliation. Never
+clear a hold based only on elapsed time, missing webhook, absent reference or
+network failure. Before rollout, audit/drain/reconcile legacy sessions created
+before reservation tracking and establish the authorized provider reconciliation
+procedure. That operating gate is required before exposure.
