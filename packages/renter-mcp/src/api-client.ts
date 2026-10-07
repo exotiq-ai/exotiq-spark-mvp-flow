@@ -22,6 +22,15 @@ export function createApiClient(config:ApiClientConfig,apiToken:string,fetcher:t
       return u.protocol==='https:'&&u.origin===origin&&!u.username&&!u.password&&!u.search&&!u.hash&&!u.pathname.includes('%')&&u.href===value&&(typeof path==='string'?u.pathname===path:path.test(u.pathname));
     }catch{return false;}
   }
+  function customerAccount(value:unknown,ref:string):boolean {
+    try{
+      if(typeof value!=='string'||!/^[A-Za-z0-9_-]{1,80}$/.test(ref))return false;
+      const u=new URL(value);
+      // One canonical, non-credential query is permitted for customer continuity.
+      // The API supplies its owned operator UUID; the result's ref binds the link.
+      return u.search==='?ref='+ref&&u.href===value&&ownedUrl(value.slice(0,value.indexOf('?')),customer.origin,account);
+    }catch{return false;}
+  }
   function validateOwnedLinks(contract:ContractName,body:Record<string,unknown>,path:string) {
     if(contract==='QuoteResult'&&!ownedUrl(body.consent_url,customer.origin,'/agent/consent/'+body.quote_id))throw unavailable();
     if((contract==='CheckoutHandoffResult'||contract==='IdentityHandoffResult')&&!ownedUrl(body.customer_url,customer.origin,handoff))throw unavailable();
@@ -35,6 +44,7 @@ export function createApiClient(config:ApiClientConfig,apiToken:string,fetcher:t
           :key==='checkout_handoff'?ownedUrl(value,api.origin,base+'/checkout-handoff')
           :key==='identity'?ownedUrl(value,api.origin,base+'/identity-handoff')||ownedUrl(value,customer.origin,handoff)
           :key==='consent'?ownedUrl(value,customer.origin,consent)
+          :key==='customer_account'?customerAccount(value,ref)
           :key==='recovery'?ownedUrl(value,api.origin,base+'/grant-renewals')||ownedUrl(value,customer.origin,authorization):false;
         if(!safe)throw unavailable();
       }
