@@ -1,5 +1,6 @@
 import {describe,expect,it} from 'vitest';
 import {ApiFailure,createApiClient} from '../src/api-client.ts';
+import {validateContract} from '../../../supabase/functions/_shared/external-booking/contracts.ts';
 describe('API client bounded fixed resources',()=>{
   it('preserves configured API base prefix and keeps receipt rendezvous server-side',async()=>{
     const paths:string[]=[];const headers:Headers[]=[];
@@ -21,14 +22,14 @@ describe('API client bounded fixed resources',()=>{
     const paths:string[]=[];const meta={api_version:'v1',source_checked_at:new Date().toISOString()};
     const client=createApiClient({apiResource:'https://api.example.test',customerOrigin:'https://customer.example.test'},'synthetic',async(input,init)=>{
       const path=new URL(String(input)).pathname;paths.push(path);
-      if(path.endsWith('/grant-renewals')){expect(init?.body).toBe('{}');return Response.json({...meta,renewal_id:'44444444-4444-4444-8444-444444444444',state:'authorization_required',customer_url:'https://customer.example.test/agent/grant-renewal/44444444-4444-4444-8444-444444444444',expires_at:new Date(Date.now()+300000).toISOString()},{status:201});}
+      if(path.endsWith('/grant-renewals')){expect(init?.body).toBe('{}');return Response.json({...meta,renewal_id:'44444444-4444-4444-8444-444444444444',state:'authorization_required',customer_url:'https://customer.example.test/agent/authorization/44444444-4444-4444-8444-444444444444',expires_at:new Date(Date.now()+300000).toISOString()},{status:201});}
       return Response.json({code:'grant_revoked',message:'Revoked',request_id:'synthetic_request_123',retryable:false},{status:409});
     });
     const result=await client.status({ref:'owned-ref'});expect(paths).toEqual(['/v1/rental-requests/owned-ref','/v1/rental-requests/owned-ref/grant-renewals']);expect(result).toMatchObject({status:'awaiting_customer_authorization'});expect(JSON.stringify(result)).not.toContain('grant_id');
   });
   it('after renewed customer authorization checks rendezvous and retries status once',async()=>{
     const paths:string[]=[];const meta={api_version:'v1',source_checked_at:new Date().toISOString()};let attempts=0;
-    const renewal={...meta,renewal_id:'44444444-4444-4444-8444-444444444444',state:'authorized',customer_url:'https://customer.example.test/agent/grant-renewal/44444444-4444-4444-8444-444444444444',expires_at:new Date(Date.now()+300000).toISOString(),grant_id:'55555555-5555-4555-8555-555555555555'};
+    const renewal={...meta,renewal_id:'44444444-4444-4444-8444-444444444444',state:'authorized',customer_url:'https://customer.example.test/agent/authorization/44444444-4444-4444-8444-444444444444',expires_at:new Date(Date.now()+300000).toISOString(),grant_id:'55555555-5555-4555-8555-555555555555'};
     const client=createApiClient({apiResource:'https://api.example.test',customerOrigin:'https://customer.example.test'},'synthetic',async(input)=>{
       const path=new URL(String(input)).pathname;paths.push(path);
       if(path.includes('grant-renewals'))return Response.json(renewal);
@@ -36,5 +37,23 @@ describe('API client bounded fixed resources',()=>{
       return Response.json({...meta,ref:'owned-ref',status:'requested',next_action:'await_operator',hold_expires_at:new Date(Date.now()+300000).toISOString(),payment_due_at:null,inventory_blocked:true,poll_after_seconds:5,links:{status:'https://api.example.test/v1/rental-requests/owned-ref'}});
     });
     const result=await client.status({ref:'owned-ref'});expect(result.status).toBe('requested');expect(attempts).toBe(2);expect(paths).toContain('/v1/grant-renewals/44444444-4444-4444-8444-444444444444');expect(JSON.stringify(result)).not.toContain('grant_id');
+  });
+  it('rejects contract-valid wrong customer origins, routes and encoded secret queries',async()=>{
+    const safe='https://customer.example.test/agent/handoff/'+'a'.repeat(43);
+    for(const url of [safe.replace('customer.example.test','attacker.example.test'),safe+'?%74oken=legacy-secret',safe+'?anything=1',safe+'#secret',safe.replace('/agent/handoff/','/agent/admin/')]){
+      const body={api_version:'v1',source_checked_at:new Date().toISOString(),customer_url:url,expires_at:new Date(Date.now()+300000).toISOString(),state:'pending_payment',next_action:'hosted_checkout'};
+      // Raw generic contract deliberately does not establish configured-origin authority.
+      if(!url.includes('#'))expect(validateContract('CheckoutHandoffResult',body).ok).toBe(true);
+      const client=createApiClient({apiResource:'https://api.example.test',customerOrigin:'https://customer.example.test'},'synthetic',async()=>Response.json(body));
+      await expect(client.checkout({ref:'owned-ref'})).rejects.toMatchObject({status:503,body:{code:'upstream_unavailable'}});
+    }
+  });
+  it('rejects status and scoped links outside the exact API resource and owned ref',async()=>{
+    for(const status of ['https://attacker.example.test/v1/rental-requests/owned-ref','https://api.example.test/v1/rental-requests/other-ref','https://api.example.test/v1/rental-requests/owned-ref?%74oken=secret']){
+      const body={api_version:'v1',source_checked_at:new Date().toISOString(),ref:'owned-ref',status:'requested',next_action:'await_operator',hold_expires_at:null,payment_due_at:null,inventory_blocked:true,poll_after_seconds:5,links:{status}};
+      expect(validateContract('RentalStatusResult',body).ok).toBe(true);
+      const client=createApiClient({apiResource:'https://api.example.test',customerOrigin:'https://customer.example.test'},'synthetic',async()=>Response.json(body));
+      await expect(client.status({ref:'owned-ref'})).rejects.toMatchObject({status:503});
+    }
   });
 });
