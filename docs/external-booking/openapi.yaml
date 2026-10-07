@@ -5636,8 +5636,8 @@
           "provider_url": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 2048,
-            "format": "https-url",
+            "maxLength": 4096,
+            "format": "provider-https-url",
             "pattern": "^https://"
           },
           "expires_at": {

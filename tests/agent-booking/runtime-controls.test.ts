@@ -16,6 +16,8 @@ describe('production operation controls and safe outcomes',()=>{
   ['/v1/customers/rental-requests/SYNTHETIC001/identity-handoff','POST','identity:handoff'],
   ['/v1/rental-requests/SYNTHETIC001/checkout-handoff','POST','checkout:handoff'],
   ['/v1/customer-handoffs/private-nonce/resolve','POST','nonce:resolve'],
+  ['/v1/customer-handoffs/private-nonce/grant-renewals','POST','grant:reauthorize'],
+  ['/v1/customer-handoffs/private-nonce/grant-renewals','GET',null],
   ['/unknown/private-customer','POST',null],
  ])('classifies only known operation shapes %s',async(path,method,action)=>{expect(operationForRoute(path,method)).toBe(action);});
  it('correlates outcomes without copying caller or response secrets',async()=>{

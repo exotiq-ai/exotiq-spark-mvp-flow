@@ -31,6 +31,7 @@ export function operationForRoute(path:string,method:string):RedactedEvent['acti
  if(method==='POST'&&/^\/v1\/(?:customers\/)?rental-requests\/[^/]+\/identity-handoff$/.test(path))return 'identity:handoff';
  if(method==='POST'&&/^\/v1\/(?:customers\/)?rental-requests\/[^/]+\/checkout-handoff$/.test(path))return 'checkout:handoff';
  if(method==='POST'&&/^\/v1\/customer-handoffs\/[^/]+\/resolve$/.test(path))return 'nonce:resolve';
+ if(method==='POST'&&/^\/v1\/customer-handoffs\/[^/]+\/grant-renewals$/.test(path))return 'grant:reauthorize';
  return null;
 }
 async function availabilityUnknown(response:Response):Promise<boolean>{
