@@ -87,3 +87,13 @@ describe('trusted financial and identity lifecycle',()=>{
   expect(calls.at(-1)).toMatchObject({name:'external_finish_rent_event',args:{_completed:false}});
  });
 });
+
+it.each(['rent-payment-webhook','identity-webhook'])('actual %s rejects an aborted unfinished raw body before signature/provider work',async endpoint=>{
+ let signatures=0;const handler=edgeHandler('supabase/functions/'+endpoint+'/index.ts',{}, {webhooks:{constructEventAsync:async()=>{signatures++;throw Error('Unexpected verifier call');}}});
+ const abort=new AbortController();let controller:ReadableStreamDefaultController<Uint8Array>|undefined;
+ const body=new ReadableStream<Uint8Array>({start(c){controller=c;c.enqueue(new TextEncoder().encode('{'));}});
+ const request=new Request('https://api.example.test/'+endpoint,{method:'POST',headers:{'stripe-signature':'synthetic'},body,signal:abort.signal,duplex:'half'} as RequestInit);
+ const pending=handler(request);abort.abort();
+ try{const result=await Promise.race([pending,new Promise<null>(resolve=>setTimeout(()=>resolve(null),100))]);expect(result).toBeInstanceOf(Response);expect(result!.status).toBe(400);expect(signatures).toBe(0);}
+ finally{controller?.error(Error('Synthetic stream cleanup'));await pending.catch(()=>undefined);}
+});
