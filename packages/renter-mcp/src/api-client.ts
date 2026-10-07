@@ -11,6 +11,35 @@ export function createApiClient(config:ApiClientConfig,apiToken:string,fetcher:t
   if(api.protocol!=='https:'||api.username||api.password||api.search||api.hash||api.pathname.includes('%')||/\/\//.test(api.pathname)||customer.protocol!=='https:'||customer.username||customer.password||customer.pathname!=='/'||customer.search||customer.hash)throw new Error('invalid_configuration');
   const prefix=api.pathname.replace(/\/$/,'');
   const customerUrl=(path:string)=>new URL(path,customer).href;
+  const uuid='[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}';
+  const handoff=/^\/agent\/handoff\/[A-Za-z0-9_-]{43}$/;
+  const consent=new RegExp('^/agent/consent/'+uuid+'$','i');
+  const authorization=new RegExp('^/agent/authorization/'+uuid+'$','i');
+  const account=new RegExp('^/agent/account/'+uuid+'$','i');
+  function ownedUrl(value:unknown,origin:string,path:string|RegExp):boolean {
+    try{if(typeof value!=='string')return false;const u=new URL(value);
+      // Reject every query/fragment, including percent-encoded credential keys.
+      return u.protocol==='https:'&&u.origin===origin&&!u.username&&!u.password&&!u.search&&!u.hash&&!u.pathname.includes('%')&&u.href===value&&(typeof path==='string'?u.pathname===path:path.test(u.pathname));
+    }catch{return false;}
+  }
+  function validateOwnedLinks(contract:ContractName,body:Record<string,unknown>,path:string) {
+    if(contract==='QuoteResult'&&!ownedUrl(body.consent_url,customer.origin,'/agent/consent/'+body.quote_id))throw unavailable();
+    if(contract==='CheckoutHandoffResult'&&!ownedUrl(body.customer_url,customer.origin,handoff))throw unavailable();
+    if(contract==='GrantRenewalResult'&&!ownedUrl(body.customer_url,customer.origin,'/agent/authorization/'+body.renewal_id))throw unavailable();
+    if(contract==='RentalRequestResult'||contract==='RentalStatusResult'){
+      if(!record(body.links)||typeof body.ref!=='string')throw unavailable();
+      const ref=body.ref,base=prefix+'/v1/rental-requests/'+ref;
+      if(contract==='RentalStatusResult'&&path!=='/v1/rental-requests/'+ref)throw unavailable();
+      for(const [key,value] of Object.entries(body.links)){
+        const safe=key==='status'?ownedUrl(value,api.origin,base)
+          :key==='checkout_handoff'?ownedUrl(value,api.origin,base+'/checkout-handoff')
+          :key==='identity'?ownedUrl(value,api.origin,base+'/identity-handoff')||ownedUrl(value,customer.origin,handoff)
+          :key==='consent'?ownedUrl(value,customer.origin,consent)
+          :key==='recovery'?ownedUrl(value,api.origin,base+'/grant-renewals')||ownedUrl(value,customer.origin,authorization):false;
+        if(!safe)throw unavailable();
+      }
+    }
+  }
   async function request(method:string,path:string,contract:ContractName,input?:unknown,key?:string):Promise<Record<string,unknown>> {
     const target=new URL(prefix+path,api.origin);if(target.origin!==api.origin||!target.pathname.startsWith(prefix+'/v1/'))throw unavailable();
     let response:Awaited<ReturnType<typeof boundedJson>>;
@@ -18,14 +47,15 @@ export function createApiClient(config:ApiClientConfig,apiToken:string,fetcher:t
     if(response.status<200||response.status>=300){
       if(validateContract('ApiError',response.body).ok&&record(response.body)) {
         const body={...response.body,message:'The API declined this operation.'};
-        const account=response.headers.get('link');
+        const accountLink=response.headers.get('link');
         // Only the fixed owned customer account path can become a user-facing recovery URL.
-        if(account){const match=/^<([^>]+)>;\s*rel="?customer-account"?$/.exec(account);if(match){try{const u=new URL(match[1]);if(u.origin===customer.origin&&/^\/agent\/account\/[0-9a-f-]{36}$/.test(u.pathname)&&!u.search&&!u.hash)Object.assign(body,{customer_account_url:u.href});}catch{ /* unsafe links are ignored */ }}}
+        if(accountLink){const match=/^<([^>]+)>;\s*rel="?customer-account"?$/.exec(accountLink);if(match&&ownedUrl(match[1],customer.origin,account))Object.assign(body,{customer_account_url:match[1]});}
         throw new ApiFailure(body,response.status);
       }
       throw unavailable();
     }
     if(!validateContract(contract,response.body).ok||!record(response.body))throw unavailable();
+    validateOwnedLinks(contract,response.body,path);
     return response.body;
   }
   return {
@@ -51,7 +81,6 @@ export function createApiClient(config:ApiClientConfig,apiToken:string,fetcher:t
       if(result.renewal_id!==renewalId)throw unavailable();
       if(result.state==='authorized')return retry(); // One retry; no recursive grant creation.
     }
-    const u=new URL(String(result.customer_url));if(u.origin!==customer.origin||!u.pathname.startsWith('/agent/')||u.search||u.hash)throw unavailable();
     return {status:'awaiting_customer_authorization',customer_url:result.customer_url,expires_at:result.expires_at};
   }
 }
