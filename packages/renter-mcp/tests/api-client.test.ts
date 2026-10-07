@@ -43,7 +43,7 @@ describe('API client bounded fixed resources',()=>{
     for(const url of [safe.replace('customer.example.test','attacker.example.test'),safe+'?%74oken=legacy-secret',safe+'?anything=1',safe+'#secret',safe.replace('/agent/handoff/','/agent/admin/')]){
       const body={api_version:'v1',source_checked_at:new Date().toISOString(),customer_url:url,expires_at:new Date(Date.now()+300000).toISOString(),state:'pending_payment',next_action:'hosted_checkout'};
       // Raw generic contract deliberately does not establish configured-origin authority.
-      if(!url.includes('#'))expect(validateContract('CheckoutHandoffResult',body).ok).toBe(true);
+      if(url.includes('attacker.example.test')||url.includes('/agent/admin/'))expect(validateContract('CheckoutHandoffResult',body).ok).toBe(true);
       const client=createApiClient({apiResource:'https://api.example.test',customerOrigin:'https://customer.example.test'},'synthetic',async()=>Response.json(body));
       await expect(client.checkout({ref:'owned-ref'})).rejects.toMatchObject({status:503,body:{code:'upstream_unavailable'}});
     }
@@ -51,9 +51,19 @@ describe('API client bounded fixed resources',()=>{
   it('rejects status and scoped links outside the exact API resource and owned ref',async()=>{
     for(const status of ['https://attacker.example.test/v1/rental-requests/owned-ref','https://api.example.test/v1/rental-requests/other-ref','https://api.example.test/v1/rental-requests/owned-ref?%74oken=secret']){
       const body={api_version:'v1',source_checked_at:new Date().toISOString(),ref:'owned-ref',status:'requested',next_action:'await_operator',hold_expires_at:null,payment_due_at:null,inventory_blocked:true,poll_after_seconds:5,links:{status}};
-      expect(validateContract('RentalStatusResult',body).ok).toBe(true);
+      if(!status.includes('?'))expect(validateContract('RentalStatusResult',body).ok).toBe(true);
       const client=createApiClient({apiResource:'https://api.example.test',customerOrigin:'https://customer.example.test'},'synthetic',async()=>Response.json(body));
       await expect(client.status({ref:'owned-ref'})).rejects.toMatchObject({status:503});
+    }
+  });
+  it('accepts exact owned handoff and scoped API links but rejects poisoned optional links',async()=>{
+    const meta={api_version:'v1',source_checked_at:new Date().toISOString()};
+    const client=createApiClient({apiResource:'https://api.example.test/edge',customerOrigin:'https://customer.example.test'},'synthetic',async()=>Response.json({...meta,customer_url:'https://customer.example.test/agent/handoff/'+'a'.repeat(43),expires_at:new Date(Date.now()+300000).toISOString(),state:'pending_payment',next_action:'hosted_checkout'}));
+    expect((await client.checkout({ref:'owned-ref'})).next_action).toBe('hosted_checkout');
+    const base={...meta,ref:'owned-ref',status:'pending_payment',next_action:'hosted_checkout',hold_expires_at:null,payment_due_at:new Date(Date.now()+300000).toISOString(),inventory_blocked:true,poll_after_seconds:5};
+    for(const poisoned of [false,true]){const links={status:'https://api.example.test/edge/v1/rental-requests/owned-ref',checkout_handoff:poisoned?'https://customer.example.test/agent/handoff/'+'a'.repeat(43)+'?%61ccess_token=secret':'https://api.example.test/edge/v1/rental-requests/owned-ref/checkout-handoff'};
+      const status=createApiClient({apiResource:'https://api.example.test/edge',customerOrigin:'https://customer.example.test'},'synthetic',async()=>Response.json({...base,links}));
+      if(poisoned)await expect(status.status({ref:'owned-ref'})).rejects.toMatchObject({status:503});else expect((await status.status({ref:'owned-ref'})).links).toEqual(links);
     }
   });
 });

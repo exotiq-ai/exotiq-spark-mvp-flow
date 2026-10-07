@@ -11,7 +11,7 @@ let revoked=false, rebound=false, substitute=false, badMetadata=false, requested
 async function token(audience:string|string[]=resource, overrides:Record<string,unknown>={},typ='at+jwt') {
   const now=Math.floor(Date.now()/1000);
   return new SignJWT({client_id:'consumer-a',scope:'catalog:read quotes:create rental_requests:create rental_requests:read checkout:handoff',...overrides})
-    .setProtectedHeader({alg:'ES256',kid:'fixture',typ,jku:'https://attacker.test/jwks'}).setIssuer(issuer).setSubject('customer-a').setAudience(audience)
+    .setProtectedHeader({alg:'ES256',kid:'fixture',typ,jku:'https://attacker.test/jwks'}).setIssuer(issuer).setSubject(String(overrides.sub??'customer-a')).setAudience(audience)
     .setIssuedAt(now).setNotBefore(now).setExpirationTime(now+300).setJti(crypto.randomUUID()).sign(keys.privateKey);
 }
 const config:AuthConfig={issuer,resource,apiResource:api,jwksUri:issuer+'/jwks',introspectionUri:issuer+'/introspect',tokenUri:issuer+'/token',metadataUri:issuer+'/.well-known/oauth-authorization-server',resourceMetadataUri:'https://mcp.example.test/.well-known/oauth-protected-resource/mcp',allowedHosts:['identity.example.test','api.example.test','mcp.example.test'],clientIds:['consumer-a','consumer-b'],exchangeClientId:'adapter',exchangeClientSecret:'synthetic-only',maxTokenLifetimeSeconds:600};
@@ -29,11 +29,11 @@ beforeAll(async()=> {
     res.setHeader('content-type','application/json');
     if(req.url==='/.well-known/oauth-authorization-server')res.end(JSON.stringify({issuer,jwks_uri:issuer+'/jwks',token_endpoint:badMetadata?'https://attacker.test/token':issuer+'/token',introspection_endpoint:issuer+'/introspect',code_challenge_methods_supported:['S256'],grant_types_supported:['authorization_code','urn:ietf:params:oauth:grant-type:token-exchange'],token_endpoint_auth_methods_supported:['client_secret_basic']}));
     else if(req.url==='/jwks') res.end(JSON.stringify({keys:[jwk]}));
-    else if(req.url==='/introspect') res.end(JSON.stringify({...decodeJwt(body.get('token')!),active:!revoked,iss:issuer,sub:'customer-a',client_id:substitute?'consumer-b':'consumer-a',aud:resource}));
+    else if(req.url==='/introspect'){const claims=decodeJwt(body.get('token')!);res.end(JSON.stringify({...claims,active:!revoked,iss:issuer,client_id:substitute?'consumer-b':claims.client_id,aud:resource}));}
     else if(req.url==='/token') {
       expect(body.get('grant_type')).toBe('urn:ietf:params:oauth:grant-type:token-exchange');
       expect(body.get('resource')).toBe(api);
-      res.end(JSON.stringify({access_token:await token(api,{client_id:rebound?'adapter':'consumer-a'}),token_type:'Bearer',issued_token_type:'urn:ietf:params:oauth:token-type:access_token'}));
+      const claims=decodeJwt(body.get('subject_token')!);res.end(JSON.stringify({access_token:await token(api,{client_id:rebound?'adapter':claims.client_id,sub:claims.sub,scope:claims.scope}),token_type:'Bearer',issued_token_type:'urn:ietf:params:oauth:token-type:access_token'}));
     } else { res.statusCode=404;res.end('{}'); }
   });
   await new Promise<void>(r=>server.listen(0,'127.0.0.1',r));
@@ -93,5 +93,16 @@ describe('signed OAuth resource and fresh provider bindings',()=> {
     expect(()=>validateAuthorizationResponseIssuer({iss:issuer,expectedIssuer:issuer,issParameterSupported:true})).not.toThrow();
     expect(()=>validateAuthorizationResponseIssuer({iss:'https://attacker.test',expectedIssuer:issuer,issParameterSupported:true})).toThrow();
     expect(()=>validateAuthorizationResponseIssuer({iss:undefined,expectedIssuer:issuer,issParameterSupported:true})).toThrow();
+  });
+  it('one cancelled JWKS fetch does not cancel another principal authentication',async()=>{
+    const controller=new AbortController();let first=true,started!:()=>void;
+    const ready=new Promise<void>(resolve=>{started=resolve;});
+    const fetcher:typeof fetch=async(input,init)=>{if(String(input)===config.jwksUri&&first){first=false;started();return new Promise((_,reject)=>init?.signal?.addEventListener('abort',()=>reject(new Error('cancelled')),{once:true}));}return tunnel(input,init);};
+    const auth=createAuthenticator(config,fetcher);
+    const pending=auth.authenticate(new Request(resource,{headers:{Authorization:'Bearer '+await token()},signal:controller.signal}),'catalog:read').then(()=>false,()=>true);
+    await ready;
+    const other=auth.authenticate(new Request(resource,{headers:{Authorization:'Bearer '+await token(resource,{client_id:'consumer-b',sub:'customer-b'})}}),'catalog:read');
+    controller.abort();expect(await pending).toBe(true);
+    expect((await other).principal).toMatchObject({subject:'customer-b',clientId:'consumer-b'});
   });
 });
