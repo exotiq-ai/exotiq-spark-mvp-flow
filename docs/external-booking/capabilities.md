@@ -61,8 +61,6 @@ Only dedicated synthetic staging can prove role denial, transactional concurrenc
 | update | bookings | supabase/functions/gcal-sync/index.ts:221 | .from("bookings") .update({ google_calendar_event_id: created.id }) .eq("id", booking_id) |
 | update | bookings | supabase/functions/gcal-sync/index.ts:235 | .from("bookings") .update({ google_calendar_event_id: null }) .eq("id", booking_id) |
 | update | bookings | supabase/functions/generate-vat-invoice/index.ts:162 | .from("bookings") .update({ invoice_number: invoiceNumber, invoice_issued_at: issuedAt }) .eq("id", booking_id) |
-| update | bookings | supabase/functions/identity-webhook/index.ts:202 | .from("bookings") .update({ status: "confirmed" }) .eq("customer_id", row.customer_id) .eq("booking_source", "marketplace") .eq("status", "pending_doc |
-| update | bookings | supabase/functions/identity-webhook/index.ts:216 | .from("bookings") .update({ status: "requested" }) .eq("customer_id", row.customer_id) .eq("booking_source", "marketplace") .eq("status", "pending_doc |
 | delete | bookings | supabase/functions/rari-selftest/index.ts:530 | .from('bookings').delete().in('id', createdBookingIds) |
 | insert | bookings | supabase/functions/rari-selftest/seed.ts:115 | .from('bookings') .insert(bookingRows) .select('id, booking_ref, customer_name') |
 | delete | bookings | supabase/functions/rari-selftest/seed.ts:146 | .from('bookings').delete().eq('team_id', teamId).eq('notes', SEED_TAG) |
@@ -70,14 +68,15 @@ Only dedicated synthetic staging can prove role denial, transactional concurrenc
 | update | bookings | supabase/functions/rent-approve-booking/index.ts:108 | .from("bookings") .update(updates) .eq("id", bookingId) .in("status", APPROVABLE) |
 | update | bookings | supabase/functions/rent-cancel-booking/index.ts:204 | .from("bookings") .update({ status: nextStatus }) .eq("id", booking.id) .in("status", CANCELLABLE) |
 | update | bookings | supabase/functions/rent-extend-booking/index.ts:319 | .from("bookings") .update({ end_date: newEnd.toISOString(), total_value: Number(booking.total_value ?? 0) + addedSubtotalCents / 100, platform_fee_cen |
-| update | bookings | supabase/functions/rent-payment-scheduler/index.ts:265 | .from("bookings") .update({ payment_reminder_sent_at: new Date().toISOString() }) .eq("id", booking.id) |
-| update | bookings | supabase/functions/rent-payment-scheduler/index.ts:333 | .from("bookings").update({ expiry_warning_sent_at: new Date().toISOString() }).eq("id", b.id) |
-| update | bookings | supabase/functions/rent-payment-webhook/index.ts:92 | .from("bookings") .update({ status: nextStatus, paid_at: paidAt, payment_stripe_mode: mode, payment_status: "paid", balance_due: 0, exotiq_charge_cent |
-| update | bookings | supabase/functions/rent-payment-webhook/index.ts:320 | .from("bookings") .update({ operator_payment_intent_id: operatorPi, payment_stripe_mode: mode }) .eq("booking_ref", bookingRef) .is("operator_payment_ |
-| update | bookings | supabase/functions/rent-payment-webhook/index.ts:384 | .from("bookings") .update({ exotiq_payment_intent_id: "none_required" }) .eq("booking_ref", bookingRef) |
-| update | bookings | supabase/functions/rent-payment-webhook/index.ts:406 | .from("bookings").update({ exotiq_leg_attempt: attempt }).eq("id", bookingRow.id) |
-| update | bookings | supabase/functions/rent-payment-webhook/index.ts:424 | .from("bookings") .update({ exotiq_payment_intent_id: exotiqPi.id }) .eq("booking_ref", bookingRef) |
-| update | bookings | supabase/functions/rent-payment-webhook/index.ts:447 | .from("bookings") .update({ exotiq_payment_intent_id: pi.id }) .eq("booking_ref", bookingRef) .eq("status", "pending_payment") |
+| update | bookings | supabase/functions/rent-payment-scheduler/index.ts:273 | .from("bookings") .update({ payment_reminder_sent_at: new Date().toISOString() }) .eq("id", booking.id) |
+| update | bookings | supabase/functions/rent-payment-scheduler/index.ts:341 | .from("bookings").update({ expiry_warning_sent_at: new Date().toISOString() }).eq("id", b.id) |
+| update | bookings | supabase/functions/rent-payment-webhook/index.ts:265 | .from("bookings").update({operator_payment_intent_id:operatorPi,payment_stripe_mode:mode}).eq("booking_ref",bookingRef).is("operator_payment_intent_id |
+| update | bookings | supabase/functions/rent-payment-webhook/index.ts:282 | .from("bookings") .update({ operator_payment_intent_id: operatorPi, payment_stripe_mode: mode }) .eq("booking_ref", bookingRef) .is("operator_payment_ |
+| update | bookings | supabase/functions/rent-payment-webhook/index.ts:353 | .from("bookings") .update({ exotiq_payment_intent_id: "none_required" }) .eq("booking_ref", bookingRef) |
+| update | bookings | supabase/functions/rent-payment-webhook/index.ts:374 | .from("bookings").update({ exotiq_leg_attempt: attempt }).eq("id", bookingRow.id) |
+| update | bookings | supabase/functions/rent-payment-webhook/index.ts:394 | .from("bookings") .update({ exotiq_payment_intent_id: exotiqPi.id }) .eq("booking_ref", bookingRef) |
+| update | bookings | supabase/functions/rent-payment-webhook/index.ts:418 | .from("bookings").update({exotiq_payment_intent_id:pi.id,payment_stripe_mode:mode}).eq("booking_ref",bookingRef).is("exotiq_payment_intent_id",null) |
+| update | bookings | supabase/functions/rent-payment-webhook/index.ts:426 | .from("bookings") .update({ exotiq_payment_intent_id: pi.id }) .eq("booking_ref", bookingRef) .eq("status", "pending_payment") |
 | update | bookings | supabase/functions/rent-refund-booking/index.ts:182 | .from("bookings") .update({ status: "refunded" }) .eq("id", booking.id) |
 | update | bookings | supabase/functions/rent-retry-exotiq-leg/index.ts:130 | .from("bookings").update({ exotiq_leg_attempt: attempt }).eq("id", booking.id) |
 | update | bookings | supabase/functions/rent-retry-exotiq-leg/index.ts:155 | .from("bookings") .update({ exotiq_payment_intent_id: exotiqPi.id }) .eq("id", booking.id) |
@@ -114,6 +113,14 @@ Only dedicated synthetic staging can prove role denial, transactional concurrenc
 | insert | bookings | supabase/migrations/20260819024902_88d5433f-dd91-452b-bec6-da445dd77008.sql:75 | INSERT INTO public.bookings |
 | insert | bookings | supabase/migrations/20260819031937_c36dd9f7-6487-41e5-b013-5b43663eb92d.sql:120 | INSERT INTO public.bookings |
 | update | bookings | supabase/migrations/20261007090200_shared_inventory_guard.sql:10 | UPDATE public.bookings |
+| update | bookings | supabase/migrations/20261007090500_external_lifecycle_reconciliation.sql:95 | UPDATE public.bookings |
+| update | bookings | supabase/migrations/20261007090500_external_lifecycle_reconciliation.sql:105 | UPDATE public.bookings |
+| update | bookings | supabase/migrations/20261007090500_external_lifecycle_reconciliation.sql:130 | UPDATE public.bookings |
+| update | bookings | supabase/migrations/20261007090500_external_lifecycle_reconciliation.sql:179 | UPDATE public.bookings |
+| update | bookings | supabase/migrations/20261007090600_customer_handoff_nonces.sql:338 | UPDATE public.bookings |
+| update | bookings | supabase/migrations/20261007090600_customer_handoff_nonces.sql:350 | UPDATE public.bookings |
+| update | bookings | supabase/migrations/20261007090600_customer_handoff_nonces.sql:358 | UPDATE public.bookings |
+| update | bookings | supabase/migrations/20261007090730_preserve_unresolved_checkout_inventory.sql:58 | UPDATE public.bookings |
 
 ## Final static function overloads
 
@@ -127,9 +134,34 @@ Only dedicated synthetic staging can prove role denial, transactional concurrenc
 | public.create_marketplace_booking(text,text,date,date,text,text,text,text,numeric,numeric,text,text,bigint,bigint,bigint,bigint,bigint,text) | supabase/migrations/20260819031937_c36dd9f7-6487-41e5-b013-5b43663eb92d.sql:39 | true | _state_fee_cents bigint DEFAULT 0; _processing_fee_cents bigint DEFAULT 0; _operator_tax_cents bigint DEFAULT 0; _return_time text DEFAULT NULL | Applied privileges and deployment unverified; all historical ACL statements in JSON |
 | public.expire_overdue_payment_bookings() | supabase/migrations/20260725045744_fa25b9ea-3209-4ab2-bade-3d1744f0b5b2.sql:36 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
 | public.expire_unverified_holds() | supabase/migrations/20260728152708_256354b7-9f0f-4e1d-a9a0-33e45ca82d04.sql:4 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
+| public.external_apply_identity_event(text,bigint,text,text,date,text) | supabase/migrations/20261007090500_external_lifecycle_reconciliation.sql:134 | true | _verified_name text DEFAULT NULL | Applied privileges and deployment unverified; all historical ACL statements in JSON |
+| public.external_booking_state_evidence(uuid) | supabase/migrations/20261007090600_customer_handoff_nonces.sql:365 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
+| public.external_claim_customer_handoff(text,text,text,text,text) | supabase/migrations/20261007090600_customer_handoff_nonces.sql:102 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
+| public.external_claim_exotiq_charge(text,text) | supabase/migrations/20261007090500_external_lifecycle_reconciliation.sql:197 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
+| public.external_claim_rent_event(text) | supabase/migrations/20261007090500_external_lifecycle_reconciliation.sql:184 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
+| public.external_create_customer_handoff(text,text,text,text,text,text,text,text) | supabase/migrations/20261007090600_customer_handoff_nonces.sql:69 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
+| public.external_create_customer_owned_handoff(text,text,text,text,text,text,text,text) | supabase/migrations/20261007090600_customer_handoff_nonces.sql:433 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
+| public.external_customer_rental_status(text,text,text,text,text) | supabase/migrations/20261007090600_customer_handoff_nonces.sql:406 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
+| public.external_finish_rent_event(text,uuid,boolean) | supabase/migrations/20261007090500_external_lifecycle_reconciliation.sql:218 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
+| public.external_handoff_context(text,text,text,text,boolean) | supabase/migrations/20261007090600_customer_handoff_nonces.sql:28 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
+| public.external_lifecycle_financial_authority(uuid) | supabase/migrations/20261007090500_external_lifecycle_reconciliation.sql:36 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
+| public.external_lifecycle_fully_settled(uuid,text) | supabase/migrations/20261007090500_external_lifecycle_reconciliation.sql:66 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
+| public.external_lifecycle_identity_cleared(uuid,timestamptz,uuid,uuid) | supabase/migrations/20261007090500_external_lifecycle_reconciliation.sql:50 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
+| public.external_provider_handoff_context(text,uuid,text) | supabase/migrations/20261007090600_customer_handoff_nonces.sql:114 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
+| public.external_queue_unresolved_checkout_batch(integer) | supabase/migrations/20261007090730_preserve_unresolved_checkout_inventory.sql:43 | true | _limit integer DEFAULT 50 | Applied privileges and deployment unverified; all historical ACL statements in JSON |
 | public.external_quote_immutable() | supabase/migrations/20261007090100_external_quote_snapshots.sql:38 | false |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
+| public.external_read_rental_request(text,text,text,text,text) | supabase/migrations/20261007090600_customer_handoff_nonces.sql:386 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
+| public.external_reconcile_booking(text,text) | supabase/migrations/20261007090500_external_lifecycle_reconciliation.sql:73 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
+| public.external_reconcile_lifecycle_batch(integer) | supabase/migrations/20261007090500_external_lifecycle_reconciliation.sql:172 | true | _limit integer DEFAULT 50 | Applied privileges and deployment unverified; all historical ACL statements in JSON |
+| public.external_record_checkout_customer(uuid,text,text) | supabase/migrations/20261007090600_customer_handoff_nonces.sql:345 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
+| public.external_record_checkout_session(uuid,text,text) | supabase/migrations/20261007090600_customer_handoff_nonces.sql:352 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
+| public.external_record_handoff_provider_session(text,uuid,text,text,text) | supabase/migrations/20261007090600_customer_handoff_nonces.sql:126 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
+| public.external_record_settlement(text,text,text,text,bigint,text,text,text) | supabase/migrations/20261007090500_external_lifecycle_reconciliation.sql:110 | true | _operator_account text DEFAULT NULL | Applied privileges and deployment unverified; all historical ACL statements in JSON |
+| public.external_request_owner(text,text,text,text,text) | supabase/migrations/20261007090510_external_request_status.sql:21 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
+| public.external_reserve_rental_checkout(text,text,text,text,text,text,uuid,text) | supabase/migrations/20261007090600_customer_handoff_nonces.sql:327 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
+| public.external_review_customer_handoff(text,text,text,text,text) | supabase/migrations/20261007090600_customer_handoff_nonces.sql:93 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
 | public.external_review_grant_renewal(text,text,text,text,uuid,boolean,text) | supabase/migrations/20261007090470_hosted_consent_bridge.sql:153 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
-| public.external_submit_rental_request(uuid,uuid,text,text,text,text,uuid,uuid,text,text) | supabase/migrations/20261007090400_consented_request_transaction.sql:47 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
+| public.external_submit_rental_request(uuid,uuid,text,text,text,text,uuid,uuid,text,text) | supabase/migrations/20261007090600_customer_handoff_nonces.sql:202 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
 | public.external_validate_grant_binding() | supabase/migrations/20261007090000_external_customer_grants.sql:107 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
 | public.find_holds_needing_warning() | supabase/migrations/20260728152723_a58e5413-94b3-4aab-a3e3-103f6ebb5d84.sql:5 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
 | public.fn_transition_payout(uuid,text,timestamp with time zone,text,text,text) | supabase/migrations/20260529001701_fd9f98c5-3ca0-4862-9ccf-07d536d9aaee.sql:96 | true | p_paid_at timestamp with time zone DEFAULT NULL; p_reference text DEFAULT NULL; p_method text DEFAULT NULL; p_reason text DEFAULT NULL | Applied privileges and deployment unverified; all historical ACL statements in JSON |
@@ -141,7 +173,6 @@ Only dedicated synthetic staging can prove role denial, transactional concurrenc
 | public.get_super_admin_tenant_detail(uuid) | supabase/migrations/20260623184847_3d9a9862-877e-4e2d-a435-72ca5d51c1f4.sql:119 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
 | public.get_super_admin_tenant_health() | supabase/migrations/20260623184847_3d9a9862-877e-4e2d-a435-72ca5d51c1f4.sql:1 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
 | public.guard_marketplace_booking_blocked_dates() | supabase/migrations/20260901194608_e2f6eea3-4363-483c-bc1d-9cfa24d1819e.sql:153 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
-| public.guard_marketplace_confirm_transition() | supabase/migrations/20260728222252_e1512efd-4831-4168-bf31-4f4cd78358fb.sql:1 | false |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
 | public.is_marketplace_team(uuid) | supabase/migrations/20260721232856_542fce1e-1f93-4fe3-9344-c363ed48f7bd.sql:24 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
 | public.is_marketplace_vehicle(uuid) | supabase/migrations/20260721232856_542fce1e-1f93-4fe3-9344-c363ed48f7bd.sql:41 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
 | public.migrate_users_to_teams() | supabase/migrations/20260103041618_e83dfe77-dfcf-40b9-8ac8-53edd13ee8d8.sql:72 | true |  | Applied privileges and deployment unverified; all historical ACL statements in JSON |
