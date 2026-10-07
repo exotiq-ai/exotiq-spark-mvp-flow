@@ -87,7 +87,7 @@ describe('canonical contracts', () => {
   it('generates exact OpenAPI with schema references, scopes, responses, idempotency and conditional status', () => {
     const api = generateOpenApi();
     expect(api.openapi).toBe('3.1.2');
-    expect(Object.keys(api.paths)).toHaveLength(23);
+    expect(Object.keys(api.paths)).toHaveLength(24);
     expect(api.components.schemas).toEqual(schemas);
     expect(JSON.parse(readFileSync('docs/external-booking/openapi.yaml', 'utf8'))).toEqual(api);
     for (const path of Object.values(api.paths)) for (const operation of Object.values(path)) {

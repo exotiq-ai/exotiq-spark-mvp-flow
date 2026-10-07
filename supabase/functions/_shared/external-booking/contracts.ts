@@ -296,6 +296,8 @@ export function generateOpenApi() {
   nonceReview.parameters.push(parameter('nonce',nonceSchema));
   const nonceResolve = customer(operation('resolveCustomerHandoff','CustomerHandoffResolveResult',['rental_requests:read'],'Explicit customer Continue plus private request-bound BFF/CSRF proof. Rechecks current scoped authority and booking/charge state, leases a stable provider attempt, and returns an action-specific allowlisted provider URL only to the browser. Provider URL is not stored or logged.','CustomerHandoffResolveInput'));
   nonceResolve.parameters.push(parameter('nonce',nonceSchema));
+  const nonceRecovery=created(customer(operation('beginCustomerHandoffRecovery','GrantRenewalResult',['rental_requests:read'],'Fresh authenticated customer explicitly starts hosted recovery for the nonce original agent and stored scopes. No automatic authorization or revoked-grant revival. An expired nonce does not become payment authority.','CustomerHandoffResolveInput')));
+  nonceRecovery.parameters.push(parameter('nonce',nonceSchema));
   return {
     openapi: '3.1.2', jsonSchemaDialect: 'https://json-schema.org/draft/2020-12/schema',
     info: { title: 'Exotiq External Booking API', version: '1.0.0', description: 'Generated canonical v1 contract. Implementation and staging/provider proof remain rollout gates. No authority, ranking, onboarding or rental eligibility is guaranteed. Operator approval and hosted customer payment remain mandatory.' },
@@ -324,6 +326,7 @@ export function generateOpenApi() {
       '/v1/customers/rental-requests/{ref}/checkout-handoff': { post: customerCheckout },
       '/v1/customer-handoffs/{nonce}/review': { get: nonceReview },
       '/v1/customer-handoffs/{nonce}/resolve': { post: nonceResolve },
+      '/v1/customer-handoffs/{nonce}/grant-renewals': { post: nonceRecovery },
     },
     components: { schemas, securitySchemes: { hostedCustomerProof: { type:'apiKey', in:'header', name:'X-Exotiq-Hosted-Proof', description:'Private server-to-server request attestation, independently bound to verified customer API bearer/method/path/body/CSRF; never a customer/agent bearer.' }, customerOAuth: { type: 'oauth2', description: 'Audience-bound verified customer OAuth. OAuth scope alone never establishes per-booking authorization or consent. Issuer/two-client compatibility requires implementation evidence.', flows: { authorizationCode: { authorizationUrl: 'https://oauth.example.invalid/authorize', tokenUrl: 'https://oauth.example.invalid/token', scopes: Object.fromEntries(SCOPES.map((scope) => [scope, scope])) } } } } },
   };

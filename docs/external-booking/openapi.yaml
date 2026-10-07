@@ -3626,6 +3626,162 @@
           }
         }
       }
+    },
+    "/v1/customer-handoffs/{nonce}/grant-renewals": {
+      "post": {
+        "operationId": "beginCustomerHandoffRecovery",
+        "description": "Fresh authenticated customer explicitly starts hosted recovery for the nonce original agent and stored scopes. No automatic authorization or revoked-grant revival. An expired nonce does not become payment authority.",
+        "security": [
+          {
+            "customerOAuth": [
+              "rental_requests:read"
+            ],
+            "hostedCustomerProof": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "nonce",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 43,
+              "maxLength": 43,
+              "pattern": "^[A-Za-z0-9_-]{43}$"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful authoritative response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GrantRenewalResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured error (400); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Structured error (401); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                "description": "Bearer challenge; never echoes credentials."
+              }
+            }
+          },
+          "403": {
+            "description": "Structured error (403); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Structured error (404); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Structured error (409); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Structured error (410); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Structured error (429); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3600
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Structured error (503); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3600
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerHandoffResolveInput"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
