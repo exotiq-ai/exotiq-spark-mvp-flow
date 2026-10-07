@@ -39,12 +39,16 @@ export function createApiClient(config:ApiClientConfig,apiToken:string,fetcher:t
       // Receipt is obtained through the authenticated rendezvous and never appears in tool I/O.
       return request('POST','/v1/rental-requests','RentalRequestResult',{quote_id:quoteId,consent_receipt_id:consent.consent_receipt_id},String(input.idempotency_key));
     },
-    async status(input:Record<string,unknown>){const ref=encodeURIComponent(String(input.ref));try{return await request('GET',`/v1/rental-requests/${ref}`,'RentalStatusResult');}catch(error){return renewal(error,ref);}},
-    async checkout(input:Record<string,unknown>){const ref=encodeURIComponent(String(input.ref));try{return await request('POST',`/v1/rental-requests/${ref}/checkout-handoff`,'CheckoutHandoffResult',{});}catch(error){return renewal(error,ref);}}
+    async status(input:Record<string,unknown>){const ref=encodeURIComponent(String(input.ref));const read=()=>request('GET',`/v1/rental-requests/${ref}`,'RentalStatusResult');try{return await read();}catch(error){return renewal(error,ref,read);}},
+    async checkout(input:Record<string,unknown>){const ref=encodeURIComponent(String(input.ref));const create=()=>request('POST',`/v1/rental-requests/${ref}/checkout-handoff`,'CheckoutHandoffResult',{});try{return await create();}catch(error){return renewal(error,ref,create);}}
   };
-  async function renewal(error:unknown,ref:string):Promise<Record<string,unknown>> {
+  async function renewal(error:unknown,ref:string,retry:()=>Promise<Record<string,unknown>>):Promise<Record<string,unknown>> {
     if(!(error instanceof ApiFailure)||!['grant_expired','grant_revoked'].includes(String(error.body.code)))throw error;
-    const result=await request('POST',`/v1/rental-requests/${ref}/grant-renewals`,'GrantRenewalResult',{});
+    let result=await request('POST',`/v1/rental-requests/${ref}/grant-renewals`,'GrantRenewalResult',{});
+    if(result.state==='authorized'){
+      result=await request('GET',`/v1/grant-renewals/${encodeURIComponent(String(result.renewal_id))}`,'GrantRenewalResult');
+      if(result.state==='authorized')return retry(); // One retry; no recursive grant creation.
+    }
     const u=new URL(String(result.customer_url));if(u.origin!==customer.origin||!u.pathname.startsWith('/agent/')||u.search||u.hash)throw unavailable();
     return {status:'awaiting_customer_authorization',customer_url:result.customer_url,expires_at:result.expires_at};
   }
