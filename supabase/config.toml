@@ -276,3 +276,8 @@ verify_jwt = true
 # Keep this isolated function unexposed until release readiness checks pass.
 [functions.external-booking-api]
 verify_jwt = false
+
+# Cron token is authenticated inside the worker; managed gateway JWT would
+# reject that invocation before the worker can verify its own fixed secret.
+[functions.external-booking-worker]
+verify_jwt = false

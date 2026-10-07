@@ -29,6 +29,12 @@ export async function principalPseudonym(secret:Uint8Array,issuer:string,subject
 }
 /** Optional telemetry cannot undo an already committed booking. Required
  * request/financial evidence stays in its authoritative transaction ledgers. */
-export async function emitEvent(client:FlagRpc,event:unknown):Promise<boolean>{
- try{const safe=redactedEvent(event);const {data,error}=await client.rpc('external_enqueue_redacted_event',{_event:safe});return !error&&data===true;}catch{return false;}
+export async function emitEvent(client:FlagRpc,event:unknown,timeoutMs=2000):Promise<boolean>{
+ let timer:ReturnType<typeof setTimeout>|undefined;
+ try{
+  if(!Number.isInteger(timeoutMs)||timeoutMs<1||timeoutMs>5000)return false;
+  const safe=redactedEvent(event);
+  const result=await Promise.race([Promise.resolve(client.rpc('external_enqueue_redacted_event',{_event:safe})),new Promise<null>(resolve=>{timer=setTimeout(()=>resolve(null),timeoutMs);})]);
+  return result!==null&&!result.error&&result.data===true;
+ }catch{return false;}finally{if(timer)clearTimeout(timer);}
 }
