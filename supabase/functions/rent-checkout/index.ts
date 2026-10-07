@@ -27,6 +27,8 @@ import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.77.0";
 import { resolveStripeMode, teamConnectedAccountId } from "../_shared/stripeMode.ts";
 import { checkRateLimit, clientIp } from "../_shared/rateLimit.ts";
+import {verifyInternalHandoff} from '../_shared/external-booking/internal-handoff.ts';
+import {providerContext,customerReturnBase,reserveCheckout,recordCheckoutCustomer,recordCheckoutSession,validateCheckoutSession,finishExternalCheckout} from '../_shared/external-booking/provider-handoff.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -64,13 +66,19 @@ serve(async (req) => {
   }
 
   try {
+    const body = await req.json().catch(() => ({}));
+    const internal=Object.prototype.hasOwnProperty.call(body,'external_handoff');
+    if(internal){
+      try{await verifyInternalHandoff(req,'rent-checkout',body,Deno.env.get('EXTERNAL_API_HANDOFF_KEY'));}
+      catch{return json({error:'External handoff authorization required'},401);}
+    }
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
       { auth: { persistSession: false } },
     );
 
-    const body = await req.json().catch(() => ({}));
+    const context=internal?await providerContext(admin,body,'checkout'):null;
     const bookingRef = typeof body.booking_ref === "string" ? body.booking_ref.trim() : "";
     const token = typeof body.token === "string" ? body.token.trim() : "";
     if (!bookingRef || !token) return json({ error: "booking_ref and token are required" }, 400);
@@ -122,8 +130,9 @@ serve(async (req) => {
       .single();
 
     const mode = resolveStripeMode();
+    if(context&&context.mode!==mode)return json({error:'Payment provider configuration unavailable'},503);
     const operatorAccountId = teamConnectedAccountId(team, mode);
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, { apiVersion: "2025-08-27.basil" });
+    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, { apiVersion: "2025-08-27.basil",timeout:5000,maxNetworkRetries:0 });
     const currency = (team.currency || "USD").toLowerCase();
 
     const rentalCents = Math.round(Number(booking.total_value) * 100);
@@ -131,10 +140,20 @@ serve(async (req) => {
       return json({ error: "Booking amount is invalid" }, 409);
     }
 
+    const origin=internal?new URL(Deno.env.get('EXTERNAL_API_CUSTOMER_ORIGIN')??'').origin:req.headers.get('origin')||'https://book.exotiq.rent';
+    const returnBase=internal?customerReturnBase(origin,booking.team_id,booking.booking_ref,'checkout'):`${origin}/booking/${encodeURIComponent(booking.booking_ref)}?t=${encodeURIComponent(token)}`;
+    const reservation=await reserveCheckout(admin,{...body,booking_ref:bookingRef,token},mode,origin,context,booking.payment_due_at);
+    if(reservation.session_ref){
+      const existing=await stripe.checkout.sessions.retrieve(reservation.session_ref);
+      const url=validateCheckoutSession(existing,booking,mode,returnBase);
+      if(internal)await finishExternalCheckout(admin,body,existing.id,mode);
+      return json(internal?{session_id:existing.id,url}:{url});
+    }
+
     // Platform customer: dedupe by renter email (Lovable flag #9).
     const email = String(booking.customer_email || "").toLowerCase();
-    let customerId: string | undefined;
-    if (email) {
+    let customerId: string | undefined=reservation.customer_ref;
+    if (email && !customerId) {
       const existing = await stripe.customers.list({ email, limit: 1 });
       customerId = existing.data[0]?.id;
       if (!customerId) {
@@ -142,13 +161,11 @@ serve(async (req) => {
           email,
           name: booking.customer_name ?? undefined,
           metadata: { booking_ref: booking.booking_ref },
-        });
+        },{idempotencyKey:'rent-customer-'+booking.id+'-'+mode});
         customerId = created.id;
       }
     }
-
-    const origin = req.headers.get("origin") || "https://book.exotiq.rent";
-    const returnBase = `${origin}/booking/${encodeURIComponent(booking.booking_ref)}?t=${encodeURIComponent(token)}`;
+    if(customerId)await recordCheckoutCustomer(admin,booking.id,reservation.attempt_key,customerId);
 
     const session = await stripe.checkout.sessions.create(
       {
@@ -191,12 +208,19 @@ serve(async (req) => {
           stripe_mode: mode,
         },
       },
-      { idempotencyKey: `rent-checkout-${booking.booking_ref}-${booking.payment_due_at ?? ""}` },
+      { idempotencyKey: reservation.attempt_key },
     );
-
-    logStep("Checkout session created", { bookingRef, mode, sessionId: session.id });
-    return json({ url: session.url });
+    const url=validateCheckoutSession(session,booking,mode,returnBase);
+    await recordCheckoutSession(admin,booking.id,reservation.attempt_key,session.id);
+    if(internal)await finishExternalCheckout(admin,body,session.id,mode);
+    logStep("Checkout session ready", {mode});
+    return json(internal?{session_id:session.id,url}:{url});
   } catch (error) {
+    if(req.headers.has('X-Exotiq-Handoff-Proof')){
+      console.error('[RENT-CHECKOUT] external provider bridge failed');
+      const code=(error as {code?:string})?.code;
+      return json({error:'Unable to resolve secure payment'},code==='payment_window_expired'?410:code==='not_found'?404:['forbidden','grant_expired','grant_revoked'].includes(code??'')?409:503);
+    }
     console.error("[RENT-CHECKOUT] error", error);
     return json({ error: "Unable to start payment" }, 500);
   }

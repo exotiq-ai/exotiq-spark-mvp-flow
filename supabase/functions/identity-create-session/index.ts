@@ -17,6 +17,8 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.77.0";
 import { checkRateLimit, clientIp } from "../_shared/rateLimit.ts";
+import {verifyInternalHandoff} from '../_shared/external-booking/internal-handoff.ts';
+import {providerContext,resolveIdentityProvider} from '../_shared/external-booking/provider-handoff.ts';
 
 // Cluster C #29: strict email at the edge. Blocks ilike-wildcard payloads
 // (%, _) from ever touching the customers lookup.
@@ -59,13 +61,19 @@ serve(async (req) => {
   if (!allowed) return json({ error: "Too many requests" }, 429);
 
   try {
+    const body = await req.json().catch(() => ({}));
+    const internal = Object.prototype.hasOwnProperty.call(body,'external_handoff');
+    if(internal){
+      try{await verifyInternalHandoff(req,'identity-create-session',body,Deno.env.get('EXTERNAL_API_HANDOFF_KEY'));}
+      catch{return json({error:'External handoff authorization required'},401);}
+    }
     // Identity runs on its own key (sandbox restricted key with Identity
     // write scopes) so live payments on STRIPE_SECRET_KEY are never touched.
     // Falls back to STRIPE_SECRET_KEY only if the dedicated key is absent.
     const stripeKey = Deno.env.get("STRIPE_IDENTITY_SECRET_KEY") ??
-      Deno.env.get("STRIPE_SECRET_KEY");
+      (internal ? undefined : Deno.env.get("STRIPE_SECRET_KEY"));
     if (!stripeKey) throw new Error("STRIPE_IDENTITY_SECRET_KEY / STRIPE_SECRET_KEY is not set");
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil",timeout:5000,maxNetworkRetries:0 });
 
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -73,7 +81,11 @@ serve(async (req) => {
       { auth: { persistSession: false } },
     );
 
-    const body = await req.json().catch(() => ({}));
+    if(internal){
+      const context=await providerContext(admin,body,'identity'),mode=stripeKey.startsWith('sk_test_')||stripeKey.startsWith('rk_test_')?'test':stripeKey.startsWith('sk_live_')||stripeKey.startsWith('rk_live_')?'live':null;
+      if(!mode)return json({error:'Identity provider configuration unavailable'},503);
+      return json(await resolveIdentityProvider(admin,stripe,body,context,mode,Deno.env.get('EXTERNAL_API_CUSTOMER_ORIGIN')));
+    }
 
     // --- Resolve the customer, never trusting client-supplied ids for the
     // --- guest path.
@@ -244,6 +256,11 @@ serve(async (req) => {
       status: "created",
     });
   } catch (error) {
+    if(req.headers.has('X-Exotiq-Handoff-Proof')){
+      console.error('[IDENTITY-CREATE-SESSION] external provider bridge failed');
+      const code=(error as {code?:string})?.code;
+      return json({error:'Unable to resolve secure identity verification'},code==='payment_window_expired'?410:code==='not_found'?404:['forbidden','grant_expired','grant_revoked'].includes(code??'')?409:503);
+    }
     console.error("[IDENTITY-CREATE-SESSION] error", error);
     return json({ error: "Unable to start verification" }, 500);
   }
