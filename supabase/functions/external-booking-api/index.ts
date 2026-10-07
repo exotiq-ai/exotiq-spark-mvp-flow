@@ -214,7 +214,14 @@ export function createRuntime(config: RuntimeConfig, fetcher: Fetcher = fetch, a
       if(error||typeof data!=='boolean')throw new BookingApiError('upstream_unavailable');return data;
     };
     const dependencies: AuthDependencies = {
-      keyResolver, now: () => new Date(now()),
+      // Keep the shared rotation cache/in-flight lookup for other callers, but
+      // never start it for a disconnected request or continue after its result.
+      keyResolver:async(...args)=>{
+        if(request.signal.aborted)throw new BookingApiError('upstream_unavailable');
+        const key=await keyResolver(...args);
+        if(request.signal.aborted)throw new BookingApiError('upstream_unavailable');
+        return key;
+      }, now: () => new Date(now()),
       resolveCustomer: async (issuer, subject, operatorId) => {
         const { data, error } = await rpc.rpc('external_resolve_customer_link', { _issuer: issuer, _subject: subject, _operator_id: operatorId });
         if (error || !Array.isArray(data) || data.length > 1) throw new BookingApiError('upstream_unavailable');
