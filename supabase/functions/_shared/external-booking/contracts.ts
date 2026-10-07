@@ -113,7 +113,7 @@ function zonedWall(instant: number, timezone: string): number {
 export function validProviderHttpsUrl(value:string):boolean{
  try{
   const url=new URL(value);
-  if(value.length>4096||url.protocol!=='https:'||!['checkout.stripe.com','verify.stripe.com'].includes(url.hostname)||url.username||url.password||url.port&&url.port!=='443'||url.pathname==='/'||[...url.searchParams.keys()].some(key=>/(?:token|secret|credential|email|nonce|authorization|booking_ref|^t$)/i.test(key)))return false;
+  if(value.length>4096||url.protocol!=='https:'||!['checkout.stripe.com','verify.stripe.com'].includes(url.hostname)||url.username||url.password||url.port&&url.port!=='443'||url.pathname==='/'||[...url.searchParams.keys()].some(key=>/(?:token|secret|credential|receipt|email|nonce|authorization|booking_ref|^t$)/i.test(key)))return false;
   if(!url.hash)return true;
   return url.hostname==='checkout.stripe.com'&&/^#fidkd(?:[A-Za-z0-9]|%[0-9A-Fa-f]{2}){1,2048}$/.test(url.hash)&&/^fidkd[A-Za-z0-9+/]+={0,2}$/.test(decodeURIComponent(url.hash.slice(1)));
  }catch{return false;}
