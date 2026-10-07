@@ -102,3 +102,10 @@ describe('safe structured errors and scopes', () => {
     expect(SCOPES.join(' ')).not.toMatch(/approval|approve|charge/);
   });
 });
+
+it('reports in-flight contention with bounded same-key retry guidance',()=>{
+ for(const delay of [0,1,5,6,3600,NaN]){
+  const result=safeApiError(new BookingApiError('request_in_flight' as any,{retry_after_seconds:delay}),requestId);
+  expect(result.status).toBe(409);expect(result.body.code).toBe('request_in_flight');expect(result.body.retryable).toBe(true);expect(Number(result.headers['Retry-After'])).toBeGreaterThanOrEqual(1);expect(Number(result.headers['Retry-After'])).toBeLessThanOrEqual(5);
+ }
+});
