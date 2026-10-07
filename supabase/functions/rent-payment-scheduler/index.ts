@@ -140,6 +140,10 @@ serve(async (req) => {
     let reminderCount = 0;
     let errorCount = 0;
 
+    // Queue issued/ambiguous checkouts for manual provider reconciliation.
+    // No timer or absent webhook can establish that a provider did not charge.
+    const {error:checkoutReviewError}=await admin.rpc("external_queue_unresolved_checkout_batch",{_limit:50});
+    if(checkoutReviewError)return json({error:"Checkout reconciliation unavailable"},500);
     // Reconcile durable financial/identity evidence before any expiry sweep.
     const {error:reconciliationError}=await admin.rpc("external_reconcile_lifecycle_batch",{_limit:50});
     if(reconciliationError)return json({error:"Lifecycle reconciliation unavailable"},500);

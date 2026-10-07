@@ -66,9 +66,29 @@ BEGIN
  IF body IS DISTINCT FROM replay THEN RAISE EXCEPTION 'checkout reservation not stable';END IF;
  IF body->>'provider_expires_at' IS NULL OR to_timestamp((body->>'provider_expires_at')::bigint)>(SELECT payment_due_at FROM public.bookings WHERE id=bid) THEN RAISE EXCEPTION 'provider lifetime exceeds payment authority';END IF;
  BEGIN PERFORM public.external_reserve_rental_checkout(ref,claim->>'confirmation_token','test','legacy','https://book.example.invalid',NULL,NULL,'rent-checkout-'||ref||'-synthetic-due');RAISE EXCEPTION 'parallel legacy checkout admitted';EXCEPTION WHEN raise_exception THEN IF SQLERRM<>'forbidden' THEN RAISE;END IF;END;
+ -- A lost provider response leaves only its durable reservation: retain it
+ -- even after the payment deadline and bounded worker pass.
+ UPDATE public.bookings SET payment_due_at=clock_timestamp()-interval '1 minute' WHERE id=bid;
+ PERFORM public.external_queue_unresolved_checkout_batch(1);
+ UPDATE public.bookings SET status='payment_expired' WHERE id=bid;
+ IF (SELECT status FROM public.bookings WHERE id=bid)<>'pending_payment' THEN RAISE EXCEPTION 'unknown checkout attempt released inventory';END IF;
+ BEGIN UPDATE public.bookings SET rental_checkout_attempt_key=NULL WHERE id=bid;RAISE EXCEPTION 'two-step hold bypass admitted';EXCEPTION WHEN check_violation THEN NULL;END;
+ UPDATE public.bookings SET payment_due_at=clock_timestamp()+interval '2 hours' WHERE id=bid;
+ -- Rollback-only fixture reset lets the remaining independent issued-session
+ -- regression proceed. No production worker clears this reconciliation queue.
+ DELETE FROM public.external_lifecycle_reconciliation_queue WHERE booking_id=bid;
  PERFORM public.external_record_checkout_customer(bid,body->>'attempt_key','cus_synthetic');
  PERFORM public.external_record_checkout_session(bid,body->>'attempt_key','cs_test_synthetic');
  PERFORM public.external_record_handoff_provider_session(repeat('e',64),(claim->>'claim_token')::uuid,'checkout','cs_test_synthetic','test');
+ -- A paid-near-deadline session can have NO webhook evidence yet. Direct
+ -- expiration/cancellation must preserve occupancy for issued AND unknown
+ -- checkout attempts, independent of a running scheduler or grace interval.
+ UPDATE public.bookings SET status='payment_expired' WHERE id=bid;
+ IF (SELECT status FROM public.bookings WHERE id=bid)<>'pending_payment' THEN RAISE EXCEPTION 'issued checkout released inventory before provider reconciliation';END IF;
+ UPDATE public.bookings SET status='cancelled' WHERE id=bid;
+ IF (SELECT status FROM public.bookings WHERE id=bid)<>'pending_payment' THEN RAISE EXCEPTION 'issued checkout cancellation released inventory';END IF;
+ IF NOT EXISTS(SELECT FROM public.external_lifecycle_reconciliation_queue WHERE booking_id=bid AND reason='ambiguous_charge') THEN RAISE EXCEPTION 'unresolved checkout missing manual review';END IF;
+ BEGIN UPDATE public.bookings SET rental_checkout_session_ref=NULL WHERE id=bid;RAISE EXCEPTION 'issued session clearance admitted';EXCEPTION WHEN check_violation THEN NULL;END;
  UPDATE public.bookings SET operator_payment_intent_id='pi_partial' WHERE id=bid;
  BEGIN PERFORM public.external_complete_customer_handoff(iss,'renter','hosted',aud,repeat('e',64),(claim->>'claim_token')::uuid,'cs_test_synthetic');RAISE EXCEPTION 'partial payment fresh checkout allowed';EXCEPTION WHEN raise_exception THEN IF SQLERRM<>'forbidden' THEN RAISE;END IF;END;
  -- Legacy eight-argument consent still grants exactly its historical two scopes.
