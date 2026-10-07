@@ -3,6 +3,7 @@ import { availabilityResponse, quoteResponse, type ResourceAuth } from '../_shar
 import { errorResponse, BookingApiError } from '../_shared/external-booking/errors.ts';
 import { authenticationChallenge, createResourceAuthenticator, protectedResourceMetadata, type ProviderConfiguration, type AuthDependencies } from '../_shared/external-booking/auth.ts';
 import { SupabaseQuoteStore, hashCanonical, type QuoteStore, type QuoteRpcClient } from '../_shared/external-booking/quotes.ts';
+import { createRemoteJWKSet } from 'jose';
 
 export interface ApiDependencies {
   catalog: CatalogRepository; cursorKey: Uint8Array; browseEnabled: boolean;
@@ -121,7 +122,7 @@ export async function normalizeIngress(request: Request, config: RuntimeConfig, 
   const signature = Uint8Array.from(proof.match(/../g)!, pair=>parseInt(pair,16));
   if (!await crypto.subtle.verify('HMAC',key,signature,message)) throw new BookingApiError('unauthorized');
   const path = routePath(incoming);
-  if (!path.startsWith('/v1/') && incoming.pathname !== new URL(config.provider.metadataUrl).pathname) throw new BookingApiError('invalid_input');
+  if (!path.startsWith('/v1/') && path !== new URL(config.provider.metadataUrl).pathname) throw new BookingApiError('invalid_input');
   return new Request(new URL(path+incoming.search,resource.origin),{method:request.method,headers:request.headers, ...(request.body?{body:bytes}:{})});
 }
 export function readRuntimeConfig(env: Environment): RuntimeConfig {
@@ -145,19 +146,23 @@ export function readRuntimeConfig(env: Environment): RuntimeConfig {
  * Provider response must bind the JWT identity/resource and fresh expiry. Pinned
  * egress DNS/private-network restrictions still require deployment evidence.
  */
-export async function introspectToken(config: RuntimeConfig, token: string, identity: { subject: string; tokenId: string; clientId: string; issuer: string }, fetcher: Fetcher, now: number): Promise<boolean> {
+export async function introspectToken(config: RuntimeConfig, token: string, identity: Parameters<AuthDependencies['isTokenActive']>[0], fetcher: Fetcher, now: number): Promise<boolean> {
   try {
     const response = await fetcher(config.introspectionUrl, { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(3000), headers: { Authorization: config.introspectionAuthorization, 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' }, body: new URLSearchParams({ token, token_type_hint: 'access_token' }) });
     if (!response.ok) throw new Error();
     const row = await boundedJson(response, 32768) as Record<string, unknown>;
     if (row.active === false) return false;
     if (row.active !== true || row.sub !== identity.subject || row.jti !== identity.tokenId || row.client_id !== identity.clientId || row.iss !== identity.issuer || row.aud !== config.provider.resource || !Number.isInteger(row.exp) || Number(row.exp) <= Math.floor(now / 1000)) throw new Error();
+    if (typeof row.scope !== 'string' || row.scope.length > 1024) throw new Error();
+    if (!row.scope.split(' ').includes(identity.requiredScope)) return false;
     return true;
   } catch { throw new BookingApiError('upstream_unavailable'); }
 }
 /** Actual production dependencies are composed here, not just injected scaffolds.
  * Request-local auth closes over its token; no token/claims live in global state. */
 export function createRuntime(config: RuntimeConfig, fetcher: Fetcher = fetch, additions?: { keyResolver?: AuthDependencies['keyResolver']; now?: () => number; extension?: ApiDependencies['extension'] }): (request: Request) => Promise<Response> {
+  protectedResourceMetadata(config.provider);
+  const keyResolver = additions?.keyResolver ?? createRemoteJWKSet(new URL(config.provider.jwksUri), { timeoutDuration: 3000, cooldownDuration: 1000, cacheMaxAge: 300000 });
   const rpc = new HttpSupabaseRpcClient(config.supabaseUrl, config.serviceKey, fetcher);
   const catalog = new RpcCatalogRepository(rpc);
   const now = additions?.now ?? Date.now;
@@ -168,7 +173,7 @@ export function createRuntime(config: RuntimeConfig, fetcher: Fetcher = fetch, a
   return async (request) => {
     try { request = await normalizeIngress(request,config,now()); } catch(error) { return errorResponse(error); }
     const dependencies: AuthDependencies = {
-      ...(additions?.keyResolver ? { keyResolver: additions.keyResolver } : {}), now: () => new Date(now()),
+      keyResolver, now: () => new Date(now()),
       resolveCustomer: async (issuer, subject, operatorId) => {
         const { data, error } = await rpc.rpc('external_resolve_customer_link', { _issuer: issuer, _subject: subject, _operator_id: operatorId });
         if (error || !Array.isArray(data) || data.length > 1) throw new BookingApiError('upstream_unavailable');
