@@ -113,7 +113,7 @@ function validFormat(format: string, value: string): boolean {
   if (format === 'date-time') return parseTimestamp(value) !== null;
   if (format === 'iana-timezone') return validTimezone(value);
   if (format === 'https-url') {
-    try { const url = new URL(value); return url.protocol === 'https:' && !url.username && !url.password && !url.hash && !/[?&](?:t|token|confirmation_token|access_token)=/i.test(url.search); } catch { return false; }
+    try { const url = new URL(value); return url.protocol === 'https:' && !url.username && !url.password && !url.hash && ![...url.searchParams.keys()].some(key=>/^t$/i.test(key)||/(?:token|secret|credential|authorization|receipt|nonce|email|booking_ref)/i.test(key)); } catch { return false; }
   }
   throw new Error(`Unsupported contract format: ${format}`);
 }
@@ -195,7 +195,7 @@ export function validateContract(name: ContractName, value: unknown, context: { 
   }
   return issues.length ? { ok: false, issues } : { ok: true };
 }
-export function validateIdempotencyKey(value: unknown): value is string { return typeof value === 'string' && /^[A-Za-z0-9_-]{16,128}$/.test(value); }
+export function validateIdempotencyKey(value: unknown): value is string { return typeof value === 'string' && /^[A-Za-z0-9._:-]{16,128}$/.test(value); }
 
 type CursorContext = { operation: string; filters: Record<string, unknown>; now: number };
 type CursorPosition = { after: string; expires_at: number };
