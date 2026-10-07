@@ -30,13 +30,25 @@ describe('safe availability and actual runtime quote composition',()=>{
   it('returns UNKNOWN for upstream observation outage, never AVAILABLE or empty dates',async()=>{
     const repository:CatalogRepository={list:async()=>[],target:async()=>target,availability:async()=>{throw new Error('secret');}};
     const result=await(await availabilityResponse(window,repository,now)).json();
-    expect(result.availability).toBe('UNKNOWN');expect(result.retry_after_seconds).toBe(30);expect(validateContract('AvailabilityResult',result).ok).toBe(true);
+    expect(result.availability).toBe('UNKNOWN');expect(result.buffer_policy_version).toBeNull();expect(result.retry_after_seconds).toBe(30);expect(validateContract('AvailabilityResult',result).ok).toBe(true);
+  });
+  it('returns database observation time and policy together, while schema disagreement is UNKNOWN',async()=>{
+    const checked='2026-10-07T11:59:59.000Z';
+    for(const observation of [{available:true,source_checked_at:checked,buffer_policy_version:'post-return-snapshot-v1/90'},{available:'true',source_checked_at:checked,buffer_policy_version:'post-return-snapshot-v1/90'}]){
+      const repository=new (await import('../../supabase/functions/_shared/external-booking/catalog-routes')).RpcCatalogRepository({rpc:async(name)=>{expect(name).toBe('external_api_observe_availability');return {data:[observation],error:null};}});
+      repository.target=async()=>target;
+      const result=await(await availabilityResponse(window,repository,now)).json();
+      expect(result.availability).toBe(observation.available===true?'AVAILABLE':'UNKNOWN');
+      expect(result.buffer_policy_version).toBe(observation.available===true?'post-return-snapshot-v1/90':null);
+      if(observation.available===true)expect(result.source_checked_at).toBe(checked);
+    }
   });
   it('uses real signed JWT verification, introspection, persistent limiter, ownership and quote RPC',async()=>{
     const {handler,calls}=runtime();const bearer=await token();
     const response=await handler(new Request('https://api.example.invalid/v1/quotes',{method:'POST',headers:{authorization:`Bearer ${bearer}`,'content-type':'application/json'},body:JSON.stringify(input)}));
     expect(response.status).toBe(201);const result=await response.json();
     expect(validateContract('QuoteResult',result).ok).toBe(true);expect(result.holds_inventory).toBe(false);expect(result.total_cents).toBe(83587);
+    expect(result.consent_url).toBe(`${config.consentOrigin}/agent/consent/30000000-0000-4000-8000-000000000001`);
     expect(calls.some(call=>call.name==='external_create_quote')).toBe(true);expect(calls.some(call=>call.name==='external_resolve_customer_link')).toBe(true);
     expect(calls.filter(call=>call.name==='check_rate_limit')).toHaveLength(2);
     expect(calls.find(call=>call.destination==='issuer.example.invalid')?.authorization).toBe(config.introspectionAuthorization);
@@ -46,6 +58,7 @@ describe('safe availability and actual runtime quote composition',()=>{
   it.each([{active:false,status:401},{failIntrospection:true,status:503},{missingCustomer:true,status:401},{limit:false,status:429},{scope:'catalog:read',status:401}])('denies revocation/provider failure/missing onboarding/rate limit before quote persistence %j',async(options)=>{
     const {handler,calls}=runtime(options);const response=await handler(new Request('https://api.example.invalid/v1/quotes',{method:'POST',headers:{authorization:`Bearer ${await token()}`,'content-type':'application/json'},body:JSON.stringify(input)}));
     expect(response.status).toBe(options.status);expect(calls.some(call=>call.name==='external_create_quote')).toBe(false);expect(JSON.stringify(await response.json())).not.toContain('secret');
+    if(options.missingCustomer)expect(response.headers.get('Link')).toBe(`<${config.consentOrigin}/agent/account/${operator}>; rel="customer-account"`);
   });
   it('checks token revocation on every request rather than cache active state',async()=>{
     const {handler,calls}=runtime();const bearer=await token();
