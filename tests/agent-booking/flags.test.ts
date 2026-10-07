@@ -33,4 +33,10 @@ describe('authoritative operation controls',()=>{
   await expect(store.read(operator)).resolves.toEqual({newWritesEnabled:false,operatorEnabled:true});
   await expect(new SupabaseFlagStore({rpc:async()=>({data:{new_writes_enabled:'true',operator_enabled:true},error:null})}).read(operator)).rejects.toThrow();
  });
+ it('bounds stalled authority and rejects unknown operation or non-UUID operator',async()=>{
+  await expect(new SupabaseFlagStore({rpc:()=>new Promise(()=>{})},10).read(operator)).rejects.toMatchObject({code:'configuration_unavailable'});
+  const store={read:async()=>({newWritesEnabled:true,operatorEnabled:true})};
+  await expect(requireOperationEnabled(store,operator,'made-up' as any)).rejects.toThrow();
+  await expect(requireOperationEnabled(store,'nonexistent','request:read')).rejects.toThrow();
+ });
 });
