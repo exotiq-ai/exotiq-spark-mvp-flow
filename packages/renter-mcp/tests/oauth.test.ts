@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeAll, afterAll } from 'vitest';
 import { createServer } from 'node:http';
-import { exportJWK, generateKeyPair, SignJWT } from 'jose';
+import { decodeJwt, exportJWK, generateKeyPair, SignJWT } from 'jose';
 import { createAuthenticator, AuthFailure, type AuthConfig } from '../src/auth.ts';
 
 const issuer='https://identity.example.test', resource='https://mcp.example.test/mcp', api='https://api.example.test';
@@ -26,7 +26,7 @@ beforeAll(async()=> {
     const body=new URLSearchParams(Buffer.concat(chunks).toString());
     res.setHeader('content-type','application/json');
     if(req.url==='/jwks') res.end(JSON.stringify({keys:[jwk]}));
-    else if(req.url==='/introspect') res.end(JSON.stringify({active:!revoked,iss:issuer,sub:'customer-a',client_id:substitute?'consumer-b':'consumer-a',aud:resource,scope:'catalog:read quotes:create rental_requests:create rental_requests:read checkout:handoff'}));
+    else if(req.url==='/introspect') res.end(JSON.stringify({active:!revoked,iss:issuer,sub:'customer-a',client_id:substitute?'consumer-b':'consumer-a',aud:resource,scope:decodeJwt(body.get('token')!).scope}));
     else if(req.url==='/token') {
       expect(body.get('grant_type')).toBe('urn:ietf:params:oauth:grant-type:token-exchange');
       expect(body.get('resource')).toBe(api);
