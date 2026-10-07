@@ -8,6 +8,8 @@ const required = {
  '/v1/grant-renewals':'post', '/v1/grant-renewals/{renewal_id}':'get',
  '/v1/grant-renewals/{renewal_id}/review':'post', '/v1/grant-renewals/{renewal_id}/complete':'post',
  '/v1/grants/{grant_id}/revoke':'post', '/v1/rental-requests/{ref}/grant-renewals':'post',
+ '/v1/rental-requests/{ref}/identity-handoff':'post', '/v1/customers/rental-requests/{ref}':'get',
+ '/v1/customer-handoffs/{nonce}/review':'get', '/v1/customer-handoffs/{nonce}/resolve':'post',
 };
 describe('published API contract',()=>{
  it('includes the actual consent and recovery boundaries with private customer proof',()=>{
@@ -16,6 +18,9 @@ describe('published API contract',()=>{
   for(const path of ['/v1/quotes/{quote_id}/consents','/v1/customers/operator-links','/v1/grants/{grant_id}/revoke','/v1/grant-renewals/{renewal_id}/review','/v1/grant-renewals/{renewal_id}/complete'])expect(paths[path].post.security[0].hostedCustomerProof).toEqual([]);
   expect(paths['/v1/quotes/{quote_id}/consent-result'].get.responses['202']).toBeDefined();
   expect(paths['/v1/grants/{grant_id}/revoke'].post.responses['204'].content).toBeUndefined();
+  for(const [path,method] of Object.entries({'/v1/customers/rental-requests/{ref}':'get','/v1/customer-handoffs/{nonce}/review':'get','/v1/customer-handoffs/{nonce}/resolve':'post'}))expect(paths[path][method].security[0].hostedCustomerProof).toEqual([]);
+  expect(paths['/v1/rental-requests/{ref}/identity-handoff'].post.security[0].customerOAuth).toEqual(['identity:handoff']);
+  expect(paths['/v1/rental-requests/{ref}/checkout-handoff'].post.responses['201']).toBeDefined();
  });
  it('resolves every schema reference and unique operation/path parameter',()=>{
   const api=generateOpenApi();const ids=new Set();

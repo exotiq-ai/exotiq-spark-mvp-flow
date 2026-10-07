@@ -1,7 +1,7 @@
 {
   "api_version": "v1",
   "canonical_source": "supabase/functions/_shared/external-booking/contracts.ts",
-  "source_sha256": "0ba5c227790181f76b02f515abfcb3e03e4d15373ca1d229e91893ff4af4dd6c",
+  "source_sha256": "691901662c719c397fda3f875f4a59b036fbc3e5a9274b3fe923793a7f2f28fe",
   "examples_sha256": "c05c1a6871b42e5f2c800b3c7cb351d0e59c4f4e436d69d162080fe0207409f1",
   "operations": {
     "/v1/operators": {
@@ -54,6 +54,18 @@
     },
     "/v1/rental-requests/{ref}/checkout-handoff": {
       "post": "createCheckoutHandoff"
+    },
+    "/v1/rental-requests/{ref}/identity-handoff": {
+      "post": "createIdentityHandoff"
+    },
+    "/v1/customers/rental-requests/{ref}": {
+      "get": "getCustomerRentalRequest"
+    },
+    "/v1/customer-handoffs/{nonce}/review": {
+      "get": "reviewCustomerHandoff"
+    },
+    "/v1/customer-handoffs/{nonce}/resolve": {
+      "post": "resolveCustomerHandoff"
     }
   },
   "provider_acceptance": "unverified"

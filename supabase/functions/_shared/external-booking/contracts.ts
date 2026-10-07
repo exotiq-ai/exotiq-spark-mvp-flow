@@ -281,8 +281,17 @@ export function generateOpenApi() {
   status.responses['409'].description='Verified owner only: grant_expired or grant_revoked. Link rel=grant-renewal points to the fixed ref recovery route; another principal gets404.';
   status.responses['409'].headers={Link:{schema:text(2048)}};
   status.responses['304'] = { description: 'Unchanged authorized resource; no body. Authorization/grant checks still run before conditional response.' };
-  const handoff = operation('createCheckoutHandoff', 'CheckoutHandoffResult', ['checkout:handoff'], 'Require customer/booking/action grant, operator-approved pending_payment, valid identity and unexpired payment window. Partial payment never creates another operator charge. HTTPS scoped opaque nonce resolves in authenticated customer browser; legacy booking token remains backend.', undefined);
+  const handoff = created(operation('createCheckoutHandoff', 'CheckoutHandoffResult', ['checkout:handoff'], 'Require customer/booking/action grant, operator-approved pending_payment, valid identity and unexpired payment window. Partial payment never creates another operator charge. HTTPS scoped opaque nonce resolves in authenticated customer browser; legacy booking token remains backend.', 'GrantRenewalReviewInput'));
   handoff.parameters.push(refParameter);
+  const identity = created(operation('createIdentityHandoff','IdentityHandoffResult',['identity:handoff'],'Current explicitly consented identity grant and exact booking/customer provenance. Returns only a short-lived hosted customer URL; provider URL creation requires authenticated customer Continue.','GrantRenewalReviewInput'));
+  identity.parameters.push(refParameter);
+  const customerStatus = customer(operation('getCustomerRentalRequest','CustomerRentalStatusResult',['rental_requests:read'],'Verified customer browser and request-bound private BFF proof read the current owned request. Independent of withdrawn agent delegation; no browser-return success inference.'));
+  customerStatus.parameters.push(refParameter);
+  const nonceSchema:JsonSchema={...text(43,43),pattern:'^[A-Za-z0-9_-]{43}$'};
+  const nonceReview = customer(operation('reviewCustomerHandoff','CustomerHandoffReviewResult',['rental_requests:read'],'Authenticated customer review is read-only. Checks current exact owner, nonce/grant expiry, state and action. No provider session is created by GET.'));
+  nonceReview.parameters.push(parameter('nonce',nonceSchema));
+  const nonceResolve = customer(operation('resolveCustomerHandoff','CustomerHandoffResolveResult',['rental_requests:read'],'Explicit customer Continue plus private request-bound BFF/CSRF proof. Rechecks current scoped authority and booking/charge state, leases a stable provider attempt, and returns an action-specific allowlisted provider URL only to the browser. Provider URL is not stored or logged.','CustomerHandoffResolveInput'));
+  nonceResolve.parameters.push(parameter('nonce',nonceSchema));
   return {
     openapi: '3.1.2', jsonSchemaDialect: 'https://json-schema.org/draft/2020-12/schema',
     info: { title: 'Exotiq External Booking API', version: '1.0.0', description: 'Generated canonical v1 contract. Implementation and staging/provider proof remain rollout gates. No authority, ranking, onboarding or rental eligibility is guaranteed. Operator approval and hosted customer payment remain mandatory.' },
@@ -305,6 +314,10 @@ export function generateOpenApi() {
       '/v1/rental-requests': { post: requests },
       '/v1/rental-requests/{ref}': { get: status },
       '/v1/rental-requests/{ref}/checkout-handoff': { post: handoff },
+      '/v1/rental-requests/{ref}/identity-handoff': { post: identity },
+      '/v1/customers/rental-requests/{ref}': { get: customerStatus },
+      '/v1/customer-handoffs/{nonce}/review': { get: nonceReview },
+      '/v1/customer-handoffs/{nonce}/resolve': { post: nonceResolve },
     },
     components: { schemas, securitySchemes: { hostedCustomerProof: { type:'apiKey', in:'header', name:'X-Exotiq-Hosted-Proof', description:'Private server-to-server request attestation, independently bound to verified customer API bearer/method/path/body/CSRF; never a customer/agent bearer.' }, customerOAuth: { type: 'oauth2', description: 'Audience-bound verified customer OAuth. OAuth scope alone never establishes per-booking authorization or consent. Issuer/two-client compatibility requires implementation evidence.', flows: { authorizationCode: { authorizationUrl: 'https://oauth.example.invalid/authorize', tokenUrl: 'https://oauth.example.invalid/token', scopes: Object.fromEntries(SCOPES.map((scope) => [scope, scope])) } } } } },
   };
