@@ -91,4 +91,18 @@ describe('API client bounded fixed resources',()=>{
       await expect(client.status({ref:'owned-ref'})).rejects.toMatchObject({status:503,body:{code:'upstream_unavailable'}});
     }
   });
+  it('preserves the exact customer-owned account link without agent handoff capabilities',async()=>{
+    const account='https://customer.example.test/agent/account/11111111-1111-4111-8111-111111111111?ref=owned-ref';
+    const body={api_version:'v1',source_checked_at:new Date().toISOString(),ref:'owned-ref',status:'pending_documents',next_action:'verify_identity',hold_expires_at:null,payment_due_at:null,inventory_blocked:true,poll_after_seconds:5,links:{status:'https://api.example.test/v1/rental-requests/owned-ref',customer_account:account}};
+    for(const apiScopes of [[],['identity:handoff','checkout:handoff']]){let calls=0;const client=createApiClient({apiResource:'https://api.example.test',customerOrigin:'https://customer.example.test',apiScopes},'synthetic',async()=>{calls++;return Response.json(body);});
+      expect((await client.status({ref:'owned-ref'})).links).toMatchObject({customer_account:account});expect(calls).toBe(1);
+    }
+  });
+  it('rejects wrong-origin, wrong-ref and ambiguous customer account queries',async()=>{
+    const base='https://customer.example.test/agent/account/11111111-1111-4111-8111-111111111111';
+    for(const url of [base.replace('customer.example.test','attacker.example.test')+'?ref=owned-ref',base+'?ref=other-ref',base+'?ref=owned-ref&ref=owned-ref',base+'?ref=owned-ref&%74oken=secret',base+'?%72ef=owned-ref',base+'?ref=owned%2Dref',base+'?ref=owned-ref#secret',base.replace('/agent/account/','/agent/admin/')+'?ref=owned-ref',base.replace('11111111-1111-4111-8111-111111111111','not-uuid')+'?ref=owned-ref']){
+      const client=createApiClient({apiResource:'https://api.example.test',customerOrigin:'https://customer.example.test'},'synthetic',async()=>Response.json({api_version:'v1',source_checked_at:new Date().toISOString(),ref:'owned-ref',status:'pending_documents',next_action:'verify_identity',hold_expires_at:null,payment_due_at:null,inventory_blocked:true,poll_after_seconds:5,links:{status:'https://api.example.test/v1/rental-requests/owned-ref',customer_account:url}}));
+      await expect(client.status({ref:'owned-ref'})).rejects.toMatchObject({status:503,body:{code:'upstream_unavailable'}});
+    }
+  });
 });
