@@ -5,7 +5,7 @@ import { schemas, validateContract, validateRentalWindow, bindCursor, verifyCurs
 const operator = '10000000-0000-4000-8000-000000000001';
 const vehicle = '20000000-0000-4000-8000-000000000001';
 const window = { operator_id: operator, vehicle_id: vehicle, pickup_at: '2026-11-01T01:30:00-04:00', return_at: '2026-11-03T10:00:00-05:00', timezone: 'America/New_York' };
-const quote = () => ({ ...window, api_version: 'v1', source_checked_at: '2026-10-07T12:00:00Z', quote_id: '30000000-0000-4000-8000-000000000001', principal_scope: { subject: 'synthetic-customer', operator_id: operator }, expires_at: '2026-10-07T12:15:00Z', pricing_version: 'price-1', terms_version: 'terms-1', terms_hash: 'a'.repeat(64), selected_options: ['premium'], currency: 'USD', itemization: { rental_subtotal_cents: 20000, operator_tax_cents: 1200, operator_tax_inclusive: false, platform_fee_cents: 2000, protection_total_cents: 57800, state_fee_cents: 400, processing_fee_cents: 2187, deposit_cents: 0 }, operator_total_cents: 21200, exotiq_total_cents: 62387, total_cents: 83587, payment_schedule: [{ payee: 'operator', amount_cents: 21200, due: 'after_operator_approval' }, { payee: 'exotiq', amount_cents: 62387, due: 'after_operator_charge' }], availability_checked_at: '2026-10-07T12:00:00Z', holds_inventory: false, consent_url: 'https://agent-test.example.invalid/consent' });
+const quote = () => ({ ...window, api_version: 'v1', source_checked_at: '2026-10-07T12:00:00Z', quote_id: '30000000-0000-4000-8000-000000000001', principal_scope: { subject: 'synthetic-customer', operator_id: operator }, expires_at: '2026-10-07T12:15:00Z', pricing_version: 'price-1', terms_version: 'terms-1', terms_hash: 'a'.repeat(64), selected_options: ['premium'], currency: 'USD', terms: { cancellation_policy: 'Synthetic cancellation policy', pickup_address: 'Synthetic pickup location', pickup_instructions: null, mileage_limit: 200, mileage_overage_rate_usd: '0.75', deposit_disclosure: 'Security deposit is separate from rental charges.' }, pricing_details: { rental_days: 2, daily_rate_cents: 10000, protection_tier: 'premium', protection_daily_cents: 28900, state_code: 'FL', state_fee_label: 'Florida rental surcharge', state_fee_daily_cents: 200, operator_tax_label: 'Tax', operator_tax_rate_percent: '6', platform_fee_percent: '10' }, itemization: { rental_subtotal_cents: 20000, operator_tax_cents: 1200, operator_tax_inclusive: false, platform_fee_cents: 2000, protection_total_cents: 57800, state_fee_cents: 400, processing_fee_cents: 2187, deposit_cents: 0 }, operator_total_cents: 21200, exotiq_total_cents: 62387, total_cents: 83587, payment_schedule: [{ payee: 'operator', amount_cents: 21200, due: 'after_operator_approval' }, { payee: 'exotiq', amount_cents: 62387, due: 'after_operator_charge' }], availability_checked_at: '2026-10-07T12:00:00Z', holds_inventory: false, consent_url: 'https://agent-test.example.invalid/consent' });
 
 describe('canonical contracts', () => {
   it('accepts exact quote sums and rejects inconsistent totals and payment schedule', () => {
@@ -14,6 +14,14 @@ describe('canonical contracts', () => {
     expect(validateContract('QuoteResult', { ...quote(), operator_total_cents: 20000 }).ok).toBe(false);
     const wrong = quote(); wrong.payment_schedule[0].amount_cents++;
     expect(validateContract('QuoteResult', wrong).ok).toBe(false);
+  });
+  it('requires readable pricing and customer terms, and refuses private extra fields', () => {
+    expect(validateContract('QuoteResult', quote()).ok).toBe(true);
+    const absent = quote() as Record<string, unknown>; delete absent.terms;
+    expect(validateContract('QuoteResult', absent).ok).toBe(false);
+    expect(validateContract('QuoteResult', { ...quote(), terms: { ...quote().terms, document_url: 'private' } }).ok).toBe(false);
+    expect(validateContract('QuoteResult', { ...quote(), pricing_details: { ...quote().pricing_details, rental_days: 3 } }).ok).toBe(false);
+    expect(validateContract('QuoteResult', { ...quote(), terms: { ...quote().terms, mileage_overage_rate_usd: '-1' } }).ok).toBe(false);
   });
   it('handles tax included in rental without double counting it or charging deposit as rental', () => {
     const included = quote(); included.itemization.operator_tax_inclusive = true;
