@@ -47,5 +47,7 @@ describe('quote request preconditions', () => {
     expect((await validateQuoteForRequest(snapshot(), { ...current(), availability: 'UNKNOWN' }, principal, consent(), now)).outcome).toBe('upstream_unavailable');
     expect((await validateQuoteForRequest(snapshot(), current(), principal, consent(), now + 31000)).outcome).toBe('upstream_unavailable');
     expect((await validateQuoteForRequest(snapshot(), current(), principal, consent(), NaN)).outcome).toBe('upstream_unavailable');
+    expect((await validateQuoteForRequest({ ...snapshot(), authority: null }, current(), principal, consent(), now)).outcome).toBe('upstream_unavailable');
+    expect((await validateQuoteForRequest({ ...snapshot(), terms_hash: 'malformed' }, current(), principal, consent(), now)).outcome).toBe('upstream_unavailable');
   });
 });

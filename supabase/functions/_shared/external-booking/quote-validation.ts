@@ -20,6 +20,9 @@ const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
  */
 export async function validateQuoteForRequest(snapshot: QuoteSnapshot, currentAuthority: unknown, principal: QuotePrincipal, consent: QuoteConsent, now: number): Promise<QuoteValidation> {
   if (!Number.isFinite(now)) return { outcome: 'upstream_unavailable' };
+  if (!snapshot || !snapshot.authority || !snapshot.authority.window || !uuid.test(snapshot.quote_id) ||
+    [snapshot.pricing_version,snapshot.terms_version,snapshot.terms_hash].some((hash) => typeof hash !== 'string' || !/^[a-f0-9]{64}$/.test(hash)) ||
+    snapshot.terms_hash !== snapshot.terms_version || snapshot.holds_inventory !== false) return { outcome: 'upstream_unavailable' };
   try { assertQuotePrincipal(principal); } catch { return { outcome: 'consent_mismatch' }; }
   if (!snapshot || !snapshot.principal || !consent || !Array.isArray(principal.scopes) || !principal.scopes.includes('rental_requests:create') ||
     ['subject', 'customerId', 'issuer', 'audience', 'clientId'].some((key) => snapshot.principal[key as keyof QuotePrincipal] !== principal[key as keyof QuotePrincipal])) return { outcome: 'consent_mismatch' };
