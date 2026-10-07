@@ -32,7 +32,7 @@ const options: JsonSchema = { ...array(enumeration('premium', 'standard', 'decli
 // cancelled plus cancellation_reason. Generic 'expired' is not a stored booking state.
 export const BACKEND_STATUSES = ['pending_documents', 'requested', 'pending', 'pending_payment', 'confirmed', 'active', 'declined', 'cancelled', 'payment_expired', 'completed', 'refunded'] as const;
 export const NEXT_ACTIONS = ['verify_identity', 'await_operator', 'hosted_checkout', 'await_payment_settlement', 'await_reconciliation', 'confirmed', 'rental_active', 'declined', 'cancelled', 'expired', 'completed', 'refunded', 'recover_authorization'] as const;
-export const ERROR_CODES = ['invalid_input', 'unauthorized', 'forbidden', 'not_found', 'dates_unavailable', 'quote_changed', 'idempotency_conflict', 'request_in_flight', 'consent_mismatch', 'quote_expired', 'consent_expired', 'payment_window_expired', 'rate_limited', 'upstream_unavailable'] as const;
+export const ERROR_CODES = ['invalid_input', 'unauthorized', 'forbidden', 'not_found', 'dates_unavailable', 'quote_changed', 'idempotency_conflict', 'request_in_flight', 'consent_mismatch', 'quote_expired', 'consent_expired', 'payment_window_expired', 'grant_expired', 'grant_revoked', 'configuration_unavailable', 'external_writes_disabled', 'rate_limited', 'upstream_unavailable'] as const;
 export const SCOPES = ['catalog:read', 'quotes:create', 'rental_requests:create', 'rental_requests:read', 'checkout:handoff'] as const;
 export const OperatorsQuery = object({ city: text(80), operator_slug: slug, cursor, limit: { ...integer(50, 1), default: 20 } }, ['city', 'operator_slug', 'cursor', 'limit']);
 export const VehiclesQuery = object({ operator_id: uuid, city: text(80), cursor, limit: { ...integer(50, 1), default: 20 }, pickup_at: timestamp, return_at: timestamp, timezone: rentalWindow.timezone }, ['operator_id', 'city', 'cursor', 'limit', 'pickup_at', 'return_at', 'timezone']);
@@ -56,7 +56,7 @@ export const QuoteResult = object({ ...metadata, ...rentalWindow, quote_id: uuid
 export const RentalRequestInput = object({ quote_id: uuid, consent_receipt_id: uuid });
 export const ScopedLinks = object({ status: httpsUrl, consent: httpsUrl, recovery: httpsUrl, identity: httpsUrl, checkout_handoff: httpsUrl }, ['consent', 'recovery', 'identity', 'checkout_handoff']);
 export const RentalRequestResult = object({ ...metadata, ref: { ...text(80), pattern: '^[A-Za-z0-9_-]+$' }, status: enumeration(...BACKEND_STATUSES), next_action: enumeration(...NEXT_ACTIONS), hold_expires_at: nullable(timestamp), links: ScopedLinks });
-export const RentalStatusResult = object({ ...RentalRequestResult.properties, payment_due_at: nullable(timestamp), inventory_blocked: { type: 'boolean' }, poll_after_seconds: integer(3600, 1) });
+export const RentalStatusResult = object({ ...RentalRequestResult.properties, payment_due_at: nullable(timestamp), inventory_blocked: { type: 'boolean' }, poll_after_seconds: integer(60, 5) });
 export const CheckoutHandoffResult = object({ ...metadata, customer_url: httpsUrl, expires_at: timestamp, state: enumeration('pending_payment'), next_action: enumeration('hosted_checkout') });
 export const ConsentResult = object({ ...metadata, quote_id: uuid, state: enumeration('waiting', 'authorized'), consent_receipt_id: uuid, expires_at: timestamp }, ['consent_receipt_id', 'expires_at']);
 export const RecoveryResult = object({ ...metadata, ref: text(80), state: enumeration('authorization_required', 'authorized'), customer_url: httpsUrl, expires_at: timestamp });
@@ -260,17 +260,21 @@ export function generateOpenApi() {
   const refRenewal = created(operation('beginRequestGrantRenewal','GrantRenewalResult',['rental_requests:read'],'Original durable-ledger owner starts hosted recovery using request ref, including expired/revoked grants. Different owner remains 404.','GrantRenewalReviewInput'));
   refRenewal.parameters.push(parameter('ref',RentalRequestResult.properties!.ref));
   const requests = operation('submitRentalRequest', 'RentalRequestResult', ['rental_requests:create'], 'Authenticated customer and matching one-use consent receipt required. First creation returns 201; same principal/idempotency key and identical intent returns original result with 200. Request is pending approval, never confirmation.', 'RentalRequestInput');
-  requests.parameters.push({ name: 'Idempotency-Key', in: 'header', required: true, schema: { ...text(128, 16), pattern: '^[A-Za-z0-9_-]+$' } });
+  requests.parameters.push({ name: 'Idempotency-Key', in: 'header', required: true, schema: { ...text(128, 16), pattern: '^[A-Za-z0-9._:-]+$' } });
   requests.responses['201'] = response('RentalRequestResult', 'First durable request creation');
   const quote = operation('createQuote', 'QuoteResult', ['quotes:create'], 'Persist server-calculated principal-bound quote; creates no inventory hold. Recheck visibility, availability and options. Customer reviews itemized charges/terms in consent_url. Missing authoritative prerequisites return 503.', 'QuoteRequest');
   delete quote.responses['200']; quote.responses['201'] = response('QuoteResult', 'Persisted expiring quote');
   const status = operation('getRentalRequest', 'RentalStatusResult', ['rental_requests:read'], 'Revalidate customer/operator/booking/action grant scope, expiry and revocation on every read. Hidden, missing and wrong-customer refs have identical 404. Browser payment redirect is never confirmation; status may report reconciliation pending.');
   const refParameter = { name: 'ref', in: 'path', required: true, schema: RentalRequestResult.properties!.ref };
   status.parameters.push(refParameter, { name: 'If-None-Match', in: 'header', required: false, schema: text(128) });
-  status.responses['200'].headers = { ETag: { schema: text(128) }, 'Cache-Control': { schema: { const: 'private, no-cache' } } };
+  status.responses['200'].headers = { ETag: { schema: text(128) }, 'Cache-Control': { schema: { const: 'no-store' } }, 'Retry-After':{schema:integer(60,5)} };
+  status.responses['409'].description='Verified owner only: grant_expired or grant_revoked. Link rel=grant-renewal points to the fixed ref recovery route; another principal gets404.';
+  status.responses['409'].headers={Link:{schema:text(2048)}};
   status.responses['304'] = { description: 'Unchanged authorized resource; no body. Authorization/grant checks still run before conditional response.' };
   const handoff = operation('createCheckoutHandoff', 'CheckoutHandoffResult', ['checkout:handoff'], 'Require customer/booking/action grant, operator-approved pending_payment, valid identity and unexpired payment window. Partial payment never creates another operator charge. HTTPS scoped opaque nonce resolves in authenticated customer browser; legacy booking token remains backend.', undefined);
   handoff.parameters.push(refParameter);
+  const renewal=operation('beginRequestGrantRecovery','GrantRenewalResult',['rental_requests:read'],'Verified ledger owner starts hosted customer reauthorization for this existing rental. Body is empty. No automatic delegation, resurrected grant, replacement booking or new charge. Revoked delegation requires an explicit new customer click.','GrantRenewalReviewInput');
+  renewal.parameters.push(refParameter);delete renewal.responses['200'];renewal.responses['201']=response('GrantRenewalResult','Concrete hosted customer authorization rendezvous');
   return {
     openapi: '3.1.2', jsonSchemaDialect: 'https://json-schema.org/draft/2020-12/schema',
     info: { title: 'Exotiq External Booking API', version: '1.0.0', description: 'Generated canonical v1 contract. Implementation and staging/provider proof remain rollout gates. No authority, ranking, onboarding or rental eligibility is guaranteed. Operator approval and hosted customer payment remain mandatory.' },
