@@ -49,7 +49,10 @@ export function createMcpApplication(config:ApplicationConfig,fetcher:typeof fet
       let parsed:unknown,scope:string|undefined;
       if(request.method==='POST'){
         if(!request.headers.get('content-type')?.toLowerCase().startsWith('application/json'))return new Response(null,{status:415});
-        try{const raw=await request.text();if(Buffer.byteLength(raw)>65536) return new Response(null,{status:413});parsed=JSON.parse(raw);}catch{return new Response(null,{status:400});}
+        try{const reader=request.body?.getReader();const chunks:Uint8Array[]=[];let size=0;
+          if(reader)try{for(;;){const part=await reader.read();if(part.done)break;size+=part.value.byteLength;if(size>65536)return new Response(null,{status:413});chunks.push(part.value);}}finally{await reader.cancel().catch(()=>{});}
+          const bytes=new Uint8Array(size);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length;}parsed=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));
+        }catch{return new Response(null,{status:400});}
         if(!record(parsed))return new Response(null,{status:400});
         if(parsed.method==='tools/call'&&record(parsed.params)&&typeof parsed.params.name==='string')scope=toolScopes[parsed.params.name];
       }
