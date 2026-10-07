@@ -15,7 +15,10 @@ try {
   }
   const root = fileURLToPath(new URL('../../', import.meta.url));
   // The fixed config cannot be overridden to load project dotenv or widen discovery.
-  if (args.some((arg) => /^--(config|root|setup|include|exclude|passWithNoTests|environment|project(?![=]synthetic$))/.test(arg))) {
+  if (args.some((arg) => !(
+    arg === '--run' || (suite === 'pilot' && arg === '--project=synthetic')
+    || /^tests\/agent-booking\/[A-Za-z0-9-]+\.(test|spec)\.ts$/.test(arg)
+  ))) {
     throw new Error('Test runner override is not allowed');
   }
   const result = spawnSync(process.execPath, [resolve(root, 'node_modules/vitest/vitest.mjs'), '--config', resolve(root, 'vitest.agent.config.ts'), '--run', ...args.filter((arg) => arg !== '--run')], {

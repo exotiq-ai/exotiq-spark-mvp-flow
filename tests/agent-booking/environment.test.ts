@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { guardEnvironment, validateManifest } from '../../scripts/agent-booking/guard-environment.mjs';
 import { applyManifest, teardownManifest, createRestAdapter } from '../../scripts/agent-booking/seed-staging.mjs';
 import { suiteFiles } from '../../scripts/agent-booking/test-suites.mjs';
+import { spawnSync } from 'node:child_process';
 
 const now = Date.parse('2026-10-07T12:00:00Z');
 const fixture = () => ({
@@ -109,4 +110,10 @@ it('keeps unit/contract/staging/pilot discovery explicit and disjoint', () => {
   expect(suiteFiles('staging').include).toContain('tests/agent-booking/concurrency.test.ts');
   expect(suiteFiles('pilot').include).toEqual(['tests/agent-booking/pilot.spec.ts']);
   expect(() => suiteFiles('unknown')).toThrow();
+});
+
+it.each([['-c', '/tmp/alternate.ts'], ['--config=/tmp/alternate.ts'], ['--passWithNoTests'], ['--root=/tmp'], ['../unreviewed.test.ts']])('refuses runner configuration/discovery overrides: %s', (...args) => {
+  const result = spawnSync(process.execPath, ['scripts/agent-booking/run-tests.mjs', 'unit', ...args], { encoding: 'utf8' });
+  expect(result.status).toBe(1);
+  expect(result.stderr).toContain('Test runner override is not allowed');
 });
