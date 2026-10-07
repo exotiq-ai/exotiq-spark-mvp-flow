@@ -24,7 +24,7 @@ export function redactedEvent(raw:unknown):RedactedEvent {
 export async function principalPseudonym(secret:Uint8Array,issuer:string,subject:string):Promise<string>{
  if(secret.byteLength<32||secret.byteLength>64||typeof issuer!=='string'||issuer.length>2048||typeof subject!=='string'||!subject||subject.length>256)throw new Error('Invalid pseudonym configuration');
  const key=await crypto.subtle.importKey('raw',secret as BufferSource,{name:'HMAC',hash:'SHA-256'},false,['sign']);
- const signature=await crypto.subtle.sign('HMAC',key,new TextEncoder().encode(JSON.stringify([issuer,subject])));
+ const signature=await crypto.subtle.sign('HMAC',key,new TextEncoder().encode(JSON.stringify(['external-operational-principal-v1',issuer,subject])));
  return Array.from(new Uint8Array(signature),value=>value.toString(16).padStart(2,'0')).join('');
 }
 /** Optional telemetry cannot undo an already committed booking. Required
