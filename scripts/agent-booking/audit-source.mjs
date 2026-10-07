@@ -126,7 +126,16 @@ export function renderCapabilityAppendix(report) {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const report = auditSource(process.cwd());
   const [action, destination] = process.argv.slice(2);
-  if (action === '--write' && destination) writeFileSync(destination, JSON.stringify(report, null, 2) + '\n');
+  if (action === '--refresh') {
+    const branch = execFileSync('git', ['branch', '--show-current'], { encoding: 'utf8' }).trim();
+    if (branch !== 'codex/agent-booking-backend') throw new Error('Regenerate only in the isolated backend owner branch');
+    writeFileSync('docs/external-booking/source-audit.json', JSON.stringify(report, null, 2) + '\n');
+    writeFileSync('tests/agent-booking/fixtures/schema-grants.json', JSON.stringify({ version: 1, proof: 'source-only; applied effective privileges not verified', sourceFingerprint: report.sourceFingerprint, writers: report.writers, functions: report.finalFunctions, grantStatements: report.permissions, states: report.states }, null, 2) + '\n');
+    const path = 'docs/external-booking/capabilities.md';
+    const base = readFileSync(path, 'utf8').split('\n## Complete tracked-source writer candidates')[0];
+    writeFileSync(path, base + renderCapabilityAppendix(report));
+  }
+  else if (action === '--write' && destination) writeFileSync(destination, JSON.stringify(report, null, 2) + '\n');
   else if (action === '--check' && destination) assertAuditMatches(JSON.parse(readFileSync(destination, 'utf8')), report);
   else console.log(JSON.stringify({ fingerprint: report.sourceFingerprint, writers: report.writers.length, overloads: report.finalFunctions.length, dynamicCandidates: report.dynamicAccess.length, privilegeEvidence: report.permissions.length, deployment: report.appliedSchema }));
 }

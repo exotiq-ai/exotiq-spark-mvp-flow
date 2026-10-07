@@ -47,3 +47,7 @@ Run `node scripts/agent-booking/seed-staging.mjs apply <reviewed-config.json> <m
 - `node scripts/agent-booking/audit-source.mjs --check docs/external-booking/source-audit.json`: detects tracked source drift and omitted candidates.
 
 Test discovery is fixed in `test-suites.mjs`; no pass-with-no-tests or config override. Each later owner creates the named suite before production behavior. Missing suites fail discovery rather than reporting false validation. Internal functions and legacy status lookup are not exposed merely because these offline checks pass.
+
+## Source inventory reconciliation after later waves
+
+The root orchestrator owns this shared handoff: after every owner has committed the wave's new source files, review changed writer/signature/grant/trigger predicates, then run `node scripts/agent-booking/audit-source.mjs --refresh` in the isolated backend owner branch. This regenerates `docs/external-booking/source-audit.json`, the complete tables in `capabilities.md`, and `tests/agent-booking/fixtures/schema-grants.json` from **tracked** source. Untracked implementation files are not part of provenance until staged/committed. Review the generated diff before committing these three artifacts; regeneration must never waive omitted dynamic writer review or actual applied-schema tests. Run both offline suites afterward. The refreshed fixture remains source-only and never becomes effective grant evidence by regeneration.

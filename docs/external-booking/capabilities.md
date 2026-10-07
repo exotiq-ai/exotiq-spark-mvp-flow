@@ -22,6 +22,8 @@ The complete machine-readable inventory is `source-audit.json`: each writer cand
 
 Latest `create_marketplace_booking` overload in `20260819031937_c36dd9f7-6487-41e5-b013-5b43663eb92d.sql` has **no explicit ACL statement in that migration**. Earlier revokes target earlier signatures. This is a specific source risk, not a claim that production allows access. Applied default privileges, role membership and denied-call tests must establish its actual access before external booking writes.
 
+Static migration chronology also retains the preceding **17-argument** overload from `20260819024902_88d5433f-dd91-452b-bec6-da445dd77008.sql`: the next migration drops older 14/16-argument identities only. Callers supplying optional defaults without `return_time` therefore require explicit overload resolution/compatibility testing. Root's separate isolated local SQL audit reproduced a function-not-unique error and PUBLIC execute inheritance under its local baseline; that evidence does not establish the production database's role/default-privilege state. Planned hardening must preserve existing callers while retiring ambiguous signatures.
+
 ## Lifecycle evidence
 
 `pending_documents` means identity prerequisites remain; `requested` means submitted for operator review; `pending_payment` follows approval; `confirmed` must follow authoritative settled operator and Exotiq legs plus required identity; `active` means rental underway. Legacy `pending` remains an inventory-blocking branch. `cancelled`, `expired`, `declined`, `completed` and `refunded` appear in source; precise inventory/recovery behavior is recorded per function in the JSON and must be verified against the clean applied schema. Request submission and browser payment redirect never establish confirmation.
