@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "sourceFingerprint": "0bb1cd0f42e160ab831cc7d0f24d63f52acee8e81b9a059ab4455668fc7249a1",
+  "sourceFingerprint": "370421cafcdcfec6b4ce7e617b58a647ffcadcfa0094ec417c8e81d3c39895aa",
   "files": [
     {
       "file": "scripts/rari/cross-surface-parity-check.ts",
@@ -2525,6 +2525,18 @@
     {
       "file": "supabase/functions/_shared/demandCities.ts",
       "sha256": "24e8a0d72bfee0098ca168491c94d1c04201246f782d628902c3cf24a8b9aa45"
+    },
+    {
+      "file": "supabase/functions/_shared/external-booking/contracts.ts",
+      "sha256": "98def81954f467092e3956e39b76a8accdab9eab8b8acee8221add02f44a338d"
+    },
+    {
+      "file": "supabase/functions/_shared/external-booking/errors.ts",
+      "sha256": "6c0315306bc15003d2b738ec89d1d48efb3bfe0e4061bd624e1a67dfa25cd294"
+    },
+    {
+      "file": "supabase/functions/_shared/external-booking/state.ts",
+      "sha256": "9f6198074d2a34959abd475e813a6724e4440562c70478b703068c9e5a48eebb"
     },
     {
       "file": "supabase/functions/_shared/fleet-tools/auth.ts",
@@ -18098,6 +18110,12 @@
         },
         {
           "state": "pending_documents",
+          "file": "supabase/functions/_shared/external-booking/contracts.ts",
+          "line": 33,
+          "sha256": "98def81954f467092e3956e39b76a8accdab9eab8b8acee8221add02f44a338d"
+        },
+        {
+          "state": "pending_documents",
           "file": "supabase/functions/identity-webhook/index.ts",
           "line": 206,
           "sha256": "f2366f05ce1241b1e24813ca5526889e2d2f75f6ca524f0f0b4268c905642372"
@@ -18319,6 +18337,12 @@
         },
         {
           "state": "requested",
+          "file": "supabase/functions/_shared/external-booking/contracts.ts",
+          "line": 33,
+          "sha256": "98def81954f467092e3956e39b76a8accdab9eab8b8acee8221add02f44a338d"
+        },
+        {
+          "state": "requested",
           "file": "supabase/functions/admin-smoke-run/index.ts",
           "line": 389,
           "sha256": "bdcdffa8c101e42d9a28aabc295df60dcdc0b632a8b369632612d4816e865ba8"
@@ -18525,6 +18549,12 @@
           "file": "src/lib/bookingStatus.ts",
           "line": 9,
           "sha256": "d43508c5e3e05420f30a2bf29294587b0ff041dae0683e6fa07b5f9a16de6b5b"
+        },
+        {
+          "state": "pending_payment",
+          "file": "supabase/functions/_shared/external-booking/contracts.ts",
+          "line": 33,
+          "sha256": "98def81954f467092e3956e39b76a8accdab9eab8b8acee8221add02f44a338d"
         },
         {
           "state": "pending_payment",
@@ -18974,6 +19004,12 @@
           "file": "src/lib/importTemplates.ts",
           "line": 22,
           "sha256": "bd3059dca28c074923eac2f9d475c381d5e4d9283ae4ac9b34ffc0c8c0cc9124"
+        },
+        {
+          "state": "confirmed",
+          "file": "supabase/functions/_shared/external-booking/contracts.ts",
+          "line": 33,
+          "sha256": "98def81954f467092e3956e39b76a8accdab9eab8b8acee8221add02f44a338d"
         },
         {
           "state": "confirmed",
@@ -19474,6 +19510,12 @@
         },
         {
           "state": "active",
+          "file": "supabase/functions/_shared/external-booking/contracts.ts",
+          "line": 33,
+          "sha256": "98def81954f467092e3956e39b76a8accdab9eab8b8acee8221add02f44a338d"
+        },
+        {
+          "state": "active",
           "file": "supabase/functions/_shared/fleet-tools/executor.ts",
           "line": 817,
           "sha256": "b89d6dbe2a2ee6735ca3e969f40ac4a48eeac1cb756a83923310971f40d5a13e"
@@ -19920,6 +19962,12 @@
           "file": "src/lib/smokeTest.ts",
           "line": 12,
           "sha256": "d769776f020d038ee23e70d6732bebd6f30a67ba50178a53b96a1156a46be336"
+        },
+        {
+          "state": "pending",
+          "file": "supabase/functions/_shared/external-booking/contracts.ts",
+          "line": 33,
+          "sha256": "98def81954f467092e3956e39b76a8accdab9eab8b8acee8221add02f44a338d"
         },
         {
           "state": "pending",
@@ -20408,6 +20456,12 @@
         },
         {
           "state": "cancelled",
+          "file": "supabase/functions/_shared/external-booking/contracts.ts",
+          "line": 33,
+          "sha256": "98def81954f467092e3956e39b76a8accdab9eab8b8acee8221add02f44a338d"
+        },
+        {
+          "state": "cancelled",
           "file": "supabase/functions/_shared/fleet-tools/executor.ts",
           "line": 623,
           "sha256": "b89d6dbe2a2ee6735ca3e969f40ac4a48eeac1cb756a83923310971f40d5a13e"
@@ -20539,6 +20593,12 @@
         },
         {
           "state": "expired",
+          "file": "supabase/functions/_shared/external-booking/contracts.ts",
+          "line": 32,
+          "sha256": "98def81954f467092e3956e39b76a8accdab9eab8b8acee8221add02f44a338d"
+        },
+        {
+          "state": "expired",
           "file": "supabase/functions/_shared/fleet-tools/executor.ts",
           "line": 623,
           "sha256": "b89d6dbe2a2ee6735ca3e969f40ac4a48eeac1cb756a83923310971f40d5a13e"
@@ -20595,6 +20655,12 @@
           "file": "src/lib/bookingStatus.ts",
           "line": 14,
           "sha256": "d43508c5e3e05420f30a2bf29294587b0ff041dae0683e6fa07b5f9a16de6b5b"
+        },
+        {
+          "state": "declined",
+          "file": "supabase/functions/_shared/external-booking/contracts.ts",
+          "line": 33,
+          "sha256": "98def81954f467092e3956e39b76a8accdab9eab8b8acee8221add02f44a338d"
         },
         {
           "state": "declined",
@@ -20861,6 +20927,12 @@
         },
         {
           "state": "completed",
+          "file": "supabase/functions/_shared/external-booking/contracts.ts",
+          "line": 33,
+          "sha256": "98def81954f467092e3956e39b76a8accdab9eab8b8acee8221add02f44a338d"
+        },
+        {
+          "state": "completed",
           "file": "supabase/functions/_shared/fleet-tools/executor.ts",
           "line": 1029,
           "sha256": "b89d6dbe2a2ee6735ca3e969f40ac4a48eeac1cb756a83923310971f40d5a13e"
@@ -21079,6 +21151,12 @@
           "file": "src/lib/bookingStatus.ts",
           "line": 14,
           "sha256": "d43508c5e3e05420f30a2bf29294587b0ff041dae0683e6fa07b5f9a16de6b5b"
+        },
+        {
+          "state": "refunded",
+          "file": "supabase/functions/_shared/external-booking/contracts.ts",
+          "line": 33,
+          "sha256": "98def81954f467092e3956e39b76a8accdab9eab8b8acee8221add02f44a338d"
         },
         {
           "state": "refunded",
