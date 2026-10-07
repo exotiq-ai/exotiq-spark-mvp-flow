@@ -1,0 +1,1025 @@
+{
+  "source": "/Users/g.r./Documents/Codex/2026-10-06/realtime-voice-chat/work/exotiq-agent-build/backend-worktree",
+  "partial": true,
+  "privilege_parity": false,
+  "selected": [
+    {
+      "file": "20260721232856_542fce1e-1f93-4fe3-9344-c363ed48f7bd.sql",
+      "function": "is_marketplace_team",
+      "sha256": "26bd4f0b5d61399024109c111a6ac836866e68721c1d350bcb530f89fdd95f81"
+    },
+    {
+      "file": "20260721232856_542fce1e-1f93-4fe3-9344-c363ed48f7bd.sql",
+      "function": "is_marketplace_vehicle",
+      "sha256": "e7c8b72c36d7a115f43dc44eaa44049c84f2823d61b19ca001f75de1be9cbaa3"
+    },
+    {
+      "file": "20260817223022_dc7d6780-e411-471d-a9c0-db19bf3bb109.sql",
+      "function": "team_state_code",
+      "sha256": "7e53b39e74b47c6e949a094c1b4ba2934ee7357d9f2932178661a88cfc2446c9"
+    },
+    {
+      "file": "20260817223022_dc7d6780-e411-471d-a9c0-db19bf3bb109.sql",
+      "function": "team_state_fee_daily_cents",
+      "sha256": "730b7bce8eb694b71814d0ae62527b35f324a83874586f8c9d982fcd3754551b"
+    },
+    {
+      "file": "20260818194350_05657977-2db5-4065-bade-cb18f5658618.sql",
+      "function": "cancellation_policy_text",
+      "sha256": "a7994fe67d7947017bae0cf076ddbc5eef488312dd79f97e63f0cec70b6642ed"
+    },
+    {
+      "file": "20260818194350_05657977-2db5-4065-bade-cb18f5658618.sql",
+      "function": "resolve_pickup_address",
+      "sha256": "77d4d480fa9f816b9ce5f8afc5d4cc179a12569efa506be84d8e2471bc9215bb"
+    },
+    {
+      "file": "20260819031937_c36dd9f7-6487-41e5-b013-5b43663eb92d.sql",
+      "function": "public_vehicle_busy_windows",
+      "sha256": "4a4406a155c7101db05e9d6bbc636de80080be04258f8f42eb4767c756aaad72"
+    },
+    {
+      "file": "20260819031937_c36dd9f7-6487-41e5-b013-5b43663eb92d.sql",
+      "function": "create_marketplace_booking",
+      "sha256": "8742e67aada2ad0d32b699628738cb98d297391dfbdc2b6a6df4de6ce9c438d6"
+    },
+    {
+      "file": "20260901194608_e2f6eea3-4363-483c-bc1d-9cfa24d1819e.sql",
+      "function": "public_vehicle_availability",
+      "sha256": "dd83bb92ce643d567e391444ea09a1132b23270642209d96d3131e1513b16cee"
+    },
+    {
+      "file": "20260901194608_e2f6eea3-4363-483c-bc1d-9cfa24d1819e.sql",
+      "function": "public_vehicle_quote",
+      "sha256": "22d7d594253a8a590c32c8f25f9813b472ea073c0d5a6284d5ece179def70f40"
+    },
+    {
+      "file": "20260901194608_e2f6eea3-4363-483c-bc1d-9cfa24d1819e.sql",
+      "function": "guard_marketplace_booking_blocked_dates",
+      "sha256": "a947116b645db78a895f5c1c14ae234c42d5790c016ffdb91a7255fd0dbd2c30"
+    },
+    {
+      "file": "20260722051127_c9a90611-18bc-46ef-aa5b-566cc51c77d0.sql",
+      "constraint": "bookings_no_marketplace_overlap",
+      "sha256": "4f579adf13c9470e5d4d5411fcdf7f7503ef69f404902e873665685d202ba98a"
+    }
+  ],
+  "quarantine": [
+    {
+      "file": "20251030004312_616c39db-fd35-420b-8193-1470c9d857d6.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20251030184056_87bbf22b-ab8a-4dbc-8a3e-c1a63476c668.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20251031180956_aea5a9d5-872c-41c7-b02e-d6db6cd530ff.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20251031194435_2fd0c80b-021b-495d-9d95-c89b588cea53.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20251031232021_e8c54f45-2b48-4f80-a048-fc79e33df91c.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20251107180250_5492c7a3-37c7-4bc5-b2d2-e0982359f781.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20251107180335_9db35a24-15f0-4f69-bfbc-cc81cafe0759.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20251109214415_f6cf598a-bd15-4f78-9e33-4798b7f7ca17.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20251109222153_23450238-3cca-4696-a410-9f8d63db01ee.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20251109224658_7a70cd30-a577-41a0-9da5-3439486bb5ea.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20251224041555_bfaea6fa-fdf5-4480-9057-394aac3e9a3f.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20251224061511_790994c3-1531-40ee-8e4d-e82ed086e03e.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20251224065037_8c8edc7b-4cc0-4f2d-9b2b-42d6f31d0666.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20251224091905_cb3ab814-62cc-4813-b01a-0f2d9f8c9cc3.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20251224213550_2a1a97a5-a934-464f-88b0-17b50111dd6c.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20251224215113_ebff0e47-cd84-4112-afb7-3af8a204503e.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20251225032449_c05c4c86-678a-4920-a7ec-f5af0efd98fc.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20251225033919_60532a96-35bd-4bc5-80c7-3d60d3823ef4.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20251225035702_6212531d-70b1-4173-9e4a-294171b250c2.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20251225041305_aa0567bd-a0b6-4333-b2cf-edfefc51493a.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20251225043837_26fa49b3-b20e-48fd-b284-e1d991f24252.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20251225044426_932be1a3-b668-47a7-af45-4ed26631310a.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20251225050316_33da4e8b-a428-4ee2-95b4-f3e50bcb6ff5.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20251225054044_1cd39d3c-a6a6-4857-b208-475c786e218c.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20251225055808_f635fc4e-501a-4c30-a347-21b430c60306.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20251226193106_134195f2-4f67-49a6-b7ec-aca0912d31d1.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20251228231830_58297acc-9a66-445a-84ef-0352c62b0daa.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260101193523_655559a4-b809-4f94-9d37-3effd240de0f.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260103010236_d45b0334-cd1b-4f1e-b965-e45fbe8797c4.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260103010250_c6bbc52e-1789-41fd-bf6f-819b03686eef.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260103010735_786cccb0-6771-4fca-8678-a319f19bad07.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260103040554_792c40a5-6c32-43eb-b932-ec36e8bbc553.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260103040654_02d4edb7-f005-4512-8deb-5a344c7d269a.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260103041618_e83dfe77-dfcf-40b9-8ac8-53edd13ee8d8.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260103042636_2a4cd9de-1b62-4619-a5ea-636a7e43d29f.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260103050456_0e331365-a88b-4e7a-9c00-0845e8d905d0.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260103053929_228fb045-2d72-49f2-8526-3dd7b82ca6c0.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260104161647_6e9950c8-8505-4dc4-a15b-e7d3462bfd7f.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260107010508_66c3de81-c476-41ec-a3ca-e3cc1647f14f.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260107045115_5181e992-8480-403c-9a8b-b463a0d43e3e.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260108201833_ff0e5c66-bc00-42a8-b1a5-1c7664a3644a.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260109022628_f5b0fee4-2a19-4254-8089-89aabf68311a.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260110143741_8d9b3541-90f7-4390-b206-978ec26d0d16.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260114230555_deactivate_reactivate_team_member.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260114234849_ac3fb22e-33c4-475f-8c8d-9bc6499f1aa2.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260115011927_ea4ed5ef-dfab-4c05-a8e9-732cb871cd5d.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260115145823_43278398-c602-4b03-ac07-9eb4713a045e.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260115161243_0f1e8d23-e5bb-4681-92b5-993cddc9d0f4.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260115220814_ddb54076-bd4f-4022-ba40-44f04ca92cc6.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260117071459_9d0facf1-7896-4ac8-a0fc-003cba9f275b.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260119155027_ca9b3119-4a79-445c-97c8-4073b5c0e680.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260119195605_56745c85-91c4-4bc3-af81-b476ad77b9a6.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260127061612_a676779f-7582-49f6-a66d-c7f8097edca2.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260127171554_cac3e028-77a0-4e2c-b074-ff389ccf0260.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260128224521_2af7475f-9f6e-4031-be1f-cf52f5220277.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260129201152_bbacdddd-54c6-4b3b-8be1-cb1d85ea2969.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260129201213_1498dca4-05e8-4c81-9be4-7f6dbb9c61dc.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260129223309_d5cfcb68-69fd-4689-be2f-13579b40d61f.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260130012704_605eacf8-a43a-4100-8423-7783fe238c70.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260130234546_36091b34-70a2-4488-928f-74d14e3054eb.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260131002944_213b65fe-c195-4389-9bad-d12612564cba.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260131014145_1583ff39-769a-4cbe-aaca-b1a2ed4bad74.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260131053802_8661e177-181c-48a1-a69e-55bfc5187e63.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260131053813_58dea5bc-81ab-4971-b99d-58044610cd28.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260205220113_6185219c-1621-4792-9a0c-962a2a64b102.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260208210109_1087fe9d-fa9f-421f-86e1-fb7a839898f2.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260208213021_de339251-b155-4a9d-83f7-a1c840d76c6d.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260208224404_510922e8-1aad-4fbb-848a-74abb2ae8dec.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260208225718_cf9f6831-8ad6-4f5c-8cb5-d93583698e96.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260209034554_2bc2e7b9-09e6-4502-97e0-e72681c0b993.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260305204008_122272e8-ce5f-4d44-8396-dc3341d05963.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260305232047_8e106ad0-197e-4398-a83c-52b05ee6767e.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260309191025_3d95685f-12f6-4ab0-98b7-026ccadf12fa.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260309191101_7861ebca-f189-4946-9a78-0aedab135ad4.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260309201018_146771b4-6b2f-43f1-8c06-cbd6b2a76533.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260309205306_7e2f73f2-812c-404f-a681-d91e827563ea.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260309212604_bdc85100-b706-4fa7-9a89-55219da59a89.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260310002057_42f9f8a9-71ba-478d-a5ce-a7c73f7ee7b5.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260310002106_3a86acca-b1b9-4cc2-b44e-cd5ffd0e46c4.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260310023847_c49094d2-bae5-4c45-ac37-8d0a8d89bb24.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260310045618_d3cb1a18-4479-4e7f-87aa-e9fec5ff3dc2.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260311020735_04c0a5dc-ff40-4a0e-99d3-333fb380b5b3.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260311022023_0dbd1332-cc23-4f1b-b291-188e68b9f880.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260319204952_6942c451-8ca8-47e5-896d-05d3922b1867.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260319204959_backfill_demo_team_hero_image_urls.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260321010914_902b4975-1cb5-4a83-ab98-69b1dd638834.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260321043522_d8b3e965-69db-4fe9-b444-e39bc151755a.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260405025542_29163c22-54b2-4f0a-946c-5fb532e67f8e.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260405032534_85a856d9-ce2d-4b3e-97ee-1e32b7ec3a6c.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260406200024_5f6c6517-ff2d-4972-8b0b-fffd16550646.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260406224145_bca8b7bf-b227-4c63-9994-b96b6bde7e59.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260407000719_77c8cab7-3806-4908-9263-b3d24a533fef.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260410211848_df53ee7f-8a45-45db-8a99-04856a1d2941.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260414213909_dc47b087-bdb1-4cdf-859e-817561a7432b.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260415154258_6ed449ee-b184-4d52-905a-99c994fcb947.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260525225448_b1ab6e43-436d-424c-b15f-34146fcf085f.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260525225536_8cf480fd-aae4-4741-91c0-10e8e3ffaf1a.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260525225610_9d00094b-eac7-481f-b810-bd46533317fb.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260527223011_1c12cfb6-0778-424d-8580-94b266a4844d.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260527223028_7bbdecbb-bec0-489c-87df-b6d25be7d559.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260527232022_42074291-f03d-41fc-afb7-478502dbc88e.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260527232050_d27a5c37-d9cc-4970-83b3-c098e3727fe5.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260528014214_c37ae3d3-b801-4df9-a816-61d16243a752.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260528014357_cfd61307-a726-44fb-a600-54a292d33489.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260528041457_e812e1ce-9b33-4abf-a914-b40d2b088d3c.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260528165134_d849622e-530d-455f-992c-c5ac2ba399a2.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260528175429_a3b6f4ba-8632-4999-861c-b1f690c4c913.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260528180850_716efbf0-1436-4a28-9caa-b4ed86784db4.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260528212946_860f5e28-0d16-44c6-a101-f42dcbde3a40.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260529001701_fd9f98c5-3ca0-4862-9ccf-07d536d9aaee.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260529032907_5e49855e-6534-477c-969f-1c686d7ea365.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260529032920_b5819c6a-e84d-47dd-af33-26add94c48a4.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260529040916_df5895eb-53bd-40b0-b9c1-375dc63cfaca.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260529044828_e67956f8-7e02-406b-b482-8370121f6e73.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260530172605_516dc328-e1a0-4612-9141-c45d180297e2.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260530203000_harden_tenant_rls_policies.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260530224500_harden_signup_team_slug_generation.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260605163938_d7ba6142-9b67-4ee4-b773-ee67a48a536e.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260605185430_9c315479-86ce-476a-90e0-378261de617f.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260605200101_9113cee0-3615-4f63-a45b-2489d29edef2.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260612160047_cbb71de3-25f7-4bea-a026-7bc9cb445c70.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260613041327_7822c315-f7f6-4a83-96ac-8cda124485bf.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260614031936_b0b98464-4f8d-411c-bacb-9d74c0c44003.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260614131411_99c38838-16ba-4722-b5d4-048ee233f99c.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260614192403_64ff47b7-4630-45cd-a17b-f32cffc544dd.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260614192425_6c987936-7792-45e8-a65c-18bcb5fbeb43.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260614195443_bbd4b4c7-cd6a-4f89-b134-250b8340e635.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260614200117_ddcd44b7-290c-441d-9559-3bd2c2f7cece.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260614201830_3f121230-11b4-4d14-98c3-a1fe3219415a.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260614204812_c90116b4-f55b-4ad6-b181-237f5eabeb8e.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260614204827_9089330c-f886-4068-8224-4dcec961db69.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260614205700_e54f75e6-5dc6-47e4-8886-0a3a3c24db0a.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260614210022_61015b03-42d3-4956-819f-80ddf2d87819.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260614214448_2b0f7744-e797-4e73-b0de-ce38f3e4328b.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260615154434_ae8022fb-c747-457e-9eea-bc4cb26a8114.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260615154451_d06e8556-e0a8-4873-991b-2fc2fda5914a.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260615163138_38fd146b-6a47-449e-a9ea-a80e95b687de.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260623182730_c97d8570-4b99-488f-b80a-da6cf806202b.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260623184241_51298202-2a17-43b4-bcfb-db9680277073.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260623184847_3d9a9862-877e-4e2d-a435-72ca5d51c1f4.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260625042803_574e010c-8f40-4e40-8a0c-d3a8ee9243bc.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260625173443_2e1b92b9-ec3a-4b3e-8d69-2ee0bfc171c8.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260625192030_1eb690d7-338a-4b81-bc78-42d7123054b4.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260626004416_86b7033c-c7b2-4f0c-b2d2-882fdec373fb.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260627125656_0fd068cc-ca12-40d4-a735-abc31c0c8151.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260627195957_cb815b79-dd08-4a5b-8369-3bd863ae3ed5.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260627200012_6fefb2b1-27df-4135-b0b3-e122ea1d9bbe.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260627203747_8d7bb02a-dc52-4ebe-a4b4-35d222235278.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260715211500_vehicle_photos_team_rls_and_webhook_events_select.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260715220000_rent_public_catalog_schema.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260715220100_rent_public_read_rpcs.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260716022657_5d957d8e-55be-4a20-b010-2cc2bc8d17b2.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260716022720_20e28177-fece-42e3-9e11-8b8114091528.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260716022951_7137aefc-4fc3-4758-86da-9972918ece7f.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260716023041_8bdaeb95-2cd4-4408-9cb4-760ae4e4e39c.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260716023155_f092b0d0-071a-47b0-be16-1b41e226a6df.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260716040619_992e7ebe-427d-407e-b0a9-be0511f21378.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260721180000_identity_verifications.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260721182803_97dfa95f-af58-4093-8ce0-e0f79c69ac8a.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260721183355_3bd95972-4cd9-4ac6-8c7b-cd71fd691e0f.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260721183950_a5d5783d-559f-4496-9673-33e11a5b82ef.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260721232856_542fce1e-1f93-4fe3-9344-c363ed48f7bd.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260722000108_0b869a88-c482-42f4-8714-ad2f19a1b76a.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260722001143_53e5acc3-2400-4b00-a418-472bd55a5070.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260722002959_e10eede1-420a-454e-9a85-b1876fd426ea.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260722050000_renter_booking_writes.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260722051127_c9a90611-18bc-46ef-aa5b-566cc51c77d0.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260722052316_9f8a6661-fc28-4871-9c2e-301c83e54886.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260722052443_592b5c69-1b48-4001-aa94-a1906a05d1bd.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260722181945_26aa77e2-5dba-433a-8154-1218025badb4.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260724015013_c1c8f150-af28-400e-8b5d-aae1e1515305.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260724015047_833d2be4-ab98-42ac-9ff5-c2b73e81ba47.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260724035348_d0cd7588-0a0b-4d2f-a1dd-b0f22c9e9826.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260724035422_6ac3ac4e-e8d6-413a-bae7-ae8d23b65ba5.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260724142818_6bab6645-e3b6-4f06-8576-390642b549cd.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260724202111_d32c742d-9952-4315-a1c6-c47f1fed9055.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260724205504_35c441cc-b4e3-4680-9d60-f058762133ac.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260724213232_3aa1d576-cf0a-4cd8-aef0-2f974101a170.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260725002742_ee8eaaf6-5796-470b-9ce6-1a0310c36b1b.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260725022525_1a61bbf6-f335-485c-a788-51d547233b54.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260725045744_fa25b9ea-3209-4ab2-bade-3d1744f0b5b2.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260725135723_55e56812-5660-4871-b28f-0eebb1053389.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260725140119_0a8bc5ee-933b-4e9e-8d64-9e7182ba8b6c.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260725142242_3dbefbcf-e306-4d3b-8dd6-b6d79c941478.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260725151456_56119032-7949-4a09-b53a-9f3f49682a1f.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260726232616_ee58153d-64f5-4b8d-97a3-d8768cc770f5.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260727011822_83e4b78e-ef80-4df6-b68c-69941e7157cb.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260727032032_2b6b4d42-5460-495d-a6d4-9c97819a8c48.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260727213240_5da0ce66-3594-46e1-84ff-4bc28449a07c.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260728032422_f43ad649-115f-4b98-905f-5f8f11af77d6.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260728152708_256354b7-9f0f-4e1d-a9a0-33e45ca82d04.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260728152723_a58e5413-94b3-4aab-a3e3-103f6ebb5d84.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260728213053_8944d0af-68c2-4078-9bd7-3b830510aa5d.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260728222252_e1512efd-4831-4168-bf31-4f4cd78358fb.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260729013944_c3b86c57-4806-4822-9655-d15b8c31fbcf.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260729014850_ea3cd12f-b976-4f02-9723-237d2ac4623f.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260729022752_0c38a53a-b1ee-47e2-b002-700b27d6e13e.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260729030549_5e29b31e-f591-4179-b5cc-6d18a9430415.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260729123352_884bdb6b-4e63-4616-a8ec-3436727afb25.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260730195135_f89d9f7a-817b-4e85-975f-1f336b47884d.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260731031542_1c44592a-4633-46a1-b1fb-59d9de6f59d6.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260731031647_7284e1ef-a621-43c5-b4d6-ad63149cb477.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260802014819_c8860e1a-782e-4715-990f-b0a71a2ead08.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260802055035_518da17b-db2b-4a41-9f95-f2efb88186a1.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260806174412_1e6b667a-1aff-454d-8378-fcf34b820a87.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260808011451_d06b9d74-df7d-4cd6-9ac0-c6cd90c79f93.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260808011859_e6745a3d-9c0d-419c-b038-9a620807bf17.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260808014412_66021699-aa0d-45df-9359-59ebb57bf125.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260808021634_fc82debc-5df8-4ba9-8911-6e5d5d828fe8.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260808232431_0df95049-df6d-4eef-99e3-164b88d55f11.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260811165605_0fbfdead-ac3b-41f1-a6a0-98023fdef918.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260811172330_007452d6-279a-4260-982f-df7f2ff961c1.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260817213136_305581df-649c-4c27-9d7e-f62f7a38de28.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260817220210_fea48246-7f50-45d5-a3f7-78198eb6bb24.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260817220928_45b8ff35-8932-476f-951f-81f03a497805.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260817223022_dc7d6780-e411-471d-a9c0-db19bf3bb109.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260817223206_bca4e254-734d-4ca7-8b89-4e2ca941db42.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260818041452_1db49257-f282-499d-8cea-e2961473656a.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260818174032_c588dcbc-d611-4c10-9a51-a6a4e64fcb08.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260818194148_4b740d37-788d-4fbf-8b26-9864d7439097.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260818194350_05657977-2db5-4065-bade-cb18f5658618.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260818194428_3305c9e3-df8d-4837-afdd-defcd4338461.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260819024902_88d5433f-dd91-452b-bec6-da445dd77008.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260819031937_c36dd9f7-6487-41e5-b013-5b43663eb92d.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260826172216_ff9d1532-6e11-4836-b99a-d617d86371fd.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260826182602_fd7a0a6a-2293-4195-b97c-f56e43ff8cf5.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260828190528_0ef60d8f-85f2-43e4-aacb-39d8d6f5b8ff.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260831163120_74885847-df48-4827-9cf6-e837b59b910f.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260831163200_6436f4c5-ea78-45b6-90cf-5bafc2e8259b.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260901193905_d14ff9c9-4c5a-480d-ac62-80be796f0147.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260901194608_e2f6eea3-4363-483c-bc1d-9cfa24d1819e.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260903234727_aa508e81-d609-44ce-91f2-e6f575345111.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260903234839_3e6e5afe-5f73-4ff3-a43c-c151add1dae0.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260903234925_fadb6d54-49f8-4af3-b86d-44dd0fd7f3a0.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260903234941_35178511-e614-4b4c-9674-1c3c05866275.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260904010919_d719f530-aba2-426e-ae4f-daa09195bcc9.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260904011005_43df43cb-2af6-4f17-beae-a0d30b9742f2.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260904122112_f5da6216-1ce4-40f1-b601-bd5406a9c4d1.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    },
+    {
+      "file": "20260910152846_ef4edf13-e000-4d98-80c1-af5804f625c6.sql",
+      "policy": "NEVER replay whole file; all content except exact selected bodies remains unapplied"
+    }
+  ]
+}

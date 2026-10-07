@@ -14,9 +14,9 @@
 // (create_marketplace_booking) with the btree_gist constraint as the
 // concurrency backstop.
 //
-// Initial status (D3 + ID plan V1 ruling): 'requested' when the renter's
-// email already has a verified, unexpired identity; otherwise
-// 'pending_documents' — verification confirms the booking post-payment.
+// Guest initial status is pending_documents. Typed email is not proof of
+// access to a verified tenant customer; authenticated delegated requests use
+// the separate server-verified customer binding.
 //
 // Deliberately NOT returned: a Stripe Checkout URL. The D1 money-flow
 // review (two separate charges) is still open with Gregory; wiring
@@ -81,6 +81,12 @@ serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
 
+    // This independently protected legacy guest contract is not a delegated API
+    // fallback. External quote/consent/grant inputs belong to authenticated v1.
+    if (["quote_id", "consent_receipt_id", "grant_id", "delegation", "customer_id"].some((key) => Object.prototype.hasOwnProperty.call(body, key))) {
+      return json({ error: "Use the authorized rental request API for delegated requests" }, 400);
+    }
+
     // Turnstile (only enforced when CLOUDFLARE_TURNSTILE_SECRET is set).
     const turnstile = await verifyTurnstile(body?.turnstile_token, ip);
     if (!turnstile.ok) {
@@ -141,19 +147,11 @@ serve(async (req) => {
     const quote = Array.isArray(quoteRows) ? quoteRows[0] : quoteRows;
     if (!quote) return json({ error: "Vehicle is not available for booking" }, 404);
 
-    // Identity reuse (V7): verified + unexpired for this email, any team.
-    // Use .eq — email is server-normalized above; ilike here was a wildcard
-    // vector (%, _ in email) that has no defensible use for identity reuse.
-    const { data: verifiedRows } = await admin
-      .from("identity_verifications")
-      .select("id, document_expiry, customers!inner(email)")
-      .eq("status", "verified")
-      .eq("customers.email", email)
-      .limit(1);
-    const identity = verifiedRows?.[0] as { document_expiry: string | null } | undefined;
-    const identityVerified = Boolean(
-      identity && (!identity.document_expiry || new Date(identity.document_expiry) > new Date()),
-    );
+    // A typed email establishes no ownership of a verified customer. Legacy
+    // anonymous guests remain pending_documents, including returning guests.
+    // Authenticated tenant-bound reuse is handled by the consented v1 SQL path;
+    // customers.user_id is the operator owner, not proof of renter identity.
+    const identityVerified = false;
     const initialStatus = identityVerified ? "requested" : "pending_documents";
 
     // Transactional create: overlap re-check + customer upsert + insert.
