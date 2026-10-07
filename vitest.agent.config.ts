@@ -4,6 +4,8 @@ import { suiteFiles } from './scripts/agent-booking/test-suites.mjs';
 const suite = process.env.AGENT_TEST_SUITE ?? 'unit';
 const selection = suiteFiles(suite);
 export default defineConfig({
+  // Each isolated plan owns its cache even when dependencies are shared read-only.
+  cacheDir: './.agent-test-cache',
   test: {
     projects: [{
       test: {
