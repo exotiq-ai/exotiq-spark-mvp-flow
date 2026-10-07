@@ -16,7 +16,7 @@ export async function availabilityResponse(input: unknown, repository: CatalogRe
   const result=observation?{api_version:'v1',...window,source_checked_at:observation.source_checked_at,availability:observation.available?'AVAILABLE':'UNAVAILABLE',buffer_policy_version:observation.buffer_policy_version}:unknown;
   return jsonResponse(validateContract('AvailabilityResult',result).ok?result:unknown);
 }
-export async function quoteResponse(input: unknown, request: Request, repository: CatalogRepository, auth: ResourceAuth | null, store: QuoteStore | null, consentOrigin: string, now: number): Promise<Response> {
+export async function quoteResponse(input: unknown, request: Request, repository: CatalogRepository, auth: ResourceAuth | null, store: QuoteStore | null, consentOrigin: string, now: number, responseClock:()=>number=()=>now): Promise<Response> {
   if (!validateContract('QuoteRequest', input, { now }).ok) throw new BookingApiError('invalid_input');
   if (!auth || !store) throw new BookingApiError('upstream_unavailable');
   const window = input as QuoteInput;
@@ -34,7 +34,9 @@ export async function quoteResponse(input: unknown, request: Request, repository
     throw error;
   }
   const quote = await createQuote(window, principal as QuotePrincipal, store, now);
-  return jsonResponse(quoteResultFromSnapshot(quote,consentOrigin,now),201);
+  // Persistence legitimately happens after request admission. Validate the
+  // original SQL observation against the response clock, retaining its timestamp.
+  return jsonResponse(quoteResultFromSnapshot(quote,consentOrigin,responseClock()),201);
 }
 export function quoteResultFromSnapshot(quote:QuoteSnapshot,consentOrigin:string,now:number) {
   const window=publicQuoteWindow(quote.authority.window);
