@@ -27,5 +27,7 @@ it('persists identity reference before returning a URL; failed durable recording
 it('requires current open/unpaid checkout exact amount/mode/metadata and safe frozen return URLs',()=>{
  const base=customerReturnBase('https://customer.example.test',ctx.operator_id,ctx.booking_ref,'checkout'),booking={booking_ref:ctx.booking_ref,total_value:100},session={status:'open',payment_status:'unpaid',livemode:false,expires_at:Math.floor(Date.now()/1000)+600,amount_total:10000,currency:'usd',metadata:{booking_ref:ctx.booking_ref,leg:'operator_rental',stripe_mode:'test'},success_url:base+'&payment=success',cancel_url:base+'&payment=cancelled',url:'https://checkout.stripe.com/c/pay/synthetic'};
  expect(validateCheckoutSession(session,booking,'test',base)).toBe(session.url);
+ expect(validateCheckoutSession({...session,currency:'eur',url:session.url+'#opaque-provider-data'},booking,'test',base,'eur',false)).toBe(session.url+'#opaque-provider-data');
+ expect(()=>validateCheckoutSession({...session,url:session.url+'#opaque-provider-data'},booking,'test',base)).toThrow();
  for(const patch of [{status:'complete'},{payment_status:'paid'},{amount_total:9999},{livemode:true},{expires_at:1},{success_url:'https://customer.example.test/booking/owned-ref?t=legacy'}])expect(()=>validateCheckoutSession({...session,...patch},booking,'test',base)).toThrow();
 });
