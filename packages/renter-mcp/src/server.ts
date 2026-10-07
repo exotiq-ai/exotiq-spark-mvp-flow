@@ -17,7 +17,7 @@ export function createMcpApplication(config:ApplicationConfig,fetcher:typeof fet
   const customer=new URL(config.customerOrigin);if(customer.protocol!=='https:'||customer.pathname!=='/'||customer.search||customer.hash||customer.username||customer.password)throw new Error('invalid_configuration');
   const origins=config.allowedOrigins??[resource.origin];if(origins.some(x=>{try{return new URL(x).origin!==x||!x.startsWith('https://');}catch{return true;}}))throw new Error('invalid_configuration');
   function server(delegation:Delegation,signal:AbortSignal) {
-    const api=createApiClient({apiResource:config.auth.apiResource,customerOrigin:config.customerOrigin},delegation.apiToken,fetcher,signal);
+    const api=createApiClient({apiResource:config.auth.apiResource,customerOrigin:config.customerOrigin,apiScopes:delegation.apiScopes},delegation.apiToken,fetcher,signal);
     const s=new McpServer({name:'exotiq-renter',version:'0.1.0'});
     const descriptors:Array<{name:string;input:StandardSchemaWithJSON<Record<string,unknown>>;output:ContractName;execute:(input:Record<string,unknown>)=>Promise<Record<string,unknown>>;readOnly:boolean;idempotent:boolean;waiting?:boolean}>= [
       {name:'search_vehicles',input:canonical('VehiclesQuery'),output:'VehiclesPage',execute:api.search,readOnly:true,idempotent:true},

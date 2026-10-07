@@ -8,7 +8,7 @@ export interface AuthConfig {
   maxTokenLifetimeSeconds:number;requestsPerMinute?:number;
 }
 export interface Principal {issuer:string;subject:string;clientId:string;scopes:string[];expiresAt:number;tokenId:string}
-export interface Delegation {principal:Principal;apiToken:string;mcpToken:string}
+export interface Delegation {principal:Principal;apiToken:string;apiScopes:readonly string[];mcpToken:string}
 export class AuthFailure extends Error {
   constructor(public readonly status:401|403|429|503,public readonly scope?:string){super(status===403?'insufficient_scope':status===429?'rate_limited':status===503?'upstream_unavailable':'invalid_token');}
 }
@@ -69,7 +69,7 @@ export function createAuthenticator(config:AuthConfig,fetcher:typeof fetch=fetch
         if(exchanged.status!==200||!record(e)||e.token_type!=='Bearer'||e.issued_token_type!=='urn:ietf:params:oauth:token-type:access_token'||typeof e.access_token!=='string'||e.access_token.length>16384||e.access_token===mcpToken)throw new AuthFailure(401);
         const delegated=await verify(e.access_token,config.apiResource,jwks,signal);
         if(delegated.issuer!==p.issuer||delegated.subject!==p.subject||delegated.clientId!==p.clientId||delegated.scopes.some(s=>!p.scopes.includes(s))||requiredScope&&!delegated.scopes.includes(requiredScope)||Date.now()-started>15000)throw new AuthFailure(401);
-        return {principal:p,apiToken:e.access_token,mcpToken};
+        return {principal:p,apiToken:e.access_token,apiScopes:delegated.scopes,mcpToken};
       }catch(error){if(error instanceof AuthFailure)throw error;throw new AuthFailure(503);}
       finally{inflight--;}
     },
