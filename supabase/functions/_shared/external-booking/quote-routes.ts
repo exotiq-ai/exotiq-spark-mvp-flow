@@ -1,6 +1,6 @@
 import { validateContract } from './contracts.ts';
-import { BookingApiError } from './errors.ts';
-import { jsonResponse, type CatalogRepository } from './catalog-routes.ts';
+import { BookingApiError, errorResponse } from './errors.ts';
+import { jsonResponse, type CatalogRepository, type AvailabilityObservation } from './catalog-routes.ts';
 import { createQuote, type QuoteInput, type QuoteStore, type QuotePrincipal } from './quotes.ts';
 import type { createResourceAuthenticator } from './auth.ts';
 export type ResourceAuth = ReturnType<typeof createResourceAuthenticator>;
@@ -10,12 +10,11 @@ export async function availabilityResponse(input: unknown, repository: CatalogRe
   const target = await repository.target(window.operator_id, window.vehicle_id);
   if (!target) throw new BookingApiError('not_found');
   if (!validateContract('AvailabilityRequest', input, { now, tenantTimezone: target.timezone }).ok) throw new BookingApiError('invalid_input');
-  let available: boolean | null = null;
-  try { available = await repository.availability(target, window.pickup_at, window.return_at); } catch { /* deliberate UNKNOWN observation, no fabricated empty intervals */ }
-  const result = { api_version: 'v1', source_checked_at: new Date(now).toISOString(), ...window,
-    ...(typeof available === 'boolean' ? { availability: available ? 'AVAILABLE' : 'UNAVAILABLE' } : { availability: 'UNKNOWN', reason_code: 'upstream_unavailable', retry_after_seconds: 30 }) };
-  if (!validateContract('AvailabilityResult', result).ok) throw new BookingApiError('upstream_unavailable');
-  return jsonResponse(result);
+  let observation:AvailabilityObservation|null=null;
+  try { observation = await repository.availability(target, window.pickup_at, window.return_at); } catch { /* deliberate UNKNOWN observation, no fabricated empty intervals */ }
+  const unknown={api_version:'v1',source_checked_at:new Date(now).toISOString(),...window,availability:'UNKNOWN',buffer_policy_version:null,reason_code:'upstream_unavailable',retry_after_seconds:30};
+  const result=observation?{api_version:'v1',...window,source_checked_at:observation.source_checked_at,availability:observation.available?'AVAILABLE':'UNAVAILABLE',buffer_policy_version:observation.buffer_policy_version}:unknown;
+  return jsonResponse(validateContract('AvailabilityResult',result).ok?result:unknown);
 }
 export async function quoteResponse(input: unknown, request: Request, repository: CatalogRepository, auth: ResourceAuth | null, store: QuoteStore | null, consentOrigin: string, now: number): Promise<Response> {
   if (!validateContract('QuoteRequest', input, { now }).ok) throw new BookingApiError('invalid_input');
@@ -24,10 +23,19 @@ export async function quoteResponse(input: unknown, request: Request, repository
   const target = await repository.target(window.operator_id, window.vehicle_id);
   if (!target) throw new BookingApiError('not_found');
   if (!validateContract('QuoteRequest', input, { now, tenantTimezone: target.timezone }).ok) throw new BookingApiError('invalid_input');
-  const principal = await auth.requirePrincipal(request, 'quotes:create', target.operator_id);
+  let principal;
+  try { principal = await auth.requirePrincipal(request, 'quotes:create', target.operator_id); }
+  catch(error) {
+    if (error instanceof BookingApiError && error.code==='unauthorized') {
+      const response=errorResponse(error);
+      response.headers.set('Link',`<${new URL(`/agent/account/${target.operator_id}`,consentOrigin).href}>; rel="customer-account"`);
+      return response;
+    }
+    throw error;
+  }
   const quote = await createQuote(window, principal as QuotePrincipal, store, now);
   const p = quote.authority.pricing, terms = quote.authority.terms;
-  const consent = new URL(`/external/consent/${quote.quote_id}`, consentOrigin);
+  const consent = new URL(`/agent/consent/${quote.quote_id}`, consentOrigin);
   const result = { api_version: 'v1', source_checked_at: quote.created_at, ...window, quote_id: quote.quote_id,
     principal_scope: { subject: principal.subject, operator_id: window.operator_id }, expires_at: quote.expires_at,
     pricing_version: quote.pricing_version, terms_version: quote.terms_version, terms_hash: quote.terms_hash,

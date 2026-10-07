@@ -34,13 +34,13 @@ describe('safe availability and actual runtime quote composition',()=>{
   });
   it('returns database observation time and policy together, while schema disagreement is UNKNOWN',async()=>{
     const checked='2026-10-07T11:59:59.000Z';
-    for(const observation of [{available:true,source_checked_at:checked,buffer_policy_version:'post-return-snapshot-v1/90'},{available:'true',source_checked_at:checked,buffer_policy_version:'post-return-snapshot-v1/90'}]){
+    for(const observation of [{available:true,source_checked_at:checked,buffer_policy_version:'post-return-snapshot-v1/90'},{available:false,source_checked_at:checked,buffer_policy_version:'post-return-snapshot-v1/90'},{available:'true',source_checked_at:checked,buffer_policy_version:'post-return-snapshot-v1/90'}]){
       const repository=new (await import('../../supabase/functions/_shared/external-booking/catalog-routes')).RpcCatalogRepository({rpc:async(name)=>{expect(name).toBe('external_api_observe_availability');return {data:[observation],error:null};}});
       repository.target=async()=>target;
       const result=await(await availabilityResponse(window,repository,now)).json();
-      expect(result.availability).toBe(observation.available===true?'AVAILABLE':'UNKNOWN');
-      expect(result.buffer_policy_version).toBe(observation.available===true?'post-return-snapshot-v1/90':null);
-      if(observation.available===true)expect(result.source_checked_at).toBe(checked);
+      expect(result.availability).toBe(typeof observation.available==='boolean'?(observation.available?'AVAILABLE':'UNAVAILABLE'):'UNKNOWN');
+      expect(result.buffer_policy_version).toBe(typeof observation.available==='boolean'?'post-return-snapshot-v1/90':null);
+      if(typeof observation.available==='boolean')expect(result.source_checked_at).toBe(checked);
     }
   });
   it('uses real signed JWT verification, introspection, persistent limiter, ownership and quote RPC',async()=>{

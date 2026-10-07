@@ -4,10 +4,11 @@ import type { QuoteRpcClient } from './quotes.ts';
 export type CatalogKind = 'operators' | 'vehicles';
 export type CatalogQuery = Record<string, unknown> & { limit: number; after?: string; browse: boolean };
 export interface EligibleTarget { operator_id: string; vehicle_id: string; operator_slug: string; vehicle_slug: string; timezone: string; external_api_enabled: true }
+export interface AvailabilityObservation { available:boolean; source_checked_at:string; buffer_policy_version:string }
 export interface CatalogRepository {
   list(kind: CatalogKind, query: CatalogQuery): Promise<Record<string, unknown>[]>;
   target(operatorId: string, vehicleId: string): Promise<EligibleTarget | null>;
-  availability(target: EligibleTarget, pickupAt: string, returnAt: string): Promise<boolean | null>;
+  availability(target: EligibleTarget, pickupAt: string, returnAt: string): Promise<AvailabilityObservation | null>;
 }
 export function jsonResponse(value: unknown, status = 200): Response {
   return new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
@@ -65,9 +66,12 @@ export class RpcCatalogRepository implements CatalogRepository {
     if (row.operator_id !== operatorId || row.vehicle_id !== vehicleId || row.external_api_enabled !== true || typeof row.timezone !== 'string' || typeof row.operator_slug !== 'string' || typeof row.vehicle_slug !== 'string') throw new BookingApiError('upstream_unavailable');
     return row;
   }
-  async availability(target: EligibleTarget, pickupAt: string, returnAt: string): Promise<boolean | null> {
-    const { data, error } = await this.rpc.rpc('agent_inventory_available', { _vehicle: target.vehicle_id, _start: pickupAt, _end: returnAt });
-    if (error || (data !== null && typeof data !== 'boolean')) throw new BookingApiError('upstream_unavailable');
-    return data as boolean | null;
+  async availability(target: EligibleTarget, pickupAt: string, returnAt: string): Promise<AvailabilityObservation | null> {
+    const { data, error } = await this.rpc.rpc('external_api_observe_availability', { _operator_id:target.operator_id,_vehicle_id:target.vehicle_id,_pickup_at:pickupAt,_return_at:returnAt,_timezone:target.timezone });
+    if (error || !Array.isArray(data) || data.length>1) throw new BookingApiError('upstream_unavailable');
+    if (!data.length) return null;
+    const row=data[0] as AvailabilityObservation;
+    if (!row || Object.keys(row).some(key=>!['available','source_checked_at','buffer_policy_version'].includes(key)) || typeof row.available!=='boolean' || typeof row.source_checked_at!=='string' || !Number.isFinite(Date.parse(row.source_checked_at)) || typeof row.buffer_policy_version!=='string' || !/^post-return-snapshot-v1\/(?:0|[1-9][0-9]{0,4})$/.test(row.buffer_policy_version) || Number(row.buffer_policy_version.split('/')[1])>10080) throw new BookingApiError('upstream_unavailable');
+    return row;
   }
 }

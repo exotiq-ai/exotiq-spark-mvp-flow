@@ -61,6 +61,7 @@ export function createApiHandler(deps: ApiDependencies): (request: Request) => P
         }
       }
       response.headers.set('X-Request-Id', requestId); response.headers.set('Cache-Control', 'no-store');
+      if (response.status===401 && deps.provider) for(const [key,value] of Object.entries(authenticationChallenge(deps.provider,path==='/v1/quotes'?'quotes:create':'catalog:read'))) response.headers.set(key,value);
       return response;
     } catch (error) {
       const response = errorResponse(error, requestId);
