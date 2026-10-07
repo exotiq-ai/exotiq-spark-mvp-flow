@@ -17,7 +17,7 @@ export async function consentRpc(deps:ConsentDependencies,name:string,args:Recor
  if(error){const message=error&&typeof error==='object'?(error as {message?:unknown}).message:undefined;
   const code=error&&typeof error==='object'?(error as {code?:unknown}).code:undefined;
   if(['55P03','57014','40001'].includes(String(code)))throw new BookingApiError('upstream_unavailable',{retry_after_seconds:1});
-  if(['invalid_input','not_found','dates_unavailable','quote_expired','quote_changed','consent_mismatch','consent_expired','forbidden'].includes(String(message)))throw new BookingApiError(message as 'not_found');
+  if(['configuration_unavailable','external_writes_disabled','invalid_input','not_found','dates_unavailable','quote_expired','quote_changed','consent_mismatch','consent_expired','forbidden'].includes(String(message)))throw new BookingApiError(message as 'not_found');
   if(message==='renewal_expired')throw new BookingApiError('consent_expired');
   if(message==='grant_revoked')throw new BookingApiError('forbidden');
   throw new BookingApiError('upstream_unavailable');
@@ -48,7 +48,7 @@ export function createConsentExtension(deps:ConsentDependencies){
    const principal=await deps.auth.requirePrincipal(request,action==='consent-result'?'rental_requests:create':'quotes:create'),isCustomer=!!hosted?.includes(principal.clientId);
    if(action==='consents'){
     const input=validated('ConsentInput',body),proof=await customerProof(request,principal,deps);
-    const result=await consentRpc(deps,'external_hosted_authorize_quote',{...actorArgs(principal),_quote_id:match[1],_terms_hash:input.terms_hash,_action:input.action,_csrf_hash:proof.csrfHash});
+    const result=await consentRpc(deps,'external_hosted_authorize_quote_scopes',{...actorArgs(principal),_quote_id:match[1],_terms_hash:input.terms_hash,_action:input.action,_csrf_hash:proof.csrfHash,_action_scopes:input.action_scopes});
     return jsonResponse(validated('CustomerConsentResult',result,true),201);
    }
    if(action==='consent-result'){

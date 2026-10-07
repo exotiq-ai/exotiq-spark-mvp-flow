@@ -8,11 +8,12 @@ export interface RequestDependencies extends Pick<ConsentDependencies,'auth'|'rp
  publicOrigin:string; customerOrigin?:string; sleep?:(ms:number)=>Promise<void>;
  /**14 installs this only with its actual nonce store and hosted resolver. */
  handoff?:(request:Request,ref:string,body:unknown)=>Promise<Response>;
+ identityHandoff?:boolean;
 }
 const isObject=(value:unknown):value is Record<string,unknown>=>!!value&&typeof value==='object'&&!Array.isArray(value);
 function fail(error:unknown,atomic:boolean):never{
  const row=isObject(error)?error:{};
- if(['invalid_input','not_found','dates_unavailable','quote_changed','quote_expired','consent_mismatch','consent_expired','idempotency_conflict','forbidden','grant_expired','grant_revoked'].includes(String(row.message)))throw new BookingApiError(row.message as 'not_found');
+ if(['configuration_unavailable','external_writes_disabled','invalid_input','not_found','dates_unavailable','quote_changed','quote_expired','consent_mismatch','consent_expired','idempotency_conflict','forbidden','grant_expired','grant_revoked'].includes(String(row.message)))throw new BookingApiError(row.message as 'not_found');
  if(atomic&&['40001','55P03'].includes(String(row.code)))throw new BookingApiError('request_in_flight',{retry_after_seconds:1});
  throw new BookingApiError('upstream_unavailable',{retry_after_seconds:1});
 }
@@ -34,7 +35,7 @@ export function createRequestExtension(deps:RequestDependencies){
    const key=request.headers.get('Idempotency-Key')??'';
    if(!validateContract('RentalRequestInput',body).ok||!/^[A-Za-z0-9._:-]{16,128}$/.test(key))throw new BookingApiError('invalid_input');
    const principal=await deps.auth.requirePrincipal(request,'rental_requests:create'),input=body as {quote_id:string;consent_receipt_id:string};
-   const result=await rpc(deps,'external_submit_rental_request_result',{...actorArgs(principal),_quote_id:input.quote_id,_receipt_id:input.consent_receipt_id,_idempotency_key:key,_public_origin:publicBase},true);
+   const result=await rpc(deps,deps.customerOrigin?'external_submit_rental_request_result_customer':'external_submit_rental_request_result',{...actorArgs(principal),_quote_id:input.quote_id,_receipt_id:input.consent_receipt_id,_idempotency_key:key,_public_origin:publicBase,...(deps.customerOrigin?{_customer_origin:deps.customerOrigin}:{})},true);
    if(!isObject(result)||typeof result.created!=='boolean'||Object.keys(result).some(key=>!['created','response'].includes(key))||!validateContract('RentalRequestResult',result.response).ok)throw new BookingApiError('upstream_unavailable');
    return jsonResponse(result.response,result.created?201:200);
   }
@@ -61,7 +62,8 @@ export function createRequestExtension(deps:RequestDependencies){
   }throw error;}
   if(!isObject(raw)||raw.ref!==ref)throw new BookingApiError('upstream_unavailable');
   const state=mapRentalState(raw as unknown as StateEvidence,deps.now?.()??Date.now());
-  const links={status:`${publicBase}/v1/rental-requests/${ref}`,...(state.can_checkout&&deps.handoff?{checkout_handoff:`${publicBase}/v1/rental-requests/${ref}/checkout-handoff`}:{})};
+  const actions=Array.isArray(raw.action_scopes)?raw.action_scopes:[];
+  const links={status:`${publicBase}/v1/rental-requests/${ref}`,...(deps.customerOrigin&&typeof raw.operator_id==='string'?{customer_account:`${deps.customerOrigin}/agent/account/${raw.operator_id}?ref=${ref}`} :{}),...(state.can_checkout&&deps.handoff?{checkout_handoff:`${publicBase}/v1/rental-requests/${ref}/checkout-handoff`}:{}),...(state.next_action==='verify_identity'&&deps.identityHandoff&&actions.includes('identity:handoff')&&principal.scopes.includes('identity:handoff')?{identity:`${publicBase}/v1/rental-requests/${ref}/identity-handoff`}:{})};
   const poll_after_seconds=['confirmed','active','completed','refunded','declined','cancelled','payment_expired'].includes(state.status)?60:5;
   const result={api_version:'v1',source_checked_at:raw.source_checked_at,ref,status:state.status,next_action:state.next_action,hold_expires_at:state.hold_expires_at,payment_due_at:state.payment_due_at,inventory_blocked:state.inventory_blocked,poll_after_seconds,links};
   if(!validateContract('RentalStatusResult',result).ok)throw new BookingApiError('upstream_unavailable');
