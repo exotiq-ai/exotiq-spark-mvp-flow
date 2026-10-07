@@ -13,7 +13,10 @@ DELETE FROM public.external_consent_receipts WHERE operator_id='a1410000-0000-40
 ALTER TABLE public.external_quotes DISABLE TRIGGER external_quote_immutable;
 DELETE FROM public.external_quotes WHERE operator_id='a1410000-0000-4000-8000-000000000001';
 ALTER TABLE public.external_quotes ENABLE TRIGGER external_quote_immutable;
+-- Exact superuser laboratory fixture cleanup; never an operations clearance.
+ALTER TABLE public.bookings DISABLE TRIGGER a_external_checkout_reservation_immutable;
 DELETE FROM public.bookings WHERE team_id='a1410000-0000-4000-8000-000000000001';
+ALTER TABLE public.bookings ENABLE TRIGGER a_external_checkout_reservation_immutable;
 DELETE FROM public.external_customer_links WHERE operator_id='a1410000-0000-4000-8000-000000000001';
 DELETE FROM public.customers WHERE team_id='a1410000-0000-4000-8000-000000000001';
 DELETE FROM public.vehicles WHERE team_id='a1410000-0000-4000-8000-000000000001';
