@@ -26,6 +26,12 @@ END $$;
 CREATE FUNCTION public.external_checkout_reservation_immutable()
 RETURNS trigger LANGUAGE plpgsql SET search_path=pg_catalog,public AS $$
 BEGIN
+ IF TG_OP='DELETE' THEN
+  IF OLD.rental_checkout_attempt_key IS NOT NULL OR OLD.rental_checkout_session_ref IS NOT NULL THEN
+   RAISE EXCEPTION 'checkout_reservation_immutable' USING ERRCODE='23514';
+  END IF;
+  RETURN OLD;
+ END IF;
  IF OLD.rental_checkout_attempt_key IS NOT NULL AND (
   NEW.rental_checkout_attempt_key IS DISTINCT FROM OLD.rental_checkout_attempt_key OR
   NEW.rental_checkout_kind IS DISTINCT FROM OLD.rental_checkout_kind OR
@@ -38,7 +44,7 @@ BEGIN
  ) THEN RAISE EXCEPTION 'checkout_reservation_immutable' USING ERRCODE='23514';END IF;
  RETURN NEW;
 END $$;
-CREATE TRIGGER a_external_checkout_reservation_immutable BEFORE UPDATE ON public.bookings
+CREATE TRIGGER a_external_checkout_reservation_immutable BEFORE UPDATE OR DELETE ON public.bookings
  FOR EACH ROW EXECUTE FUNCTION public.external_checkout_reservation_immutable();
 CREATE FUNCTION public.external_queue_unresolved_checkout_batch(_limit integer DEFAULT 50)
 RETURNS integer LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public
