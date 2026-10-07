@@ -43,6 +43,12 @@ describe('safe availability and actual runtime quote composition',()=>{
       if(typeof observation.available==='boolean')expect(result.source_checked_at).toBe(checked);
     }
   });
+  it('normalizes actual PostgreSQL microsecond timestamps to the public millisecond contract',async()=>{
+    const repository=new (await import('../../supabase/functions/_shared/external-booking/catalog-routes')).RpcCatalogRepository({rpc:async()=>({data:[{available:true,source_checked_at:'2026-10-07T11:59:59.123456+00:00',buffer_policy_version:'post-return-snapshot-v1/60'}],error:null})});
+    repository.target=async()=>target;
+    const response=await(await availabilityResponse(window,repository,now)).json();
+    expect(response.availability).toBe('AVAILABLE');expect(response.source_checked_at).toBe('2026-10-07T11:59:59.123Z');expect(validateContract('AvailabilityResult',response).ok).toBe(true);
+  });
   it('uses real signed JWT verification, introspection, persistent limiter, ownership and quote RPC',async()=>{
     const {handler,calls}=runtime();const bearer=await token();
     const response=await handler(new Request('https://api.example.invalid/v1/quotes',{method:'POST',headers:{authorization:`Bearer ${bearer}`,'content-type':'application/json'},body:JSON.stringify(input)}));
