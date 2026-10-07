@@ -35,10 +35,10 @@ beforeAll(async()=> {
   mcp=createNodeServer(app,resource);await new Promise<void>(r=>mcp.listen(0,'127.0.0.1',r));mcpOrigin='http://127.0.0.1:'+(mcp.address() as {port:number}).port;
 });
 afterAll(async()=>{await Promise.all([new Promise<void>(r=>mcp.close(()=>r())),new Promise<void>(r=>upstream.close(()=>r()))]);});
-async function client(profile:string,scope=scopes){const token=await jwt(profile,resource,scope);const c=new Client({name:profile,version:'1.0.0'});await c.connect(new StreamableHTTPClientTransport(new URL(resource),{fetch:clientFetch,requestInit:{headers:{Authorization:'Bearer '+token}},onInsufficientScope:'throw'}));return {c,token};}
+async function client(profile:string,scope=scopes){const token=await jwt(profile,resource,scope);const c=new Client({name:profile,version:'1.0.0'},{versionNegotiation:{mode:profile==='profile-b'?{pin:'2026-07-28'}:'legacy'}});await c.connect(new StreamableHTTPClientTransport(new URL(resource),{fetch:clientFetch,requestInit:{headers:{Authorization:'Bearer '+token}},onInsufficientScope:'throw'}));return {c,token};}
 describe('official Streamable HTTP client profiles over loopback',()=> {
   for(const profile of ['profile-a','profile-b'])it(profile+' negotiates six canonical tools and pending consent',async()=> {
-    const {c,token}=await client(profile);const tools=(await c.listTools()).tools;expect(tools.map(t=>t.name).sort()).toEqual(['check_availability','create_checkout_handoff','create_quote','get_request_status','search_vehicles','submit_rental_request'].sort());
+    const {c,token}=await client(profile);expect(c.getProtocolEra()).toBe(profile==='profile-b'?'modern':'legacy');if(profile==='profile-b')expect(c.getNegotiatedProtocolVersion()).toBe('2026-07-28');const tools=(await c.listTools()).tools;expect(tools.map(t=>t.name).sort()).toEqual(['check_availability','create_checkout_handoff','create_quote','get_request_status','search_vehicles','submit_rental_request'].sort());
     expect(tools.find(t=>t.name==='create_quote')?.annotations).toMatchObject({readOnlyHint:false,idempotentHint:false});
     const result=await c.callTool({name:'submit_rental_request',arguments:{quote_id:quote,idempotency_key:'stable_customer_key_0001'}});
     expect(result.structuredContent).toMatchObject({status:'awaiting_customer_consent',consent_url:customer+'/agent/consent/'+quote,retry_after:5});
