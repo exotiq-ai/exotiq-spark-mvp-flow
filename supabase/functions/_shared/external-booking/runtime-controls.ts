@@ -33,11 +33,25 @@ export function operationForRoute(path:string,method:string):RedactedEvent['acti
  if(method==='POST'&&/^\/v1\/customer-handoffs\/[^/]+\/resolve$/.test(path))return 'nonce:resolve';
  return null;
 }
+async function availabilityUnknown(response:Response):Promise<boolean>{
+ let reader:ReadableStreamDefaultReader<Uint8Array>|undefined,timer:ReturnType<typeof setTimeout>|undefined;
+ try{
+  reader=response.clone().body?.getReader();if(!reader)return true;
+  const deadline=new Promise<never>((_,reject)=>{timer=setTimeout(()=>reject(Error('Observation budget')),200);});
+  const parts:Uint8Array[]=[];let size=0;
+  while(true){const chunk=await Promise.race([reader.read(),deadline]);if(chunk.done)break;size+=chunk.value.byteLength;if(size>16384)return true;parts.push(chunk.value);}
+  const bytes=new Uint8Array(size);let offset=0;for(const part of parts){bytes.set(part,offset);offset+=part.length;}
+  const value=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));
+  return !['AVAILABLE','UNAVAILABLE'].includes(value?.availability);
+ }catch{return true;}finally{if(timer)clearTimeout(timer);if(reader){void reader.cancel().catch(()=>undefined);reader.releaseLock();}}
+}
 export async function emitRuntimeOutcome(input:{rpc:FlagRpc;secret:Uint8Array;path:string;method:string;response:Response;principal?:Principal;latencyMs:number}):Promise<boolean>{
  try{
-  const action=operationForRoute(input.path,input.method);if(!action)return false;
+  let action=operationForRoute(input.path,input.method);if(!action)return false;
   const status=input.response.status;
-  const outcome:RedactedEvent['outcome']=status>=500?'failed':status===409?'conflict':status>=400?'denied':status===202?'deferred':'success';
+  let outcome:RedactedEvent['outcome']=status>=500?'failed':status===409?'conflict':status>=400?'denied':status===202?'deferred':'success';
+  if(action==='request:create'&&status===200){action='request:replay';outcome='replay';}
+  if(action==='availability:read'&&status===200&&await availabilityUnknown(input.response))outcome='unknown';
   const event:RedactedEvent={request_id:input.response.headers.get('X-Request-Id')??'',action,outcome,latency_ms:Math.min(300000,Math.max(0,Math.floor(input.latencyMs)))};
   if(input.principal){event.principal_pseudonym=await principalPseudonym(input.secret,input.principal.issuer,input.principal.subject);if(input.principal.operatorId)event.operator_id=input.principal.operatorId;}
   return await emitEvent(input.rpc,event);
