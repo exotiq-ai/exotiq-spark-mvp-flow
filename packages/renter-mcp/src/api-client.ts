@@ -5,7 +5,7 @@ export class ApiFailure extends Error {
   constructor(public readonly body:Record<string,unknown>,public readonly status:number){super('api_request_failed');}
 }
 const unavailable=()=>new ApiFailure({code:'upstream_unavailable',message:'The service could not verify this operation.',request_id:crypto.randomUUID(),retryable:true},503);
-export interface ApiClientConfig {apiResource:string;customerOrigin:string}
+export interface ApiClientConfig {apiResource:string;customerOrigin:string;apiScopes?:readonly string[]}
 export function createApiClient(config:ApiClientConfig,apiToken:string,fetcher:typeof fetch=fetch,signal?:AbortSignal) {
   const api=new URL(config.apiResource),customer=new URL(config.customerOrigin);
   if(api.protocol!=='https:'||api.username||api.password||api.search||api.hash||api.pathname.includes('%')||/\/\//.test(api.pathname)||customer.protocol!=='https:'||customer.username||customer.password||customer.pathname!=='/'||customer.search||customer.hash)throw new Error('invalid_configuration');
@@ -24,7 +24,7 @@ export function createApiClient(config:ApiClientConfig,apiToken:string,fetcher:t
   }
   function validateOwnedLinks(contract:ContractName,body:Record<string,unknown>,path:string) {
     if(contract==='QuoteResult'&&!ownedUrl(body.consent_url,customer.origin,'/agent/consent/'+body.quote_id))throw unavailable();
-    if(contract==='CheckoutHandoffResult'&&!ownedUrl(body.customer_url,customer.origin,handoff))throw unavailable();
+    if((contract==='CheckoutHandoffResult'||contract==='IdentityHandoffResult')&&!ownedUrl(body.customer_url,customer.origin,handoff))throw unavailable();
     if(contract==='GrantRenewalResult'&&!ownedUrl(body.customer_url,customer.origin,'/agent/authorization/'+body.renewal_id))throw unavailable();
     if(contract==='RentalRequestResult'||contract==='RentalStatusResult'){
       if(!record(body.links)||typeof body.ref!=='string')throw unavailable();
@@ -69,9 +69,24 @@ export function createApiClient(config:ApiClientConfig,apiToken:string,fetcher:t
       // Receipt is obtained through the authenticated rendezvous and never appears in tool I/O.
       return request('POST','/v1/rental-requests','RentalRequestResult',{quote_id:quoteId,consent_receipt_id:consent.consent_receipt_id},String(input.idempotency_key));
     },
-    async status(input:Record<string,unknown>){const ref=encodeURIComponent(String(input.ref));const read=()=>request('GET',`/v1/rental-requests/${ref}`,'RentalStatusResult');try{return await read();}catch(error){return renewal(error,ref,read);}},
+    async status(input:Record<string,unknown>){const ref=encodeURIComponent(String(input.ref));const read=async()=>identityReview(await request('GET',`/v1/rental-requests/${ref}`,'RentalStatusResult'),ref);try{return await read();}catch(error){return renewal(error,ref,read);}},
     async checkout(input:Record<string,unknown>){const ref=encodeURIComponent(String(input.ref));const create=()=>request('POST',`/v1/rental-requests/${ref}/checkout-handoff`,'CheckoutHandoffResult',{});try{return await create();}catch(error){return renewal(error,ref,create);}}
   };
+  async function identityReview(status:Record<string,unknown>,ref:string):Promise<Record<string,unknown>> {
+    if(!record(status.links)||!ownedUrl(status.links.identity,api.origin,prefix+'/v1/rental-requests/'+ref+'/identity-handoff'))return status;
+    // An API POST action is never presented as a browser landing. Existing grants
+    // and the independently verified exchanged token must both permit the action.
+    const links={...status.links};delete links.identity;
+    const safeStatus={...status,links};
+    if(status.next_action!=='verify_identity'||!config.apiScopes?.includes('identity:handoff'))return safeStatus;
+    try{
+      const result=await request('POST',`/v1/rental-requests/${ref}/identity-handoff`,'IdentityHandoffResult',{});
+      return {...safeStatus,links:{...links,identity:result.customer_url}};
+    }catch(error){
+      if(error instanceof ApiFailure&&error.status===403&&error.body.code==='forbidden')return safeStatus;
+      throw error;
+    }
+  }
   async function renewal(error:unknown,ref:string,retry:()=>Promise<Record<string,unknown>>):Promise<Record<string,unknown>> {
     if(!(error instanceof ApiFailure)||!['grant_expired','grant_revoked'].includes(String(error.body.code)))throw error;
     let result=await request('POST',`/v1/rental-requests/${ref}/grant-renewals`,'GrantRenewalResult',{});
