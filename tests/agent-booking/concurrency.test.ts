@@ -74,12 +74,19 @@ describe('shared inventory guard on actual isolated PostgreSQL', () => {
   it('rejects competing updates without a row-lock/advisory-lock cycle', async () => {
     expect((await sql(`${bookingInsert(vehicle(20),'2030-01-01 10:00Z','2030-01-02 10:00Z')}${bookingInsert(vehicle(20),'2030-01-03 10:00Z','2030-01-04 10:00Z')}`)).ok).toBe(true);
     const results = await Promise.all([
-      sql(`BEGIN; UPDATE public.bookings SET status='pending' WHERE vehicle_id='${vehicle(20)}' AND start_date='2030-01-01 10:00Z'; SELECT pg_sleep(0.3); UPDATE public.bookings SET status='pending' WHERE vehicle_id='${vehicle(20)}' AND start_date='2030-01-03 10:00Z'; COMMIT;`),
-      sql(`BEGIN; SELECT pg_sleep(0.1); UPDATE public.bookings SET status='confirmed' WHERE vehicle_id='${vehicle(20)}' AND start_date='2030-01-03 10:00Z'; COMMIT;`),
+      sql(`BEGIN; UPDATE public.bookings SET status='cancelled' WHERE vehicle_id='${vehicle(20)}' AND start_date='2030-01-01 10:00Z'; SELECT pg_sleep(0.3); UPDATE public.bookings SET status='cancelled' WHERE vehicle_id='${vehicle(20)}' AND start_date='2030-01-03 10:00Z'; COMMIT;`),
+      sql(`BEGIN; SELECT pg_sleep(0.1); UPDATE public.bookings SET start_date='2030-01-03 11:00Z' WHERE vehicle_id='${vehicle(20)}' AND start_date='2030-01-03 10:00Z'; COMMIT;`),
     ]);
     expect(results.filter((r) => r.ok)).toHaveLength(1);
     expect(results.find((r) => !r.ok)?.error).toMatch(/40001/);
     expect(results.some((r) => /40P01|57014/.test(r.error))).toBe(false);
+  });
+  it('allows payment metadata while an unrelated reservation holds the vehicle lock',async()=>{
+    expect((await sql(bookingInsert(vehicle(29),'2030-01-01 10:00Z','2030-01-02 10:00Z'))).ok).toBe(true);
+    const holder=sql(`BEGIN; ${bookingInsert(vehicle(29),'2030-01-03 10:00Z','2030-01-04 10:00Z')} SELECT pg_sleep(0.4); COMMIT;`);
+    const metadata=sql(`SELECT pg_sleep(0.1); UPDATE public.bookings SET customer_phone='+15550000123' WHERE vehicle_id='${vehicle(29)}' AND start_date='2030-01-01 10:00Z';`);
+    const results=await Promise.all([holder,metadata]);
+    expect(results[0].ok).toBe(true); expect(results[1].ok).toBe(true);
   });
   it('checks final intervals and buffer after a later BEFORE trigger rewrites input',async()=>{
     expect((await sql(bookingInsert(vehicle(21),'2030-01-01 10:00Z','2030-01-02 10:00Z'))).ok).toBe(true);
