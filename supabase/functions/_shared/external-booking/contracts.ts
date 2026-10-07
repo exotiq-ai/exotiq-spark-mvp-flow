@@ -42,8 +42,8 @@ export const OperatorsPage = object({ ...metadata, items: array(Operator, 50), n
 export const VehiclesPage = object({ ...metadata, items: array(Vehicle, 50), next_cursor: nullable(cursor) });
 export const AvailabilityRequest = object(rentalWindow);
 export const AvailabilityResult: JsonSchema = { oneOf: [
-  object({ ...metadata, ...rentalWindow, availability: enumeration('AVAILABLE', 'UNAVAILABLE') }),
-  object({ ...metadata, ...rentalWindow, availability: { const: 'UNKNOWN' }, reason_code: enumeration('upstream_unavailable'), retry_after_seconds: integer(3600, 1) }),
+  object({ ...metadata, ...rentalWindow, availability: enumeration('AVAILABLE', 'UNAVAILABLE'), buffer_policy_version: text(128) }),
+  object({ ...metadata, ...rentalWindow, availability: { const: 'UNKNOWN' }, buffer_policy_version: { type:'null' }, reason_code: enumeration('upstream_unavailable'), retry_after_seconds: integer(3600, 1) }),
 ] };
 export const QuoteRequest = object({ ...rentalWindow, selected_options: options });
 export const QuoteItemization = object({ rental_subtotal_cents: integer(), operator_tax_cents: integer(), operator_tax_inclusive: { type: 'boolean' }, platform_fee_cents: integer(), protection_total_cents: integer(), state_fee_cents: integer(), processing_fee_cents: integer(), deposit_cents: { ...integer(), description: 'Separate security deposit disclosure; excluded from both rental charge totals. No card authorization is created by quoting.' } });

@@ -71,10 +71,14 @@ describe('canonical contracts', () => {
     await expect(verifyCursor(token, { ...context, now: 5000 }, key)).rejects.toThrow('Invalid cursor');
   });
   it('exposes tri-state availability without inventing success or leaking exceptions', () => {
-    const result = { api_version: 'v1', source_checked_at: '2026-10-07T12:00:00Z', ...window, availability: 'UNKNOWN', reason_code: 'upstream_unavailable', retry_after_seconds: 30 };
+    const result = { api_version: 'v1', source_checked_at: '2026-10-07T12:00:00Z', ...window, availability: 'UNKNOWN', buffer_policy_version:null, reason_code: 'upstream_unavailable', retry_after_seconds: 30 };
     expect(validateContract('AvailabilityResult', result).ok).toBe(true);
     expect(validateContract('AvailabilityResult', { ...result, availability: 'AVAILABLE' }).ok).toBe(false);
     expect(validateContract('AvailabilityResult', { ...result, error: 'secret-db-connection' }).ok).toBe(false);
+    const known={api_version:'v1',source_checked_at:result.source_checked_at,...window,availability:'AVAILABLE',buffer_policy_version:'post-return-snapshot-v1/60'};
+    expect(validateContract('AvailabilityResult',known).ok).toBe(true);
+    expect(validateContract('AvailabilityResult',{...known,buffer_policy_version:null}).ok).toBe(false);
+    expect(validateContract('AvailabilityResult',{...result,buffer_policy_version:known.buffer_policy_version}).ok).toBe(false);
   });
   it('generates exact OpenAPI with schema references, scopes, responses, idempotency and conditional status', () => {
     const api = generateOpenApi();

@@ -68,11 +68,29 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $$
   FROM public.external_customer_links links JOIN public.customers c ON c.id=links.customer_id AND c.team_id=links.operator_id
   WHERE links.issuer=_issuer AND links.subject=_subject AND links.operator_id=_operator_id
 $$;
+-- One SQL statement observes visibility, current opt-in/buffer, and exact shared
+-- inventory under the same snapshot. Observation is never a hold or promise.
+CREATE FUNCTION public.external_api_observe_availability(_operator_id uuid,_vehicle_id uuid,
+  _pickup_at timestamptz,_return_at timestamptz,_timezone text)
+RETURNS TABLE(available boolean,source_checked_at timestamptz,buffer_policy_version text)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $$
+  SELECT public.agent_inventory_available(v.id,_pickup_at,_return_at),statement_timestamp(),
+    ('post-return-snapshot-v1/'||coalesce(t.rental_buffer_minutes,60)::text)::text
+  FROM public.external_api_target(_operator_id,_vehicle_id) target
+  JOIN public.vehicles v ON v.id=target.vehicle_id AND v.team_id=target.operator_id
+  JOIN public.teams t ON t.id=v.team_id
+  WHERE _timezone=target.timezone AND _pickup_at IS NOT NULL AND _return_at IS NOT NULL
+    AND isfinite(_pickup_at) AND isfinite(_return_at) AND _pickup_at>=statement_timestamp()
+    AND _return_at>_pickup_at AND _return_at-_pickup_at<=interval '365 days'
+    AND coalesce(t.rental_buffer_minutes,60) BETWEEN 0 AND 10080
+$$;
 REVOKE ALL ON FUNCTION public.external_catalog_operators(uuid,integer,boolean,text,text) FROM PUBLIC,anon,authenticated;
 REVOKE ALL ON FUNCTION public.external_catalog_vehicles(uuid,integer,boolean,text,uuid,timestamptz,timestamptz,text) FROM PUBLIC,anon,authenticated;
 REVOKE ALL ON FUNCTION public.external_api_target(uuid,uuid) FROM PUBLIC,anon,authenticated;
 REVOKE ALL ON FUNCTION public.external_resolve_customer_link(text,text,uuid) FROM PUBLIC,anon,authenticated;
+REVOKE ALL ON FUNCTION public.external_api_observe_availability(uuid,uuid,timestamptz,timestamptz,text) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.external_catalog_operators(uuid,integer,boolean,text,text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.external_catalog_vehicles(uuid,integer,boolean,text,uuid,timestamptz,timestamptz,text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.external_api_target(uuid,uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.external_resolve_customer_link(text,text,uuid) TO service_role;
+GRANT EXECUTE ON FUNCTION public.external_api_observe_availability(uuid,uuid,timestamptz,timestamptz,text) TO service_role;
