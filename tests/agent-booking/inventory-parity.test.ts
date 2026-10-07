@@ -6,7 +6,9 @@ describe('inventory read/write parity on actual isolated PostgreSQL',()=>{
   const available=(id:number,start:string,end:string)=>`SELECT public.agent_inventory_available('${vehicle(id)}','${start}','${end}');`;
   beforeAll(async()=>{
     sql=inventorySql();
-    const ids=Array.from({length:10},(_,i)=>`'${vehicle(i+30)}'`).join(',');
+    expect((await sql(`INSERT INTO public.teams(id,name,owner_id,slug,marketplace_visible,marketplace_request_status) VALUES('${testTeam}','agent-test-inventory','${testTeam}','agent-test-inventory',true,'approved') ON CONFLICT DO NOTHING;
+      INSERT INTO public.vehicles(id,team_id,name,slug,marketplace_visible) SELECT ('20000000-0000-4000-8000-'||lpad(i::text,12,'0'))::uuid,'${testTeam}','agent-test-inventory','agent-test-'||i,true FROM generate_series(30,40) i ON CONFLICT DO NOTHING;`)).ok).toBe(true);
+    const ids=Array.from({length:11},(_,i)=>`'${vehicle(i+30)}'`).join(',');
     expect((await sql(`DELETE FROM public.vehicle_blocked_dates WHERE team_id='${testTeam}' AND vehicle_id IN(${ids}); DELETE FROM public.bookings WHERE team_id='${testTeam}' AND vehicle_id IN(${ids}); UPDATE public.teams SET rental_buffer_minutes=60 WHERE id='${testTeam}';`)).ok).toBe(true);
   });
   it('agrees on exact turnaround boundary without adding a second buffer',async()=>{
@@ -33,6 +35,7 @@ describe('inventory read/write parity on actual isolated PostgreSQL',()=>{
     expect((await sql(bookingInsert(vehicle(32),'2030-01-02 15:00Z','2030-01-03 15:00Z'))).ok).toBe(true);
     expect((await sql(available(32,'2029-12-31 15:00Z','2030-01-01 14:30Z'))).output).toMatch(/\nf$/);
     expect((await sql(`SELECT buffer_minutes FROM public.public_vehicle_busy_windows('agent-test-inventory','agent-test-32','2030-01-01','2030-01-03') ORDER BY busy_start_at LIMIT 1;`)).output).toMatch(/\n0$/);
+    expect((await sql(bookingInsert(vehicle(32),'2030-01-01 15:00Z','2030-01-02 15:00Z','marketplace','cancelled'))).ok).toBe(true);
   });
   it('uses tenant dates independently of PostgreSQL session timezone for date projections',async()=>{
     expect((await sql(bookingInsert(vehicle(33),'2030-01-02 04:30Z','2030-01-02 05:30Z'))).ok).toBe(true);
@@ -59,5 +62,12 @@ describe('inventory read/write parity on actual isolated PostgreSQL',()=>{
     expect((await sql(available(38,'2030-01-01 15:00Z','2030-01-02 15:00Z'))).output).toMatch(/\nf$/);
     expect((await sql(available(39,'2030-01-01 15:00Z','2030-01-02 15:00Z'))).output).toMatch(/\nf$/);
     expect((await sql(`SELECT count(*) FROM public.expire_unverified_holds() WHERE team_id='${testTeam}';`)).output).toMatch(/\n0$/);
+  });
+  it('does not expire requested at 25h or pending_documents before 24h',async()=>{
+    expect((await sql(`${bookingInsert(vehicle(40),'2030-01-01 15:00Z','2030-01-02 15:00Z','marketplace','requested')}
+      UPDATE public.bookings SET created_at=now()-interval '25 hours' WHERE vehicle_id='${vehicle(40)}';`)).ok).toBe(true);
+    expect((await sql(`SELECT count(*) FROM public.expire_unverified_holds() WHERE team_id='${testTeam}';`)).output).toMatch(/\n0$/);
+    expect((await sql(`UPDATE public.bookings SET status='pending_documents',created_at=now()-interval '23 hours' WHERE vehicle_id='${vehicle(40)}'; SELECT count(*) FROM public.expire_unverified_holds() WHERE team_id='${testTeam}';`)).output).toMatch(/\n0$/);
+    expect((await sql(`UPDATE public.bookings SET created_at=now()-interval '25 hours' WHERE vehicle_id='${vehicle(40)}'; SELECT count(*) FROM public.expire_unverified_holds() WHERE team_id='${testTeam}';`)).output).toMatch(/\n1$/);
   });
 });
