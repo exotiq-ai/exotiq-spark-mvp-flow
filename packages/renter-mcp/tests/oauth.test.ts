@@ -26,7 +26,7 @@ beforeAll(async()=> {
     const body=new URLSearchParams(Buffer.concat(chunks).toString());
     res.setHeader('content-type','application/json');
     if(req.url==='/jwks') res.end(JSON.stringify({keys:[jwk]}));
-    else if(req.url==='/introspect') res.end(JSON.stringify({active:!revoked,iss:issuer,sub:'customer-a',client_id:substitute?'consumer-b':'consumer-a',aud:resource,scope:decodeJwt(body.get('token')!).scope}));
+    else if(req.url==='/introspect') res.end(JSON.stringify({...decodeJwt(body.get('token')!),active:!revoked,iss:issuer,sub:'customer-a',client_id:substitute?'consumer-b':'consumer-a',aud:resource}));
     else if(req.url==='/token') {
       expect(body.get('grant_type')).toBe('urn:ietf:params:oauth:grant-type:token-exchange');
       expect(body.get('resource')).toBe(api);

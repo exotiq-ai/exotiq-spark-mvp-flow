@@ -1,6 +1,6 @@
 import { afterAll,beforeAll,describe,expect,it } from 'vitest';
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
-import { createServer } from 'node:http';
+import { createServer, request as httpRequest } from 'node:http';
 import { decodeJwt,exportJWK,generateKeyPair,SignJWT } from 'jose';
 import { createMcpApplication } from '../src/server.ts';
 import { createNodeServer } from '../src/node-http.ts';
@@ -14,7 +14,7 @@ const calls:Array<{path:string;token:string;body:string}>=[];
 async function jwt(clientId:string,aud=resource,scope=scopes){const now=Math.floor(Date.now()/1000);return new SignJWT({client_id:clientId,scope}).setProtectedHeader({alg:'ES256',kid:'local',typ:'at+jwt'}).setIssuer(issuer).setSubject('owned-customer').setAudience(aud).setIssuedAt(now).setNotBefore(now).setExpirationTime(now+300).setJti(crypto.randomUUID()).sign(key.privateKey);}
 const auth:AuthConfig={issuer,resource,apiResource:api,jwksUri:issuer+'/jwks',introspectionUri:issuer+'/introspect',tokenUri:issuer+'/token',metadataUri:issuer+'/.well-known/oauth-authorization-server',resourceMetadataUri:'https://mcp.example.test/.well-known/oauth-protected-resource/mcp',allowedHosts:['id.example.test','mcp.example.test','api.example.test'],clientIds:['profile-a','profile-b'],exchangeClientId:'adapter',exchangeClientSecret:'synthetic',maxTokenLifetimeSeconds:600,requestsPerMinute:200};
 const remote:typeof fetch=async(input,init)=>{const url=new URL(input instanceof Request?input.url:String(input));if(![issuer,api].includes(url.origin))throw new Error('unexpected egress');return fetch(upstreamOrigin+'/'+(url.origin===issuer?'identity':'api')+url.pathname+url.search,init);};
-const clientFetch:typeof fetch=async(input,init)=>{const url=new URL(input instanceof Request?input.url:String(input));if(url.origin!=='https://mcp.example.test')throw new Error('unexpected transport');return fetch(mcpOrigin+url.pathname+url.search,{...init,headers:{...Object.fromEntries(new Headers(init?.headers)),Host:'mcp.example.test'}});};
+const clientFetch:typeof fetch=async(input,init)=>{const url=new URL(input instanceof Request?input.url:String(input));if(url.origin!=='https://mcp.example.test')throw new Error('unexpected transport');return new Promise<Response>((resolve,reject)=>{const req=httpRequest(mcpOrigin+url.pathname+url.search,{method:init?.method??'GET',headers:{...Object.fromEntries(new Headers(init?.headers)),Host:'mcp.example.test'}},res=>{const chunks:Buffer[]=[];res.on('data',c=>chunks.push(Buffer.from(c)));res.on('end',()=>resolve(new Response(Buffer.concat(chunks),{status:res.statusCode,headers:Object.fromEntries(Object.entries(res.headers).filter(([,v])=>typeof v==='string')) as Record<string,string>})));});req.on('error',reject);if(init?.body)req.write(init.body);req.end();});};
 beforeAll(async()=> {
   key=await generateKeyPair('ES256');const jwk={...await exportJWK(key.publicKey),alg:'ES256',kid:'local'};
   upstream=createServer(async(req,res)=>{const parts:Buffer[]=[];for await(const chunk of req)parts.push(Buffer.from(chunk));const raw=Buffer.concat(parts).toString();const body=new URLSearchParams(raw);res.setHeader('content-type','application/json');

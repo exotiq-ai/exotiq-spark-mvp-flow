@@ -53,7 +53,7 @@ export function createAuthenticator(config:AuthConfig,fetcher:typeof fetch=fetch
         const mcpToken=header.slice(7);const p=await verify(mcpToken,config.resource);
         const checked=await boundedJson(fetcher,config.introspectionUri,{method:'POST',headers:{Authorization:credentials,'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({token:mcpToken,token_type_hint:'access_token'}).toString()});
         const i=checked.body;
-        if(checked.status!==200||!record(i)||i.active!==true||i.iss!==p.issuer||i.sub!==p.subject||i.client_id!==p.clientId||i.aud!==config.resource||typeof i.scope!=='string'||i.scope.split(' ').sort().join(' ')!==[...p.scopes].sort().join(' '))throw new AuthFailure(401);
+        if(checked.status!==200||!record(i)||i.active!==true||i.iss!==p.issuer||i.sub!==p.subject||i.jti!==p.tokenId||i.exp!==p.expiresAt||i.client_id!==p.clientId||i.aud!==config.resource||typeof i.scope!=='string'||i.scope.split(' ').sort().join(' ')!==[...p.scopes].sort().join(' '))throw new AuthFailure(401);
         if(requiredScope&&!p.scopes.includes(requiredScope))throw new AuthFailure(403,requiredScope);
         const exchanged=await boundedJson(fetcher,config.tokenUri,{method:'POST',headers:{Authorization:credentials,'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({grant_type:'urn:ietf:params:oauth:grant-type:token-exchange',subject_token:mcpToken,subject_token_type:'urn:ietf:params:oauth:token-type:access_token',requested_token_type:'urn:ietf:params:oauth:token-type:access_token',resource:config.apiResource,scope:p.scopes.join(' ')}).toString()});
         const e=exchanged.body;
