@@ -18,20 +18,25 @@ export interface ApiDependencies {
    * Middleware MUST enforce its own scope/CSRF/customer proof, not trust routing. */
   extension?: (request: Request, path: string, body: unknown) => Promise<Response | null>;
 }
-async function boundedBytes(message: Request | Response, maximum = 32768): Promise<Uint8Array> {
+async function boundedBytes(message: Request | Response, maximum = 32768, timeoutMs = 5000): Promise<Uint8Array> {
+  if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 5000) throw new BookingApiError('invalid_input');
   const contentLength = message.headers.get('content-length');
   if (contentLength && (!/^[0-9]+$/.test(contentLength) || Number(contentLength) > maximum)) throw new BookingApiError('invalid_input');
   if (!message.body) throw new BookingApiError('invalid_input');
   const reader = message.body.getReader(); const parts: Uint8Array[] = []; let size = 0;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  // One total budget for the whole body. A slowly trickled or stalled inbound
+  // stream must not keep an Edge request alive indefinitely.
+  const deadline = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new BookingApiError('invalid_input')), timeoutMs); });
   try {
-    while (true) { const chunk = await reader.read(); if (chunk.done) break; size += chunk.value.length; if (size > maximum) throw new BookingApiError('invalid_input'); parts.push(chunk.value); }
+    while (true) { const chunk = await Promise.race([reader.read(), deadline]); if (chunk.done) break; size += chunk.value.length; if (size > maximum) throw new BookingApiError('invalid_input'); parts.push(chunk.value); }
     const bytes = new Uint8Array(size); let offset = 0;
     for (const part of parts) { bytes.set(part, offset); offset += part.length; }
     return bytes;
-  } catch { throw new BookingApiError('invalid_input'); } finally { void reader.cancel().catch(() => undefined); reader.releaseLock(); }
+  } catch { throw new BookingApiError('invalid_input'); } finally { if (timer) clearTimeout(timer); void reader.cancel().catch(() => undefined); reader.releaseLock(); }
 }
-export async function boundedJson(message: Request | Response, maximum = 32768): Promise<unknown> {
-  try { return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(await boundedBytes(message, maximum))); } catch { throw new BookingApiError('invalid_input'); }
+export async function boundedJson(message: Request | Response, maximum = 32768, timeoutMs = 5000): Promise<unknown> {
+  try { return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(await boundedBytes(message, maximum, timeoutMs))); } catch { throw new BookingApiError('invalid_input'); }
 }
 function routePath(url: URL,resource?:string): string {
   if(resource){const prefix=new URL(resource).pathname.replace(/\/$/, '');if(prefix&&url.pathname.startsWith(prefix+'/v1/'))url=new URL(url.origin+url.pathname.slice(prefix.length)+url.search);}

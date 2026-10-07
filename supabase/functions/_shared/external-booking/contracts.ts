@@ -296,7 +296,6 @@ export function generateOpenApi() {
       '/v1/rental-requests/{ref}/grant-renewals': { post: refRenewal },
       '/v1/rental-requests': { post: requests },
       '/v1/rental-requests/{ref}': { get: status },
-      '/v1/rental-requests/{ref}/grant-renewals': {post:renewal},
       '/v1/rental-requests/{ref}/checkout-handoff': { post: handoff },
     },
     components: { schemas, securitySchemes: { hostedCustomerProof: { type:'apiKey', in:'header', name:'X-Exotiq-Hosted-Proof', description:'Private server-to-server request attestation, independently bound to verified customer API bearer/method/path/body/CSRF; never a customer/agent bearer.' }, customerOAuth: { type: 'oauth2', description: 'Audience-bound verified customer OAuth. OAuth scope alone never establishes per-booking authorization or consent. Issuer/two-client compatibility requires implementation evidence.', flows: { authorizationCode: { authorizationUrl: 'https://oauth.example.invalid/authorize', tokenUrl: 'https://oauth.example.invalid/token', scopes: Object.fromEntries(SCOPES.map((scope) => [scope, scope])) } } } } },
