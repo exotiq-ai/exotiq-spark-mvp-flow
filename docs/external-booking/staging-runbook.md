@@ -12,7 +12,7 @@ Build authorization: 2026-10-07. No production deployment, shared-service mutati
 
 These worktrees belong to independent clones; the inspected source repositories' `.git` files were not used for worktree registration. The external planning workspace's `IMPLEMENTATION-WORKTREES.json` is the ownership manifest. Root orchestrator owns STATE/ROADMAP and sequential shared-file handoffs. Before integration, recheck source owner revisions/status and reconcile changed interfaces explicitly; do not reset or overwrite other agents. No cross-chat messages are authorized. Backend contract artifacts flow to frontend and adapter only at a recorded handoff.
 
-Before later migration work, the database owner must allocate collision-free timestamps against the refreshed tracked migration inventory, record exact filenames in the ownership manifest and update downstream references. The isolated build allocates additive migrations090000–090700 (with unique470/480/500/510/600 timestamps). Selected source functions and these migrations have been applied only in owner-guarded partial PostgreSQL labs; that is not a full managed Supabase baseline. Unknown writers, unresolved overload/default-grant provenance, or overlapping source changes stop dependent migrations/exposure.
+Before later migration work, the database owner must allocate collision-free timestamps against the refreshed tracked migration inventory, record exact filenames in the ownership manifest and update downstream references. The isolated build allocates additive migrations090000–090730 (with unique470/480/500/510/600/710/720/730 timestamps). Selected source functions and these migrations have been applied only in owner-guarded partial PostgreSQL labs; that is not a full managed Supabase baseline. Unknown writers, unresolved overload/default-grant provenance, or overlapping source changes stop dependent migrations/exposure.
 
 ## Present evidence and gates
 
@@ -43,7 +43,7 @@ Run `node scripts/agent-booking/seed-staging.mjs apply <reviewed-config.json> <m
 - `npm run test:agent:unit -- --run`: offline named unit files; network APIs blocked.
 - `npm run test:agent:contract -- --run`: offline explicit contract files; source consistency checks.
 - `npm run test:agent:staging -- --run`: gated real integration suites. No mocks count as applied SQL/payment evidence.
-- `npm run test:agent:pilot -- --project=synthetic`: gated synthetic end-to-end pilot suite, added by the rollout owner.
+- `npm run test:agent:pilot -- --project=synthetic`: gated hosted synthetic end-to-end pilot command. The dedicated provider/browser driver remains undelivered pending a selected staging environment; the command refuses now, and must not be counted as a passing suite.
 - `node scripts/agent-booking/audit-source.mjs --check docs/external-booking/source-audit.json`: detects tracked source drift and omitted candidates.
 
 Test discovery is fixed in `test-suites.mjs`; no pass-with-no-tests or config override. Each later owner creates the named suite before production behavior. Missing suites fail discovery rather than reporting false validation. Internal functions and legacy status lookup are not exposed merely because these offline checks pass.
