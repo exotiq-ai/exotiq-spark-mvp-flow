@@ -76,7 +76,7 @@ export function createApiHandler(deps: ApiDependencies): (request: Request) => P
         if (request.method === 'POST' && path === '/v1/availability') {
           if (request.headers.has('authorization')) { if (!deps.auth) throw new BookingApiError('upstream_unavailable'); await deps.auth.requirePrincipal(request, 'catalog:read'); }
           response = await availabilityResponse(body, deps.catalog, now);
-        } else if (request.method === 'POST' && path === '/v1/quotes') response = await quoteResponse(body, request, deps.catalog, deps.auth, deps.quoteStore, deps.consentOrigin, now);
+        } else if (request.method === 'POST' && path === '/v1/quotes') response = await quoteResponse(body, request, deps.catalog, deps.auth, deps.quoteStore, deps.consentOrigin, now, deps.now??Date.now);
         else {
           const extension = await deps.extension?.(request, path, body);
           if (!extension) throw new BookingApiError(['operators', 'vehicles', 'availability', 'quotes'].some((name) => path === `/v1/${name}`) ? 'invalid_input' : 'not_found');
