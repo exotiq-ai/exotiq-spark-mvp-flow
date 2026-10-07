@@ -1,0 +1,59 @@
+import { describe, it, expect, beforeAll } from 'vitest';
+import { inventorySql, testTeam, vehicle, bookingInsert } from './helpers/inventory-sql.ts';
+
+describe('shared inventory guard on actual isolated PostgreSQL', () => {
+  let sql: ReturnType<typeof inventorySql>;
+  beforeAll(async () => {
+    sql = inventorySql();
+    expect((await sql(`INSERT INTO public.teams(id,name,owner_id,slug,marketplace_visible,marketplace_request_status) VALUES('${testTeam}','agent-test-inventory','${testTeam}','agent-test-inventory',true,'approved') ON CONFLICT DO NOTHING;
+      INSERT INTO public.vehicles(id,team_id,name,slug,marketplace_visible) SELECT ('20000000-0000-4000-8000-'||lpad(i::text,12,'0'))::uuid,'${testTeam}','agent-test-inventory','agent-test-'||i,true FROM generate_series(1,40) i ON CONFLICT DO NOTHING;`)).ok).toBe(true);
+  });
+  it('accepts exactly one of 20 concurrent mixed-source overlaps', async () => {
+    const results = await Promise.all(Array.from({ length: 20 }, (_, i) => sql(`BEGIN; ${bookingInsert(vehicle(1), '2030-01-01 10:00Z', '2030-01-02 10:00Z', ['marketplace','direct','operator','import'][i % 4])} SELECT pg_sleep(0.05); COMMIT;`)));
+    expect(results.filter((r) => r.ok)).toHaveLength(1);
+    expect(results.filter((r) => !r.ok).every((r) => /40001|23P01/.test(r.error))).toBe(true);
+    expect((await sql(`SELECT count(*) FROM public.bookings WHERE vehicle_id='${vehicle(1)}';`)).output).toMatch(/\n1$/);
+  }, 30000);
+  it('rechecks fresh snapshots after a transaction starts before another commits', async () => {
+    const a = sql(`BEGIN; ${bookingInsert(vehicle(2),'2030-01-01 10:00Z','2030-01-02 10:00Z')} SELECT pg_sleep(0.2); COMMIT;`);
+    const b = sql(`BEGIN; SELECT pg_sleep(0.5); ${bookingInsert(vehicle(2),'2030-01-01 10:00Z','2030-01-02 10:00Z','import')} COMMIT;`);
+    const results = await Promise.all([a,b]); expect(results[0].ok).toBe(true); expect(results[1].error).toMatch(/23P01/);
+  });
+  it('rejects snapshot isolation rather than silently permitting a phantom', async () => {
+    const result = await sql(`BEGIN ISOLATION LEVEL REPEATABLE READ; ${bookingInsert(vehicle(3),'2030-01-01 10:00Z','2030-01-02 10:00Z')} COMMIT;`);
+    expect(result.ok).toBe(false); expect(result.error).toMatch(/40001/);
+  });
+  it('guards blocked-date UPDATE and reservation UPDATE in both directions', async () => {
+    expect((await sql(`${bookingInsert(vehicle(4),'2030-01-01 10:00Z','2030-01-02 10:00Z')}
+      INSERT INTO public.vehicle_blocked_dates(team_id,vehicle_id,start_date,end_date) VALUES('${testTeam}','${vehicle(4)}','2030-01-03 10:00Z','2030-01-04 10:00Z');`)).ok).toBe(true);
+    const blocked = await sql(`UPDATE public.vehicle_blocked_dates SET start_date='2030-01-01 12:00Z' WHERE vehicle_id='${vehicle(4)}';`);
+    expect(blocked.error).toMatch(/23P01/);
+    const booking = await sql(`UPDATE public.bookings SET start_date='2030-01-03 12:00Z',end_date='2030-01-04 12:00Z' WHERE vehicle_id='${vehicle(4)}';`);
+    expect(booking.error).toMatch(/23P01/);
+  });
+  it('serializes a blocked insert against an in-flight reservation', async () => {
+    const results = await Promise.all([
+      sql(`BEGIN; ${bookingInsert(vehicle(5),'2030-01-01 10:00Z','2030-01-02 10:00Z')} SELECT pg_sleep(0.2); COMMIT;`),
+      sql(`BEGIN; INSERT INTO public.vehicle_blocked_dates(team_id,vehicle_id,start_date,end_date) VALUES('${testTeam}','${vehicle(5)}','2030-01-01 10:00Z','2030-01-02 10:00Z'); SELECT pg_sleep(0.2); COMMIT;`),
+    ]); expect(results.filter((r) => r.ok)).toHaveLength(1);
+  });
+  it('rejects vehicle moves into occupied inventory and locks DELETE until commit', async () => {
+    expect((await sql(`${bookingInsert(vehicle(6),'2030-01-01 10:00Z','2030-01-02 10:00Z')}${bookingInsert(vehicle(7),'2030-01-01 10:00Z','2030-01-02 10:00Z')}`)).ok).toBe(true);
+    expect((await sql(`UPDATE public.bookings SET vehicle_id='${vehicle(7)}' WHERE vehicle_id='${vehicle(6)}';`)).error).toMatch(/23P01/);
+    const removing = sql(`BEGIN; DELETE FROM public.bookings WHERE vehicle_id='${vehicle(6)}'; SELECT pg_sleep(0.5); COMMIT;`);
+    const attempt = sql(`SELECT pg_sleep(0.1); ${bookingInsert(vehicle(6),'2030-01-01 10:00Z','2030-01-02 10:00Z')}`);
+    const results = await Promise.all([removing,attempt]); expect(results[0].ok).toBe(true); expect(results[1].error).toMatch(/40001/);
+    expect((await sql(bookingInsert(vehicle(6),'2030-01-01 10:00Z','2030-01-02 10:00Z'))).ok).toBe(true);
+  });
+  it('covers every blocking state including imported historical flags', async () => {
+    for (const [i,status] of ['requested','pending_documents','pending_payment','pending','confirmed','active'].entries()) {
+      expect((await sql(bookingInsert(vehicle(10+i),'2030-01-01 10:00Z','2030-01-02 10:00Z','import',status))).ok).toBe(true);
+      expect((await sql(`UPDATE public.bookings SET is_historical=true WHERE vehicle_id='${vehicle(10+i)}';`)).ok).toBe(true);
+      expect((await sql(bookingInsert(vehicle(10+i),'2030-01-01 10:00Z','2030-01-02 10:00Z'))).error).toMatch(/23P01/);
+    }
+  });
+  it('does not expose safety-definer helpers to public roles', async () => {
+    const result = await sql(`SELECT bool_and(NOT has_function_privilege('anon',p.oid,'EXECUTE') AND NOT has_function_privilege('authenticated',p.oid,'EXECUTE')) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND p.proname IN('agent_inventory_lock','agent_inventory_booking_guard','agent_inventory_blocked_guard');`);
+    expect(result.output).toMatch(/\nt$/);
+  });
+});
