@@ -24,7 +24,7 @@ describe('offline OAuth fixture failures', () => {
 });
 
 describe('upstream fault fixtures', () => {
-  it.each(['timeout', 'unavailable'])('fails %s rather than returning empty availability', async (fault) => {
+  it.each(['timeout', 'unavailable'] as const)('fails %s rather than returning empty availability', async (fault) => {
     const upstream = createUpstreamFixture(fault);
     await expect(upstream.fetch()).rejects.toThrow();
     expect(upstream.calls()).toBe(1);

@@ -31,7 +31,7 @@ export async function teardownManifest(config, manifest, adapter, options = {}) 
   return { deleted: existing.length, runId: manifest.runId };
 }
 
-export function createRestAdapter(config, credential, { manifest, fetcher = globalThis.fetch, now = Date.now() } = {}) {
+export function createRestAdapter(config, credential, { manifest = undefined, fetcher = globalThis.fetch, now = Date.now() } = {}) {
   const target = preflight(config, manifest, { now });
   // Bind legacy service JWTs to the reviewed project; opaque keys need a separately
   // reviewed project-scoped implementation and are intentionally refused here.

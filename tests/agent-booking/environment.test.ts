@@ -23,8 +23,9 @@ const manifest = () => ({ version: 1, runId: 'agent-test-run-1', projectId: 'age
 
 describe('staging guard', () => {
   it('accepts explicit isolated fixture configuration without network', () => {
-    const network = vi.fn();
-    expect(guardEnvironment(fixture(), { now, network })).toMatchObject({ projectId: 'agent-test-local' });
+    const network = vi.spyOn(globalThis, 'fetch');
+    network.mockClear();
+    expect(guardEnvironment(fixture(), { now })).toMatchObject({ projectId: 'agent-test-local' });
     expect(network).not.toHaveBeenCalled();
   });
   it.each([
@@ -38,8 +39,9 @@ describe('staging guard', () => {
     ['live operator key', { stripeOperatorKey: 'sk_live_never-accepted' }],
     ['live platform key', { stripeExotiqKey: 'sk_live_never-accepted' }],
   ])('rejects %s before any network', (_, override) => {
-    const network = vi.fn();
-    expect(() => guardEnvironment({ ...fixture(), ...override }, { now, network })).toThrow();
+    const network = vi.spyOn(globalThis, 'fetch');
+    network.mockClear();
+    expect(() => guardEnvironment({ ...fixture(), ...override }, { now })).toThrow();
     expect(network).not.toHaveBeenCalled();
   });
   it.each([
@@ -82,7 +84,7 @@ describe('manifest-scoped seed and teardown', () => {
   });
   it('REST adapter refuses nonsynthetic or cross-project access before fetch', async () => {
     const credential = `fixture.${Buffer.from(JSON.stringify({ role: 'service_role', iss: 'supabase' })).toString('base64url')}.fixture`;
-    const fetcher = vi.fn(async () => Response.json([]));
+    const fetcher = vi.fn(async (_input: Parameters<typeof fetch>[0], _init?: RequestInit) => Response.json([]));
     const adapter = createRestAdapter(fixture(), credential, { manifest: manifest(), fetcher, now });
     await expect(adapter.insert('customers', { ...manifest().rows[0].data, full_name: 'real customer' })).rejects.toThrow();
     await expect(adapter.readExact('bookings', manifest().rows[0].id)).rejects.toThrow();
@@ -93,7 +95,7 @@ describe('manifest-scoped seed and teardown', () => {
   });
   it('REST deletion binds the UUID and original marker in the same request', async () => {
     const credential = `fixture.${Buffer.from(JSON.stringify({ role: 'service_role', iss: 'supabase' })).toString('base64url')}.fixture`;
-    const fetcher = vi.fn(async () => Response.json([]));
+    const fetcher = vi.fn(async (_input: Parameters<typeof fetch>[0], _init?: RequestInit) => Response.json([]));
     const adapter = createRestAdapter(fixture(), credential, { manifest: manifest(), fetcher, now });
     await adapter.deleteExact('customers', manifest().rows[0].id);
     expect(fetcher.mock.calls[0][0]).toContain(`?id=eq.${manifest().rows[0].id}&full_name=eq.agent-test-customer`);
