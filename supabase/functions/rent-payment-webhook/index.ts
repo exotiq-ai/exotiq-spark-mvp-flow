@@ -8,9 +8,8 @@
 //   - payment_intent.payment_failed
 //
 // State rule (Lovable flag #6): 'confirmed' fires ONLY when both legs have
-// succeeded, evaluated from the booking row — never from a single event —
-// so redelivery and reordering are harmless. Events dedupe via the
-// stripe_webhook_events table.
+// succeeded against the immutable rental snapshot. Completion and retries use
+// the durable external lifecycle ledger; references alone cannot confirm.
 //
 // Partial failure (rental paid, Exotiq leg declined): the booking STAYS
 // pending_payment with an ops alert in user_activity_log; the renter
@@ -21,6 +20,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.77.0";
+import { recordSettlement, reconcileBooking, sourceAmountCents, snapshotFeeCents } from "../_shared/external-booking/lifecycle.ts";
 import { resolveStripeMode } from "../_shared/stripeMode.ts";
 import { sendRenterEmail, resolveRenterReplyTo } from "../_shared/rentEmail.ts";
 import {
@@ -63,47 +63,10 @@ async function confirmIfFullyPaid(db: ReturnType<typeof admin>, bookingRef: stri
     .eq("booking_ref", bookingRef)
     .maybeSingle();
   if (!booking) return;
-  if (booking.status !== "pending_payment") return; // already promoted / expired / declined
-  if (!booking.operator_payment_intent_id || !booking.exotiq_payment_intent_id) return;
-
-  // Is the renter already ID-verified?
-  let identityVerified = false;
-  if (booking.customer_id) {
-    const { data: customer } = await db
-      .from("customers")
-      .select("identity_status")
-      .eq("id", booking.customer_id)
-      .maybeSingle();
-    identityVerified = customer?.identity_status === "verified";
-  }
-
-  const nextStatus = identityVerified ? "confirmed" : "pending_documents";
-  const paidAt = booking.paid_at ?? new Date().toISOString();
-  // BK-03501 audit: money has cleared on both legs, so the booking's own
-  // ledger columns must say so. Previously only `paid_at` was written, which
-  // left paid marketplace bookings reading `payment_status: 'pending'` and
-  // `exotiq_charge_cents: 0` everywhere operators look.
-  const exotiqChargeCents =
-    Number(booking.platform_fee_cents ?? 0)
-    + Number(booking.protection_total_cents ?? 0)
-    + Number(booking.state_fee_cents ?? 0)
-    + Number(booking.processing_fee_cents ?? 0);
-  const { error } = await db
-    .from("bookings")
-    .update({
-      status: nextStatus,
-      paid_at: paidAt,
-      payment_stripe_mode: mode,
-      payment_status: "paid",
-      balance_due: 0,
-      exotiq_charge_cents: exotiqChargeCents,
-      ...(nextStatus === "confirmed" ? { confirmed_at: paidAt } : {}),
-    })
-    .eq("id", booking.id)
-    .eq("status", "pending_payment"); // guard against races
-  if (error) return;
-
-
+  const result = await reconcileBooking(db, bookingRef, mode as "test" | "live") as { changed:boolean;status:string };
+  if (!result.changed || !["confirmed","pending_documents"].includes(result.status)) return;
+  const identityVerified=result.status==="confirmed";
+  const nextStatus=result.status;
   logStep(identityVerified ? "Booking confirmed" : "Booking paid, awaiting ID", { bookingRef, nextStatus });
 
   // Send receipt email either way — payment cleared, renter deserves a receipt.
@@ -233,7 +196,7 @@ async function mirrorPayment(
   });
   // 23505 = unique_violation → already mirrored on an earlier delivery.
   if (error && (error as { code?: string }).code !== "23505") {
-    logStep("mirrorPayment failed", { bookingRef, leg, code: (error as { code?: string }).code });
+    throw new Error("Payment ledger unavailable");
   }
 }
 
@@ -280,23 +243,12 @@ serve(async (req) => {
 
   const db = admin();
   const mode = resolveStripeMode();
+  if(event.livemode!==(mode==="live"))return new Response("Mode mismatch",{status:400});
 
-  // Dedupe via the existing stripe_webhook_events table (Lovable flag #6).
-  // Keyed on (consumer, stripe_event_id) so the legacy `stripe-webhook`
-  // endpoint — which subscribes to the same event types — can never claim
-  // an event out from under this function.
-  const { error: dedupeError } = await db
-    .from("stripe_webhook_events")
-    .insert({ consumer: "rent", stripe_event_id: event.id, event_type: event.type });
-  if (dedupeError) {
-    // Unique violation → already processed; anything else → let Stripe retry.
-    if ((dedupeError as { code?: string }).code === "23505") {
-      logStep("Duplicate event skipped", { eventId: event.id });
-      return new Response(JSON.stringify({ received: true, duplicate: true }), { status: 200 });
-    }
-    console.error("[RENT-PAYMENT-WEBHOOK] dedupe insert failed", dedupeError);
-    return new Response("Dedupe failure", { status: 500 });
-  }
+  const {data:claim,error:claimError}=await db.rpc("external_claim_rent_event",{_event_id:event.id});
+  if(claimError)return new Response("Database error",{status:500});
+  if(claim?.state==="completed")return new Response(JSON.stringify({received:true,duplicate:true}),{status:200});
+  if(claim?.state!=="claimed" || typeof claim.claim_token!=="string")return new Response("Reconciliation pending",{status:503});
 
   try {
     switch (event.type) {
@@ -308,6 +260,14 @@ serve(async (req) => {
           ? session.payment_intent
           : session.payment_intent?.id;
         if (!operatorPi) break;
+        const {error:referenceError}=await db.from("bookings").update({operator_payment_intent_id:operatorPi,payment_stripe_mode:mode}).eq("booking_ref",bookingRef).is("operator_payment_intent_id",null);
+        if(referenceError)throw new Error("Captured payment reference unavailable");
+        const rentalPi = await stripe.paymentIntents.retrieve(operatorPi);
+        const {data:authority,error:authorityError}=await db.from("bookings").select("total_value,team_id").eq("booking_ref",bookingRef).single();
+        if(authorityError||!authority)throw new Error("Booking authority unavailable");
+        const {data:team,error:teamError}=await db.from("teams").select("currency,stripe_account_id,stripe_test_account_id").eq("id",authority.team_id).single();
+        if(teamError||!team)throw new Error("Operator authority unavailable");
+        await recordSettlement(db,event.id,rentalPi,{bookingRef,leg:"operator",mode,amountCents:sourceAmountCents(authority.total_value),currency:team.currency??"USD",operatorAccount:mode==="test"?team.stripe_test_account_id:team.stripe_account_id});
 
         logStep("Rental paid", { bookingRef, operatorPi });
         const nowIso = new Date().toISOString();
@@ -346,7 +306,10 @@ serve(async (req) => {
 
         // Terminal-state guard: auto-refund with reverse_transfer so the
         // operator's connected account is also debited, then alert ops.
-        if (bookingRow.status !== "pending_payment" && bookingRow.status !== "confirmed") {
+        if (bookingRow.status !== "pending_payment" && bookingRow.status !== "confirmed" && !(bookingRow.status==="pending_documents" && bookingRow.paid_at)) {
+          // A late capture stays durably visible even if refund transport or
+          // best-effort telemetry fails. Terminal rows are not scheduler candidates.
+          await reconcileBooking(db, bookingRef, mode);
           await opsAlert(db, bookingRef, "renter_payment_after_terminal_state", {
             status: bookingRow.status,
             operatorPi,
@@ -362,11 +325,16 @@ serve(async (req) => {
               operatorPi,
               detail: refundErr instanceof Error ? refundErr.message : String(refundErr),
             });
+            throw refundErr;
           }
           break;
         }
 
         if (bookingRow.exotiq_payment_intent_id) {
+          if(bookingRow.exotiq_payment_intent_id!=="none_required"){
+            const existing=await stripe.paymentIntents.retrieve(bookingRow.exotiq_payment_intent_id);
+            if(existing.status==="succeeded")await recordSettlement(db,event.id+"_fee",existing,{bookingRef,leg:"exotiq",mode,amountCents:snapshotFeeCents(bookingRow),currency:team.currency??"USD"});
+          }
           await confirmIfFullyPaid(db, bookingRef, mode);
           break;
         }
@@ -374,12 +342,11 @@ serve(async (req) => {
         // Exotiq leg = platform fee + protection + state fee + processing fee.
         // All four are snapshotted at booking time by rent-create-booking so
         // "shown == snapshot == charged" holds even if the quote drifts.
-        const exotiqCents =
-          Number(bookingRow.platform_fee_cents ?? 0)
-          + Number(bookingRow.protection_total_cents ?? 0)
-          + Number(bookingRow.state_fee_cents ?? 0)
-          + Number(bookingRow.processing_fee_cents ?? 0);
+        const exotiqCents = snapshotFeeCents(bookingRow);
         if (exotiqCents <= 0) {
+          if(exotiqCents!==0)throw new Error("Invalid fee snapshot");
+          const {error:zeroError}=await db.rpc("external_record_settlement",{_event_id:event.id+"_fee",_booking_ref:bookingRef,_leg:"exotiq",_intent_id:`zero_${bookingRow.id}_exotiq`,_amount_cents:0,_currency:rentalPi.currency,_mode:mode,_operator_account:null});
+          if(zeroError)throw zeroError;
           await db
             .from("bookings")
             .update({ exotiq_payment_intent_id: "none_required" })
@@ -388,11 +355,10 @@ serve(async (req) => {
           break;
         }
 
-        const rentalPi = await stripe.paymentIntents.retrieve(operatorPi);
         const paymentMethod = typeof rentalPi.payment_method === "string"
           ? rentalPi.payment_method
           : rentalPi.payment_method?.id;
-        const customer = typeof session.customer === "string" ? session.customer : session.customer?.id;
+        const customer = typeof rentalPi.customer === "string" ? rentalPi.customer : rentalPi.customer?.id;
         if (!paymentMethod || !customer) {
           await opsAlert(db, bookingRef, "renter_payment_partial_failure", {
             reason: "saved payment method or customer missing for the Exotiq leg",
@@ -400,10 +366,12 @@ serve(async (req) => {
           break;
         }
 
-        // Attempt-scoped idempotency key so a fresh card can retry after a
-        // decline (M6 flag #9).
+        // Analytics attempts do not change charge identity or provider parameters.
+        // Ambiguous failures reuse one durable key within its bounded lifetime.
         const attempt = ((bookingRow.exotiq_leg_attempt as number | null) ?? 0) + 1;
         await db.from("bookings").update({ exotiq_leg_attempt: attempt }).eq("id", bookingRow.id);
+        const {data:chargeClaim,error:chargeClaimError}=await db.rpc("external_claim_exotiq_charge",{_booking_ref:bookingRef,_operator_intent_id:operatorPi});
+        if(chargeClaimError||chargeClaim?.state!=="ready"||typeof chargeClaim.idempotency_key!=="string")throw new Error("Charge reconciliation required");
 
         try {
           const exotiqPi = await stripe.paymentIntents.create(
@@ -416,19 +384,21 @@ serve(async (req) => {
               confirm: true,
               statement_descriptor_suffix: "EXOTIQ RENT",
               description: `Exotiq booking fee + protection — ${bookingRef}`,
-              metadata: { booking_ref: bookingRef, leg: "exotiq_fee_protection", stripe_mode: mode, attempt: String(attempt) },
+              metadata: { booking_ref: bookingRef, leg: "exotiq_fee_protection", stripe_mode: mode },
             },
-            { idempotencyKey: `exotiq-leg-${bookingRef}-${attempt}` },
+            { idempotencyKey: chargeClaim.idempotency_key },
           );
           await db
             .from("bookings")
             .update({ exotiq_payment_intent_id: exotiqPi.id })
             .eq("booking_ref", bookingRef);
           if (exotiqPi.status === "succeeded") {
+            await recordSettlement(db,event.id+"_fee",exotiqPi,{bookingRef,leg:"exotiq",mode,amountCents:exotiqCents,currency:team.currency??"USD"});
             await mirrorPayment(db, bookingRef, "fee", exotiqPi.id, exotiqCents / 100, new Date().toISOString());
             await confirmIfFullyPaid(db, bookingRef, mode);
           }
         } catch (chargeError) {
+          if((chargeError as {type?:string}).type!=="StripeCardError")throw chargeError;
           logStep("Exotiq leg declined", { bookingRef });
           await opsAlert(db, bookingRef, "renter_payment_partial_failure", {
             reason: "exotiq fee+protection charge declined off-session",
@@ -443,6 +413,13 @@ serve(async (req) => {
         const pi = event.data.object as Stripe.PaymentIntent;
         const bookingRef = pi.metadata?.booking_ref;
         if (!bookingRef || pi.metadata?.leg !== "exotiq_fee_protection") break;
+        const {error:referenceError}=await db.from("bookings").update({exotiq_payment_intent_id:pi.id,payment_stripe_mode:mode}).eq("booking_ref",bookingRef).is("exotiq_payment_intent_id",null);
+        if(referenceError)throw new Error("Captured payment reference unavailable");
+        const {data:authority,error:authorityError}=await db.from("bookings").select("team_id,platform_fee_cents,protection_total_cents,state_fee_cents,processing_fee_cents").eq("booking_ref",bookingRef).single();
+        if(authorityError||!authority)throw new Error("Booking authority unavailable");
+        const {data:team,error:teamError}=await db.from("teams").select("currency").eq("id",authority.team_id).single();
+        if(teamError||!team)throw new Error("Operator authority unavailable");
+        await recordSettlement(db,event.id,pi,{bookingRef,leg:"exotiq",mode,amountCents:snapshotFeeCents(authority),currency:team.currency??"USD"});
         await db
           .from("bookings")
           .update({ exotiq_payment_intent_id: pi.id })
@@ -475,17 +452,12 @@ serve(async (req) => {
         logStep("Ignored event", { type: event.type });
     }
 
+    const {data:completed,error:completeError}=await db.rpc("external_finish_rent_event",{_event_id:event.id,_claim_token:claim.claim_token,_completed:true});
+    if(completeError||completed!==true)throw new Error("Webhook completion unavailable");
     return new Response(JSON.stringify({ received: true }), { status: 200 });
   } catch (error) {
     console.error("[RENT-PAYMENT-WEBHOOK] handler error", error);
-    // Release the dedupe row so Stripe's redelivery actually reprocesses —
-    // otherwise the duplicate check would swallow the retry of failed work.
-    // Per-leg idempotency keys keep the retry from double-charging.
-    await db
-      .from("stripe_webhook_events")
-      .delete()
-      .eq("consumer", "rent")
-      .eq("stripe_event_id", event.id);
+    await db.rpc("external_finish_rent_event",{_event_id:event.id,_claim_token:claim.claim_token,_completed:false});
     return new Response("Handler error", { status: 500 });
   }
 });

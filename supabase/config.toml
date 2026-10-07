@@ -271,3 +271,8 @@ verify_jwt = false
 
 [functions.admin-card-capture-link]
 verify_jwt = true
+
+# Managed provider tokens are verified, introspected and scoped inside ingress.
+# Keep this isolated function unexposed until release readiness checks pass.
+[functions.external-booking-api]
+verify_jwt = false

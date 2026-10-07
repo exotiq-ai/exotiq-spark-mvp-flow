@@ -1,0 +1,3890 @@
+{
+  "openapi": "3.1.2",
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "info": {
+    "title": "Exotiq External Booking API",
+    "version": "1.0.0",
+    "description": "Generated canonical v1 contract. Implementation and staging/provider proof remain rollout gates. No authority, ranking, onboarding or rental eligibility is guaranteed. Operator approval and hosted customer payment remain mandatory."
+  },
+  "x-generated-by": "supabase/functions/_shared/external-booking/contracts.ts",
+  "paths": {
+    "/v1/operators": {
+      "get": {
+        "operationId": "listOperators",
+        "description": "Only opted-in, eligible public operators. Anonymous reads are allowed only under the existing visibility/browse policy; no incidental tenant exposure.",
+        "security": [
+          {},
+          {
+            "customerOAuth": [
+              "catalog:read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "city",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            }
+          },
+          {
+            "name": "operator_slug",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048,
+              "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful authoritative response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperatorsPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured error (400); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Structured error (401); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                "description": "Bearer challenge; never echoes credentials."
+              }
+            }
+          },
+          "403": {
+            "description": "Structured error (403); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Structured error (404); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Structured error (409); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Structured error (410); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Structured error (429); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3600
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Structured error (503); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3600
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/vehicles": {
+      "get": {
+        "operationId": "listVehicles",
+        "description": "Bounded eligible vehicle catalog. Optional dates filter discovery only; listing never promises availability. Cursor binds operation and normalized filters; repeat current visibility checks on every page.",
+        "security": [
+          {},
+          {
+            "customerOAuth": [
+              "catalog:read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "operator_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 36,
+              "maxLength": 36,
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "city",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048,
+              "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          },
+          {
+            "name": "pickup_at",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 35,
+              "format": "date-time",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+            }
+          },
+          {
+            "name": "return_at",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 35,
+              "format": "date-time",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+            }
+          },
+          {
+            "name": "timezone",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80,
+              "format": "iana-timezone"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful authoritative response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VehiclesPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured error (400); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Structured error (401); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                "description": "Bearer challenge; never echoes credentials."
+              }
+            }
+          },
+          "403": {
+            "description": "Structured error (403); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Structured error (404); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Structured error (409); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Structured error (410); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Structured error (429); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3600
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Structured error (503); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3600
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/availability": {
+      "post": {
+        "operationId": "checkAvailability",
+        "description": "Exact offset/tenant-timezone interval check. AVAILABLE is a checked observation, never a hold. UNKNOWN returns 200 with bounded retry delay and safe reason; quote/write prerequisites fail with 503.",
+        "security": [
+          {},
+          {
+            "customerOAuth": [
+              "catalog:read"
+            ]
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful authoritative response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvailabilityResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured error (400); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Structured error (401); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                "description": "Bearer challenge; never echoes credentials."
+              }
+            }
+          },
+          "403": {
+            "description": "Structured error (403); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Structured error (404); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Structured error (409); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Structured error (410); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Structured error (429); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3600
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Structured error (503); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3600
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AvailabilityRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/quotes": {
+      "post": {
+        "operationId": "createQuote",
+        "description": "Persist server-calculated principal-bound quote; creates no inventory hold. Recheck visibility, availability and options. Customer reviews itemized charges/terms in consent_url. Missing authoritative prerequisites return 503.",
+        "security": [
+          {
+            "customerOAuth": [
+              "quotes:create"
+            ]
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Persisted expiring quote",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuoteResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured error (400); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Structured error (401); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                "description": "Bearer challenge; never echoes credentials."
+              }
+            }
+          },
+          "403": {
+            "description": "Structured error (403); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Structured error (404); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Structured error (409); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Structured error (410); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Structured error (429); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3600
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Structured error (503); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3600
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuoteRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/rental-requests": {
+      "post": {
+        "operationId": "submitRentalRequest",
+        "description": "Authenticated customer and matching one-use consent receipt required. First creation returns 201; same principal/idempotency key and identical intent returns original result with 200. Request is pending approval, never confirmation.",
+        "security": [
+          {
+            "customerOAuth": [
+              "rental_requests:create"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9_-]+$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful authoritative response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RentalRequestResult"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "First durable request creation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RentalRequestResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured error (400); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Structured error (401); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                "description": "Bearer challenge; never echoes credentials."
+              }
+            }
+          },
+          "403": {
+            "description": "Structured error (403); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Structured error (404); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Structured error (409); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Structured error (410); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Structured error (429); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3600
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Structured error (503); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3600
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RentalRequestInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/rental-requests/{ref}": {
+      "get": {
+        "operationId": "getRentalRequest",
+        "description": "Revalidate customer/operator/booking/action grant scope, expiry and revocation on every read. Hidden, missing and wrong-customer refs have identical 404. Browser payment redirect is never confirmation; status may report reconciliation pending.",
+        "security": [
+          {
+            "customerOAuth": [
+              "rental_requests:read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80,
+              "pattern": "^[A-Za-z0-9_-]+$"
+            }
+          },
+          {
+            "name": "If-None-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful authoritative response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RentalStatusResult"
+                }
+              }
+            },
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "const": "private, no-cache"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Unchanged authorized resource; no body. Authorization/grant checks still run before conditional response."
+          },
+          "400": {
+            "description": "Structured error (400); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Structured error (401); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                "description": "Bearer challenge; never echoes credentials."
+              }
+            }
+          },
+          "403": {
+            "description": "Structured error (403); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Structured error (404); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Structured error (409); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Structured error (410); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Structured error (429); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3600
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Structured error (503); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3600
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/rental-requests/{ref}/checkout-handoff": {
+      "post": {
+        "operationId": "createCheckoutHandoff",
+        "description": "Require customer/booking/action grant, operator-approved pending_payment, valid identity and unexpired payment window. Partial payment never creates another operator charge. HTTPS scoped opaque nonce resolves in authenticated customer browser; legacy booking token remains backend.",
+        "security": [
+          {
+            "customerOAuth": [
+              "checkout:handoff"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80,
+              "pattern": "^[A-Za-z0-9_-]+$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful authoritative response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutHandoffResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured error (400); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Structured error (401); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                "description": "Bearer challenge; never echoes credentials."
+              }
+            }
+          },
+          "403": {
+            "description": "Structured error (403); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Structured error (404); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Structured error (409); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Structured error (410); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Structured error (429); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3600
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Structured error (503); no private booking existence or exception disclosure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3600
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "OperatorsQuery": {
+        "type": "object",
+        "properties": {
+          "city": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "operator_slug": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "cursor": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50,
+            "default": 20
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "VehiclesQuery": {
+        "type": "object",
+        "properties": {
+          "operator_id": {
+            "type": "string",
+            "minLength": 36,
+            "maxLength": 36,
+            "format": "uuid"
+          },
+          "city": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "cursor": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50,
+            "default": 20
+          },
+          "pickup_at": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 35,
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+          },
+          "return_at": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 35,
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+          },
+          "timezone": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "format": "iana-timezone"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "Operator": {
+        "type": "object",
+        "properties": {
+          "operator_id": {
+            "type": "string",
+            "minLength": 36,
+            "maxLength": 36,
+            "format": "uuid"
+          },
+          "slug": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "city": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "timezone": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "format": "iana-timezone"
+          },
+          "storefront_url": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "format": "https-url",
+            "pattern": "^https://"
+          }
+        },
+        "required": [
+          "operator_id",
+          "slug",
+          "name",
+          "city",
+          "timezone",
+          "storefront_url"
+        ],
+        "additionalProperties": false
+      },
+      "Vehicle": {
+        "type": "object",
+        "properties": {
+          "operator_id": {
+            "type": "string",
+            "minLength": 36,
+            "maxLength": 36,
+            "format": "uuid"
+          },
+          "vehicle_id": {
+            "type": "string",
+            "minLength": 36,
+            "maxLength": 36,
+            "format": "uuid"
+          },
+          "slug": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "city": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "timezone": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "format": "iana-timezone"
+          },
+          "vehicle_url": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "format": "https-url",
+            "pattern": "^https://"
+          },
+          "availability_requires_check": {
+            "const": true
+          }
+        },
+        "required": [
+          "operator_id",
+          "vehicle_id",
+          "slug",
+          "name",
+          "city",
+          "timezone",
+          "vehicle_url",
+          "availability_requires_check"
+        ],
+        "additionalProperties": false
+      },
+      "OperatorsPage": {
+        "type": "object",
+        "properties": {
+          "api_version": {
+            "const": "v1"
+          },
+          "source_checked_at": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 35,
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "operator_id": {
+                  "type": "string",
+                  "minLength": 36,
+                  "maxLength": 36,
+                  "format": "uuid"
+                },
+                "slug": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80,
+                  "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160
+                },
+                "city": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "timezone": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80,
+                  "format": "iana-timezone"
+                },
+                "storefront_url": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048,
+                  "format": "https-url",
+                  "pattern": "^https://"
+                }
+              },
+              "required": [
+                "operator_id",
+                "slug",
+                "name",
+                "city",
+                "timezone",
+                "storefront_url"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 50,
+            "minItems": 0
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048,
+                "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "api_version",
+          "source_checked_at",
+          "items",
+          "next_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "VehiclesPage": {
+        "type": "object",
+        "properties": {
+          "api_version": {
+            "const": "v1"
+          },
+          "source_checked_at": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 35,
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "operator_id": {
+                  "type": "string",
+                  "minLength": 36,
+                  "maxLength": 36,
+                  "format": "uuid"
+                },
+                "vehicle_id": {
+                  "type": "string",
+                  "minLength": 36,
+                  "maxLength": 36,
+                  "format": "uuid"
+                },
+                "slug": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80,
+                  "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160
+                },
+                "city": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "timezone": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80,
+                  "format": "iana-timezone"
+                },
+                "vehicle_url": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048,
+                  "format": "https-url",
+                  "pattern": "^https://"
+                },
+                "availability_requires_check": {
+                  "const": true
+                }
+              },
+              "required": [
+                "operator_id",
+                "vehicle_id",
+                "slug",
+                "name",
+                "city",
+                "timezone",
+                "vehicle_url",
+                "availability_requires_check"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 50,
+            "minItems": 0
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048,
+                "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "api_version",
+          "source_checked_at",
+          "items",
+          "next_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "AvailabilityRequest": {
+        "type": "object",
+        "properties": {
+          "operator_id": {
+            "type": "string",
+            "minLength": 36,
+            "maxLength": 36,
+            "format": "uuid"
+          },
+          "vehicle_id": {
+            "type": "string",
+            "minLength": 36,
+            "maxLength": 36,
+            "format": "uuid"
+          },
+          "pickup_at": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 35,
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+          },
+          "return_at": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 35,
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+          },
+          "timezone": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "format": "iana-timezone"
+          }
+        },
+        "required": [
+          "operator_id",
+          "vehicle_id",
+          "pickup_at",
+          "return_at",
+          "timezone"
+        ],
+        "additionalProperties": false
+      },
+      "AvailabilityResult": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "api_version": {
+                "const": "v1"
+              },
+              "source_checked_at": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 35,
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+              },
+              "operator_id": {
+                "type": "string",
+                "minLength": 36,
+                "maxLength": 36,
+                "format": "uuid"
+              },
+              "vehicle_id": {
+                "type": "string",
+                "minLength": 36,
+                "maxLength": 36,
+                "format": "uuid"
+              },
+              "pickup_at": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 35,
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+              },
+              "return_at": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 35,
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+              },
+              "timezone": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80,
+                "format": "iana-timezone"
+              },
+              "availability": {
+                "type": "string",
+                "enum": [
+                  "AVAILABLE",
+                  "UNAVAILABLE"
+                ]
+              },
+              "buffer_policy_version": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              }
+            },
+            "required": [
+              "api_version",
+              "source_checked_at",
+              "operator_id",
+              "vehicle_id",
+              "pickup_at",
+              "return_at",
+              "timezone",
+              "availability",
+              "buffer_policy_version"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "api_version": {
+                "const": "v1"
+              },
+              "source_checked_at": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 35,
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+              },
+              "operator_id": {
+                "type": "string",
+                "minLength": 36,
+                "maxLength": 36,
+                "format": "uuid"
+              },
+              "vehicle_id": {
+                "type": "string",
+                "minLength": 36,
+                "maxLength": 36,
+                "format": "uuid"
+              },
+              "pickup_at": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 35,
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+              },
+              "return_at": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 35,
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+              },
+              "timezone": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80,
+                "format": "iana-timezone"
+              },
+              "availability": {
+                "const": "UNKNOWN"
+              },
+              "buffer_policy_version": {
+                "type": "null"
+              },
+              "reason_code": {
+                "type": "string",
+                "enum": [
+                  "upstream_unavailable"
+                ]
+              },
+              "retry_after_seconds": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 3600
+              }
+            },
+            "required": [
+              "api_version",
+              "source_checked_at",
+              "operator_id",
+              "vehicle_id",
+              "pickup_at",
+              "return_at",
+              "timezone",
+              "availability",
+              "buffer_policy_version",
+              "reason_code",
+              "retry_after_seconds"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "QuoteRequest": {
+        "type": "object",
+        "properties": {
+          "operator_id": {
+            "type": "string",
+            "minLength": 36,
+            "maxLength": 36,
+            "format": "uuid"
+          },
+          "vehicle_id": {
+            "type": "string",
+            "minLength": 36,
+            "maxLength": 36,
+            "format": "uuid"
+          },
+          "pickup_at": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 35,
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+          },
+          "return_at": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 35,
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+          },
+          "timezone": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "format": "iana-timezone"
+          },
+          "selected_options": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "premium",
+                "standard",
+                "decline"
+              ]
+            },
+            "maxItems": 1,
+            "minItems": 1,
+            "uniqueItems": true,
+            "description": "Current backend protection IDs. No unrecognized add-ons or client amounts."
+          }
+        },
+        "required": [
+          "operator_id",
+          "vehicle_id",
+          "pickup_at",
+          "return_at",
+          "timezone",
+          "selected_options"
+        ],
+        "additionalProperties": false
+      },
+      "QuoteItemization": {
+        "type": "object",
+        "properties": {
+          "rental_subtotal_cents": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "operator_tax_cents": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "operator_tax_inclusive": {
+            "type": "boolean"
+          },
+          "platform_fee_cents": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "protection_total_cents": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "state_fee_cents": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "processing_fee_cents": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "deposit_cents": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Separate security deposit disclosure; excluded from both rental charge totals. No card authorization is created by quoting."
+          }
+        },
+        "required": [
+          "rental_subtotal_cents",
+          "operator_tax_cents",
+          "operator_tax_inclusive",
+          "platform_fee_cents",
+          "protection_total_cents",
+          "state_fee_cents",
+          "processing_fee_cents",
+          "deposit_cents"
+        ],
+        "additionalProperties": false
+      },
+      "PaymentScheduleItem": {
+        "type": "object",
+        "properties": {
+          "payee": {
+            "type": "string",
+            "enum": [
+              "operator",
+              "exotiq"
+            ]
+          },
+          "amount_cents": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "due": {
+            "type": "string",
+            "enum": [
+              "after_operator_approval",
+              "after_operator_charge"
+            ]
+          }
+        },
+        "required": [
+          "payee",
+          "amount_cents",
+          "due"
+        ],
+        "additionalProperties": false
+      },
+      "QuoteTerms": {
+        "type": "object",
+        "properties": {
+          "cancellation_policy": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8000
+          },
+          "pickup_address": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4096
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pickup_instructions": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4096
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mileage_limit": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mileage_overage_rate_usd": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 24,
+                "pattern": "^(?:0|[1-9]\\d{0,12})(?:\\.\\d{1,8})?$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "deposit_disclosure": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "cancellation_policy",
+          "pickup_address",
+          "pickup_instructions",
+          "mileage_limit",
+          "mileage_overage_rate_usd",
+          "deposit_disclosure"
+        ],
+        "additionalProperties": false
+      },
+      "QuotePricingDetails": {
+        "type": "object",
+        "properties": {
+          "rental_days": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 365
+          },
+          "daily_rate_cents": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "protection_tier": {
+            "type": "string",
+            "enum": [
+              "premium",
+              "standard",
+              "decline"
+            ]
+          },
+          "protection_daily_cents": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "state_code": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 2,
+            "pattern": "^[A-Z]{2}$"
+          },
+          "state_fee_label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "state_fee_daily_cents": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "operator_tax_label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "operator_tax_rate_percent": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 24,
+            "pattern": "^(?:0|[1-9]\\d{0,12})(?:\\.\\d{1,8})?$"
+          },
+          "platform_fee_percent": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 24,
+            "pattern": "^(?:0|[1-9]\\d{0,12})(?:\\.\\d{1,8})?$"
+          }
+        },
+        "required": [
+          "rental_days",
+          "daily_rate_cents",
+          "protection_tier",
+          "protection_daily_cents",
+          "state_code",
+          "state_fee_label",
+          "state_fee_daily_cents",
+          "operator_tax_label",
+          "operator_tax_rate_percent",
+          "platform_fee_percent"
+        ],
+        "additionalProperties": false
+      },
+      "QuoteResult": {
+        "type": "object",
+        "properties": {
+          "api_version": {
+            "const": "v1"
+          },
+          "source_checked_at": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 35,
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+          },
+          "operator_id": {
+            "type": "string",
+            "minLength": 36,
+            "maxLength": 36,
+            "format": "uuid"
+          },
+          "vehicle_id": {
+            "type": "string",
+            "minLength": 36,
+            "maxLength": 36,
+            "format": "uuid"
+          },
+          "pickup_at": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 35,
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+          },
+          "return_at": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 35,
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+          },
+          "timezone": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "format": "iana-timezone"
+          },
+          "quote_id": {
+            "type": "string",
+            "minLength": 36,
+            "maxLength": 36,
+            "format": "uuid"
+          },
+          "principal_scope": {
+            "type": "object",
+            "properties": {
+              "subject": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "operator_id": {
+                "type": "string",
+                "minLength": 36,
+                "maxLength": 36,
+                "format": "uuid"
+              }
+            },
+            "required": [
+              "subject",
+              "operator_id"
+            ],
+            "additionalProperties": false
+          },
+          "expires_at": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 35,
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+          },
+          "pricing_version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "terms_version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "terms_hash": {
+            "type": "string",
+            "minLength": 64,
+            "maxLength": 64,
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "selected_options": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "premium",
+                "standard",
+                "decline"
+              ]
+            },
+            "maxItems": 1,
+            "minItems": 1,
+            "uniqueItems": true,
+            "description": "Current backend protection IDs. No unrecognized add-ons or client amounts."
+          },
+          "terms": {
+            "type": "object",
+            "properties": {
+              "cancellation_policy": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 8000
+              },
+              "pickup_address": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4096
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "pickup_instructions": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4096
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "mileage_limit": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "mileage_overage_rate_usd": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 24,
+                    "pattern": "^(?:0|[1-9]\\d{0,12})(?:\\.\\d{1,8})?$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "deposit_disclosure": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000
+              }
+            },
+            "required": [
+              "cancellation_policy",
+              "pickup_address",
+              "pickup_instructions",
+              "mileage_limit",
+              "mileage_overage_rate_usd",
+              "deposit_disclosure"
+            ],
+            "additionalProperties": false
+          },
+          "pricing_details": {
+            "type": "object",
+            "properties": {
+              "rental_days": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 365
+              },
+              "daily_rate_cents": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "protection_tier": {
+                "type": "string",
+                "enum": [
+                  "premium",
+                  "standard",
+                  "decline"
+                ]
+              },
+              "protection_daily_cents": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "state_code": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 2,
+                "pattern": "^[A-Z]{2}$"
+              },
+              "state_fee_label": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 160
+              },
+              "state_fee_daily_cents": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "operator_tax_label": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 160
+              },
+              "operator_tax_rate_percent": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 24,
+                "pattern": "^(?:0|[1-9]\\d{0,12})(?:\\.\\d{1,8})?$"
+              },
+              "platform_fee_percent": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 24,
+                "pattern": "^(?:0|[1-9]\\d{0,12})(?:\\.\\d{1,8})?$"
+              }
+            },
+            "required": [
+              "rental_days",
+              "daily_rate_cents",
+              "protection_tier",
+              "protection_daily_cents",
+              "state_code",
+              "state_fee_label",
+              "state_fee_daily_cents",
+              "operator_tax_label",
+              "operator_tax_rate_percent",
+              "platform_fee_percent"
+            ],
+            "additionalProperties": false
+          },
+          "currency": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 3,
+            "enum": [
+              "USD"
+            ],
+            "description": "ISO 4217 currency. v1 supports USD only; adding a currency requires backend charge-leg and rounding proof."
+          },
+          "itemization": {
+            "type": "object",
+            "properties": {
+              "rental_subtotal_cents": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "operator_tax_cents": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "operator_tax_inclusive": {
+                "type": "boolean"
+              },
+              "platform_fee_cents": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "protection_total_cents": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "state_fee_cents": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "processing_fee_cents": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "deposit_cents": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "Separate security deposit disclosure; excluded from both rental charge totals. No card authorization is created by quoting."
+              }
+            },
+            "required": [
+              "rental_subtotal_cents",
+              "operator_tax_cents",
+              "operator_tax_inclusive",
+              "platform_fee_cents",
+              "protection_total_cents",
+              "state_fee_cents",
+              "processing_fee_cents",
+              "deposit_cents"
+            ],
+            "additionalProperties": false
+          },
+          "operator_total_cents": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "exotiq_total_cents": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "total_cents": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "payment_schedule": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "payee": {
+                  "type": "string",
+                  "enum": [
+                    "operator",
+                    "exotiq"
+                  ]
+                },
+                "amount_cents": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "due": {
+                  "type": "string",
+                  "enum": [
+                    "after_operator_approval",
+                    "after_operator_charge"
+                  ]
+                }
+              },
+              "required": [
+                "payee",
+                "amount_cents",
+                "due"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 2,
+            "minItems": 2
+          },
+          "availability_checked_at": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 35,
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+          },
+          "holds_inventory": {
+            "const": false
+          },
+          "consent_url": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "format": "https-url",
+            "pattern": "^https://"
+          }
+        },
+        "required": [
+          "api_version",
+          "source_checked_at",
+          "operator_id",
+          "vehicle_id",
+          "pickup_at",
+          "return_at",
+          "timezone",
+          "quote_id",
+          "principal_scope",
+          "expires_at",
+          "pricing_version",
+          "terms_version",
+          "terms_hash",
+          "selected_options",
+          "terms",
+          "pricing_details",
+          "currency",
+          "itemization",
+          "operator_total_cents",
+          "exotiq_total_cents",
+          "total_cents",
+          "payment_schedule",
+          "availability_checked_at",
+          "holds_inventory",
+          "consent_url"
+        ],
+        "additionalProperties": false
+      },
+      "RentalRequestInput": {
+        "type": "object",
+        "properties": {
+          "quote_id": {
+            "type": "string",
+            "minLength": 36,
+            "maxLength": 36,
+            "format": "uuid"
+          },
+          "consent_receipt_id": {
+            "type": "string",
+            "minLength": 36,
+            "maxLength": 36,
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "quote_id",
+          "consent_receipt_id"
+        ],
+        "additionalProperties": false
+      },
+      "ScopedLinks": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "format": "https-url",
+            "pattern": "^https://"
+          },
+          "consent": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "format": "https-url",
+            "pattern": "^https://"
+          },
+          "recovery": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "format": "https-url",
+            "pattern": "^https://"
+          },
+          "identity": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "format": "https-url",
+            "pattern": "^https://"
+          },
+          "checkout_handoff": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "format": "https-url",
+            "pattern": "^https://"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "RentalRequestResult": {
+        "type": "object",
+        "properties": {
+          "api_version": {
+            "const": "v1"
+          },
+          "source_checked_at": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 35,
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+          },
+          "ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "pattern": "^[A-Za-z0-9_-]+$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending_documents",
+              "requested",
+              "pending",
+              "pending_payment",
+              "confirmed",
+              "active",
+              "declined",
+              "cancelled",
+              "payment_expired",
+              "completed",
+              "refunded"
+            ]
+          },
+          "next_action": {
+            "type": "string",
+            "enum": [
+              "verify_identity",
+              "await_operator",
+              "hosted_checkout",
+              "await_payment_settlement",
+              "await_reconciliation",
+              "confirmed",
+              "rental_active",
+              "declined",
+              "cancelled",
+              "expired",
+              "completed",
+              "refunded",
+              "recover_authorization"
+            ]
+          },
+          "hold_expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 35,
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "links": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048,
+                "format": "https-url",
+                "pattern": "^https://"
+              },
+              "consent": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048,
+                "format": "https-url",
+                "pattern": "^https://"
+              },
+              "recovery": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048,
+                "format": "https-url",
+                "pattern": "^https://"
+              },
+              "identity": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048,
+                "format": "https-url",
+                "pattern": "^https://"
+              },
+              "checkout_handoff": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048,
+                "format": "https-url",
+                "pattern": "^https://"
+              }
+            },
+            "required": [
+              "status"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "api_version",
+          "source_checked_at",
+          "ref",
+          "status",
+          "next_action",
+          "hold_expires_at",
+          "links"
+        ],
+        "additionalProperties": false
+      },
+      "RentalStatusResult": {
+        "type": "object",
+        "properties": {
+          "api_version": {
+            "const": "v1"
+          },
+          "source_checked_at": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 35,
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+          },
+          "ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "pattern": "^[A-Za-z0-9_-]+$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending_documents",
+              "requested",
+              "pending",
+              "pending_payment",
+              "confirmed",
+              "active",
+              "declined",
+              "cancelled",
+              "payment_expired",
+              "completed",
+              "refunded"
+            ]
+          },
+          "next_action": {
+            "type": "string",
+            "enum": [
+              "verify_identity",
+              "await_operator",
+              "hosted_checkout",
+              "await_payment_settlement",
+              "await_reconciliation",
+              "confirmed",
+              "rental_active",
+              "declined",
+              "cancelled",
+              "expired",
+              "completed",
+              "refunded",
+              "recover_authorization"
+            ]
+          },
+          "hold_expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 35,
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "links": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048,
+                "format": "https-url",
+                "pattern": "^https://"
+              },
+              "consent": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048,
+                "format": "https-url",
+                "pattern": "^https://"
+              },
+              "recovery": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048,
+                "format": "https-url",
+                "pattern": "^https://"
+              },
+              "identity": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048,
+                "format": "https-url",
+                "pattern": "^https://"
+              },
+              "checkout_handoff": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048,
+                "format": "https-url",
+                "pattern": "^https://"
+              }
+            },
+            "required": [
+              "status"
+            ],
+            "additionalProperties": false
+          },
+          "payment_due_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 35,
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "inventory_blocked": {
+            "type": "boolean"
+          },
+          "poll_after_seconds": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 3600
+          }
+        },
+        "required": [
+          "api_version",
+          "source_checked_at",
+          "ref",
+          "status",
+          "next_action",
+          "hold_expires_at",
+          "links",
+          "payment_due_at",
+          "inventory_blocked",
+          "poll_after_seconds"
+        ],
+        "additionalProperties": false
+      },
+      "CheckoutHandoffResult": {
+        "type": "object",
+        "properties": {
+          "api_version": {
+            "const": "v1"
+          },
+          "source_checked_at": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 35,
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+          },
+          "customer_url": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "format": "https-url",
+            "pattern": "^https://"
+          },
+          "expires_at": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 35,
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "pending_payment"
+            ]
+          },
+          "next_action": {
+            "type": "string",
+            "enum": [
+              "hosted_checkout"
+            ]
+          }
+        },
+        "required": [
+          "api_version",
+          "source_checked_at",
+          "customer_url",
+          "expires_at",
+          "state",
+          "next_action"
+        ],
+        "additionalProperties": false
+      },
+      "ConsentResult": {
+        "type": "object",
+        "properties": {
+          "api_version": {
+            "const": "v1"
+          },
+          "source_checked_at": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 35,
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+          },
+          "quote_id": {
+            "type": "string",
+            "minLength": 36,
+            "maxLength": 36,
+            "format": "uuid"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "waiting",
+              "authorized"
+            ]
+          },
+          "consent_receipt_id": {
+            "type": "string",
+            "minLength": 36,
+            "maxLength": 36,
+            "format": "uuid"
+          },
+          "expires_at": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 35,
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+          }
+        },
+        "required": [
+          "api_version",
+          "source_checked_at",
+          "quote_id",
+          "state"
+        ],
+        "additionalProperties": false
+      },
+      "RecoveryResult": {
+        "type": "object",
+        "properties": {
+          "api_version": {
+            "const": "v1"
+          },
+          "source_checked_at": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 35,
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+          },
+          "ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "authorization_required",
+              "authorized"
+            ]
+          },
+          "customer_url": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "format": "https-url",
+            "pattern": "^https://"
+          },
+          "expires_at": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 35,
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+          }
+        },
+        "required": [
+          "api_version",
+          "source_checked_at",
+          "ref",
+          "state",
+          "customer_url",
+          "expires_at"
+        ],
+        "additionalProperties": false
+      },
+      "ConsentInput": {
+        "type": "object",
+        "properties": {
+          "terms_hash": {
+            "type": "string",
+            "minLength": 64,
+            "maxLength": 64,
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "action": {
+            "const": "rental_requests:create"
+          }
+        },
+        "required": [
+          "terms_hash",
+          "action"
+        ],
+        "additionalProperties": false
+      },
+      "CustomerConsentResult": {
+        "type": "object",
+        "properties": {
+          "api_version": {
+            "const": "v1"
+          },
+          "source_checked_at": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 35,
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+          },
+          "quote_id": {
+            "type": "string",
+            "minLength": 36,
+            "maxLength": 36,
+            "format": "uuid"
+          },
+          "state": {
+            "const": "authorized"
+          },
+          "expires_at": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 35,
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+          }
+        },
+        "required": [
+          "api_version",
+          "source_checked_at",
+          "quote_id",
+          "state",
+          "expires_at"
+        ],
+        "additionalProperties": false
+      },
+      "QuoteReviewResult": {
+        "type": "object",
+        "properties": {
+          "quote": {
+            "type": "object",
+            "properties": {
+              "api_version": {
+                "const": "v1"
+              },
+              "source_checked_at": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 35,
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+              },
+              "operator_id": {
+                "type": "string",
+                "minLength": 36,
+                "maxLength": 36,
+                "format": "uuid"
+              },
+              "vehicle_id": {
+                "type": "string",
+                "minLength": 36,
+                "maxLength": 36,
+                "format": "uuid"
+              },
+              "pickup_at": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 35,
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+              },
+              "return_at": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 35,
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+              },
+              "timezone": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80,
+                "format": "iana-timezone"
+              },
+              "quote_id": {
+                "type": "string",
+                "minLength": 36,
+                "maxLength": 36,
+                "format": "uuid"
+              },
+              "principal_scope": {
+                "type": "object",
+                "properties": {
+                  "subject": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
+                  },
+                  "operator_id": {
+                    "type": "string",
+                    "minLength": 36,
+                    "maxLength": 36,
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "subject",
+                  "operator_id"
+                ],
+                "additionalProperties": false
+              },
+              "expires_at": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 35,
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+              },
+              "pricing_version": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "terms_version": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "terms_hash": {
+                "type": "string",
+                "minLength": 64,
+                "maxLength": 64,
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "selected_options": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "premium",
+                    "standard",
+                    "decline"
+                  ]
+                },
+                "maxItems": 1,
+                "minItems": 1,
+                "uniqueItems": true,
+                "description": "Current backend protection IDs. No unrecognized add-ons or client amounts."
+              },
+              "terms": {
+                "type": "object",
+                "properties": {
+                  "cancellation_policy": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 8000
+                  },
+                  "pickup_address": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 4096
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "pickup_instructions": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 4096
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "mileage_limit": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "mileage_overage_rate_usd": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 24,
+                        "pattern": "^(?:0|[1-9]\\d{0,12})(?:\\.\\d{1,8})?$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "deposit_disclosure": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000
+                  }
+                },
+                "required": [
+                  "cancellation_policy",
+                  "pickup_address",
+                  "pickup_instructions",
+                  "mileage_limit",
+                  "mileage_overage_rate_usd",
+                  "deposit_disclosure"
+                ],
+                "additionalProperties": false
+              },
+              "pricing_details": {
+                "type": "object",
+                "properties": {
+                  "rental_days": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 365
+                  },
+                  "daily_rate_cents": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "protection_tier": {
+                    "type": "string",
+                    "enum": [
+                      "premium",
+                      "standard",
+                      "decline"
+                    ]
+                  },
+                  "protection_daily_cents": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "state_code": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 2,
+                    "pattern": "^[A-Z]{2}$"
+                  },
+                  "state_fee_label": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
+                  },
+                  "state_fee_daily_cents": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "operator_tax_label": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
+                  },
+                  "operator_tax_rate_percent": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 24,
+                    "pattern": "^(?:0|[1-9]\\d{0,12})(?:\\.\\d{1,8})?$"
+                  },
+                  "platform_fee_percent": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 24,
+                    "pattern": "^(?:0|[1-9]\\d{0,12})(?:\\.\\d{1,8})?$"
+                  }
+                },
+                "required": [
+                  "rental_days",
+                  "daily_rate_cents",
+                  "protection_tier",
+                  "protection_daily_cents",
+                  "state_code",
+                  "state_fee_label",
+                  "state_fee_daily_cents",
+                  "operator_tax_label",
+                  "operator_tax_rate_percent",
+                  "platform_fee_percent"
+                ],
+                "additionalProperties": false
+              },
+              "currency": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 3,
+                "enum": [
+                  "USD"
+                ],
+                "description": "ISO 4217 currency. v1 supports USD only; adding a currency requires backend charge-leg and rounding proof."
+              },
+              "itemization": {
+                "type": "object",
+                "properties": {
+                  "rental_subtotal_cents": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "operator_tax_cents": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "operator_tax_inclusive": {
+                    "type": "boolean"
+                  },
+                  "platform_fee_cents": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "protection_total_cents": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "state_fee_cents": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "processing_fee_cents": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "deposit_cents": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991,
+                    "description": "Separate security deposit disclosure; excluded from both rental charge totals. No card authorization is created by quoting."
+                  }
+                },
+                "required": [
+                  "rental_subtotal_cents",
+                  "operator_tax_cents",
+                  "operator_tax_inclusive",
+                  "platform_fee_cents",
+                  "protection_total_cents",
+                  "state_fee_cents",
+                  "processing_fee_cents",
+                  "deposit_cents"
+                ],
+                "additionalProperties": false
+              },
+              "operator_total_cents": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "exotiq_total_cents": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "total_cents": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "payment_schedule": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "payee": {
+                      "type": "string",
+                      "enum": [
+                        "operator",
+                        "exotiq"
+                      ]
+                    },
+                    "amount_cents": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "due": {
+                      "type": "string",
+                      "enum": [
+                        "after_operator_approval",
+                        "after_operator_charge"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "payee",
+                    "amount_cents",
+                    "due"
+                  ],
+                  "additionalProperties": false
+                },
+                "maxItems": 2,
+                "minItems": 2
+              },
+              "availability_checked_at": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 35,
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+              },
+              "holds_inventory": {
+                "const": false
+              },
+              "consent_url": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048,
+                "format": "https-url",
+                "pattern": "^https://"
+              }
+            },
+            "required": [
+              "api_version",
+              "source_checked_at",
+              "operator_id",
+              "vehicle_id",
+              "pickup_at",
+              "return_at",
+              "timezone",
+              "quote_id",
+              "principal_scope",
+              "expires_at",
+              "pricing_version",
+              "terms_version",
+              "terms_hash",
+              "selected_options",
+              "terms",
+              "pricing_details",
+              "currency",
+              "itemization",
+              "operator_total_cents",
+              "exotiq_total_cents",
+              "total_cents",
+              "payment_schedule",
+              "availability_checked_at",
+              "holds_inventory",
+              "consent_url"
+            ],
+            "additionalProperties": false
+          },
+          "operator_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "vehicle_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "agent_client_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          }
+        },
+        "required": [
+          "quote",
+          "operator_name",
+          "vehicle_name",
+          "agent_client_id"
+        ],
+        "additionalProperties": false
+      },
+      "CustomerOperatorLinkInput": {
+        "type": "object",
+        "properties": {
+          "operator_id": {
+            "type": "string",
+            "minLength": 36,
+            "maxLength": 36,
+            "format": "uuid"
+          },
+          "full_name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 160
+          },
+          "phone": {
+            "type": "string",
+            "minLength": 7,
+            "maxLength": 30,
+            "pattern": "^[+0-9() .-]{7,30}$"
+          },
+          "consented": {
+            "const": true
+          }
+        },
+        "required": [
+          "operator_id",
+          "full_name",
+          "phone",
+          "consented"
+        ],
+        "additionalProperties": false
+      },
+      "CustomerOperatorLinkResult": {
+        "type": "object",
+        "properties": {
+          "api_version": {
+            "const": "v1"
+          },
+          "source_checked_at": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 35,
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+          },
+          "operator_id": {
+            "type": "string",
+            "minLength": 36,
+            "maxLength": 36,
+            "format": "uuid"
+          },
+          "state": {
+            "const": "linked"
+          }
+        },
+        "required": [
+          "api_version",
+          "source_checked_at",
+          "operator_id",
+          "state"
+        ],
+        "additionalProperties": false
+      },
+      "GrantRenewalInput": {
+        "type": "object",
+        "properties": {
+          "grant_id": {
+            "type": "string",
+            "minLength": 36,
+            "maxLength": 36,
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "grant_id"
+        ],
+        "additionalProperties": false
+      },
+      "GrantRenewalReviewInput": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "GrantRenewalCompleteInput": {
+        "type": "object",
+        "properties": {
+          "action_scopes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "rental_requests:read",
+                "checkout:handoff"
+              ]
+            },
+            "maxItems": 2,
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          "explicit_new_delegation": {
+            "type": "boolean"
+          },
+          "consented": {
+            "const": true
+          }
+        },
+        "required": [
+          "action_scopes",
+          "explicit_new_delegation",
+          "consented"
+        ],
+        "additionalProperties": false
+      },
+      "GrantRenewalReviewResult": {
+        "type": "object",
+        "properties": {
+          "api_version": {
+            "const": "v1"
+          },
+          "source_checked_at": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 35,
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+          },
+          "renewal_id": {
+            "type": "string",
+            "minLength": 36,
+            "maxLength": 36,
+            "format": "uuid"
+          },
+          "previous_grant_id": {
+            "type": "string",
+            "minLength": 36,
+            "maxLength": 36,
+            "format": "uuid"
+          },
+          "grant_id_to_revoke": {
+            "type": "string",
+            "minLength": 36,
+            "maxLength": 36,
+            "format": "uuid"
+          },
+          "ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "operator_id": {
+            "type": "string",
+            "minLength": 36,
+            "maxLength": 36,
+            "format": "uuid"
+          },
+          "agent_client_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          },
+          "operator_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "vehicle_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "pickup_at": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 35,
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+          },
+          "return_at": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 35,
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+          },
+          "timezone": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "format": "iana-timezone"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending_documents",
+              "requested",
+              "pending",
+              "pending_payment",
+              "confirmed",
+              "active",
+              "declined",
+              "cancelled",
+              "payment_expired",
+              "completed",
+              "refunded"
+            ]
+          },
+          "hold_expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 35,
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "payment_due_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 35,
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "action_scopes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "rental_requests:read",
+                "checkout:handoff"
+              ]
+            },
+            "maxItems": 2,
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          "expires_at": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 35,
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "authorization_required",
+              "authorized"
+            ]
+          },
+          "requires_new_delegation": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "api_version",
+          "source_checked_at",
+          "renewal_id",
+          "previous_grant_id",
+          "grant_id_to_revoke",
+          "ref",
+          "operator_id",
+          "agent_client_id",
+          "operator_name",
+          "vehicle_name",
+          "pickup_at",
+          "return_at",
+          "timezone",
+          "status",
+          "hold_expires_at",
+          "payment_due_at",
+          "action_scopes",
+          "expires_at",
+          "state",
+          "requires_new_delegation"
+        ],
+        "additionalProperties": false
+      },
+      "GrantRenewalResult": {
+        "type": "object",
+        "properties": {
+          "api_version": {
+            "const": "v1"
+          },
+          "source_checked_at": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 35,
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+          },
+          "renewal_id": {
+            "type": "string",
+            "minLength": 36,
+            "maxLength": 36,
+            "format": "uuid"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "authorization_required",
+              "authorized"
+            ]
+          },
+          "customer_url": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "format": "https-url",
+            "pattern": "^https://"
+          },
+          "expires_at": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 35,
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$"
+          },
+          "grant_id": {
+            "type": "string",
+            "minLength": 36,
+            "maxLength": 36,
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "api_version",
+          "source_checked_at",
+          "renewal_id",
+          "state",
+          "customer_url",
+          "expires_at"
+        ],
+        "additionalProperties": false
+      },
+      "ApiError": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "invalid_input",
+              "unauthorized",
+              "forbidden",
+              "not_found",
+              "dates_unavailable",
+              "quote_changed",
+              "idempotency_conflict",
+              "request_in_flight",
+              "consent_mismatch",
+              "quote_expired",
+              "consent_expired",
+              "payment_window_expired",
+              "rate_limited",
+              "upstream_unavailable"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 16,
+            "maxLength": 80,
+            "pattern": "^[A-Za-z0-9_-]+$"
+          },
+          "retryable": {
+            "type": "boolean"
+          },
+          "details": {
+            "type": "object",
+            "properties": {
+              "retry_after_seconds": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 3600
+              },
+              "field": {
+                "type": "string",
+                "enum": [
+                  "operator_id",
+                  "vehicle_id",
+                  "pickup_at",
+                  "return_at",
+                  "timezone",
+                  "quote_id",
+                  "consent_receipt_id",
+                  "selected_options",
+                  "cursor",
+                  "limit",
+                  "Idempotency-Key"
+                ]
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "request_id",
+          "retryable"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "securitySchemes": {
+      "customerOAuth": {
+        "type": "oauth2",
+        "description": "Audience-bound verified customer OAuth. OAuth scope alone never establishes per-booking authorization or consent. Issuer/two-client compatibility requires implementation evidence.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "/oauth/authorize",
+            "tokenUrl": "/oauth/token",
+            "scopes": {
+              "catalog:read": "catalog:read",
+              "quotes:create": "quotes:create",
+              "rental_requests:create": "rental_requests:create",
+              "rental_requests:read": "rental_requests:read",
+              "checkout:handoff": "checkout:handoff"
+            }
+          }
+        }
+      }
+    }
+  }
+}

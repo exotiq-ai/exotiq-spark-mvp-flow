@@ -17,7 +17,11 @@
     "rari:sync-tools": "bun scripts/rari/sync-elevenlabs-tools.ts",
     "rari:parity-check": "bun scripts/rari/cross-surface-parity-check.ts",
     "rari:tenant-isolation": "bun scripts/rari/tenant-isolation-proof.ts",
-    "prepare": "husky"
+    "prepare": "husky",
+    "test:agent:unit": "node scripts/agent-booking/run-tests.mjs unit",
+    "test:agent:contract": "node scripts/agent-booking/run-tests.mjs contract",
+    "test:agent:staging": "node scripts/agent-booking/run-tests.mjs staging",
+    "test:agent:pilot": "node scripts/agent-booking/run-tests.mjs pilot"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
@@ -66,6 +70,7 @@
     "embla-carousel-react": "^8.3.0",
     "framer-motion": "^12.23.12",
     "input-otp": "^1.2.4",
+    "jose": "6.2.3",
     "lucide-react": "^0.462.0",
     "next-themes": "^0.3.0",
     "papaparse": "^5.5.3",
