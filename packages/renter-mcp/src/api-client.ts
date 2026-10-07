@@ -6,7 +6,7 @@ export class ApiFailure extends Error {
 }
 const unavailable=()=>new ApiFailure({code:'upstream_unavailable',message:'The service could not verify this operation.',request_id:crypto.randomUUID(),retryable:true},503);
 export interface ApiClientConfig {apiResource:string;customerOrigin:string}
-export function createApiClient(config:ApiClientConfig,apiToken:string,fetcher:typeof fetch=fetch) {
+export function createApiClient(config:ApiClientConfig,apiToken:string,fetcher:typeof fetch=fetch,signal?:AbortSignal) {
   const api=new URL(config.apiResource),customer=new URL(config.customerOrigin);
   if(api.protocol!=='https:'||api.username||api.password||api.search||api.hash||api.pathname.includes('%')||/\/\//.test(api.pathname)||customer.protocol!=='https:'||customer.username||customer.password||customer.pathname!=='/'||customer.search||customer.hash)throw new Error('invalid_configuration');
   const prefix=api.pathname.replace(/\/$/,'');
@@ -14,7 +14,7 @@ export function createApiClient(config:ApiClientConfig,apiToken:string,fetcher:t
   async function request(method:string,path:string,contract:ContractName,input?:unknown,key?:string):Promise<Record<string,unknown>> {
     const target=new URL(prefix+path,api.origin);if(target.origin!==api.origin||!target.pathname.startsWith(prefix+'/v1/'))throw unavailable();
     let response:Awaited<ReturnType<typeof boundedJson>>;
-    try{response=await boundedJson(fetcher,target.href,{method,headers:{Authorization:'Bearer '+apiToken,Accept:'application/json',...(input!==undefined?{'content-type':'application/json'}:{}),...(key?{'Idempotency-Key':key}:{})},...(input!==undefined?{body:JSON.stringify(input)}:{})},262144,4000);}catch{throw unavailable();}
+    try{response=await boundedJson(fetcher,target.href,{method,signal,headers:{Authorization:'Bearer '+apiToken,Accept:'application/json',...(input!==undefined?{'content-type':'application/json'}:{}),...(key?{'Idempotency-Key':key}:{})},...(input!==undefined?{body:JSON.stringify(input)}:{})},262144,4000);}catch{throw unavailable();}
     if(response.status<200||response.status>=300){
       if(validateContract('ApiError',response.body).ok&&record(response.body)) {
         const body={...response.body,message:'The API declined this operation.'};

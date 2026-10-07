@@ -16,15 +16,15 @@ export function createMcpApplication(config:ApplicationConfig,fetcher:typeof fet
   const authenticator=createAuthenticator(config.auth,fetcher);const resource=new URL(config.auth.resource),metadata=new URL(config.auth.resourceMetadataUri);
   const customer=new URL(config.customerOrigin);if(customer.protocol!=='https:'||customer.pathname!=='/'||customer.search||customer.hash||customer.username||customer.password)throw new Error('invalid_configuration');
   const origins=config.allowedOrigins??[resource.origin];if(origins.some(x=>{try{return new URL(x).origin!==x||!x.startsWith('https://');}catch{return true;}}))throw new Error('invalid_configuration');
-  function server(delegation:Delegation) {
-    const api=createApiClient({apiResource:config.auth.apiResource,customerOrigin:config.customerOrigin},delegation.apiToken,fetcher);
+  function server(delegation:Delegation,signal:AbortSignal) {
+    const api=createApiClient({apiResource:config.auth.apiResource,customerOrigin:config.customerOrigin},delegation.apiToken,fetcher,signal);
     const s=new McpServer({name:'exotiq-renter',version:'0.1.0'});
     const descriptors:Array<{name:string;input:StandardSchemaWithJSON<Record<string,unknown>>;output:ContractName;execute:(input:Record<string,unknown>)=>Promise<Record<string,unknown>>;readOnly:boolean;idempotent:boolean;waiting?:boolean}>= [
       {name:'search_vehicles',input:canonical('VehiclesQuery'),output:'VehiclesPage',execute:api.search,readOnly:true,idempotent:true},
       {name:'check_availability',input:canonical('AvailabilityRequest'),output:'AvailabilityResult',execute:api.availability,readOnly:true,idempotent:true},
       {name:'create_quote',input:canonical('QuoteRequest'),output:'QuoteResult',execute:api.quote,readOnly:false,idempotent:false},
       {name:'submit_rental_request',input:standard(submitSchema,v=>record(v)&&strictKeys(v,['quote_id','idempotency_key'])&&typeof v.quote_id==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v.quote_id)&&typeof v.idempotency_key==='string'&&/^[A-Za-z0-9_-]{16,128}$/.test(v.idempotency_key)),output:'RentalRequestResult',execute:api.submit,readOnly:false,idempotent:true,waiting:true},
-      {name:'get_request_status',input:standard(refSchema,v=>record(v)&&strictKeys(v,['ref'])&&typeof v.ref==='string'&&/^[A-Za-z0-9_-]{1,80}$/.test(v.ref)),output:'RentalStatusResult',execute:api.status,readOnly:true,idempotent:true,waiting:true},
+      {name:'get_request_status',input:standard(refSchema,v=>record(v)&&strictKeys(v,['ref'])&&typeof v.ref==='string'&&/^[A-Za-z0-9_-]{1,80}$/.test(v.ref)),output:'RentalStatusResult',execute:api.status,readOnly:false,idempotent:false,waiting:true},
       {name:'create_checkout_handoff',input:standard(refSchema,v=>record(v)&&strictKeys(v,['ref'])&&typeof v.ref==='string'&&/^[A-Za-z0-9_-]{1,80}$/.test(v.ref)),output:'CheckoutHandoffResult',execute:api.checkout,readOnly:false,idempotent:false,waiting:true}
     ];
     for(const tool of descriptors){
@@ -57,7 +57,8 @@ export function createMcpApplication(config:ApplicationConfig,fetcher:typeof fet
         if(parsed.method==='tools/call'&&record(parsed.params)&&typeof parsed.params.name==='string'&&Object.hasOwn(toolScopes,parsed.params.name))scope=toolScopes[parsed.params.name];
       }
       let delegation:Delegation;try{delegation=await authenticator.authenticate(request,scope);}catch(error){return authenticator.challenge(error instanceof AuthFailure?error:new AuthFailure(503));}
-      const handler=createMcpHandler(()=>server(delegation),{legacy:'stateless',responseMode:'json',maxRequestBodySize:65536});
+      request.signal.throwIfAborted();
+      const handler=createMcpHandler(()=>server(delegation,request.signal),{legacy:'stateless',responseMode:'json',maxRequestBodySize:65536});
       try{return await handler.fetch(request,{parsedBody:parsed,authInfo:{token:delegation.mcpToken,clientId:delegation.principal.clientId,scopes:delegation.principal.scopes,expiresAt:delegation.principal.expiresAt,resource:new URL(config.auth.resource),resourceMetadataUrl:config.auth.resourceMetadataUri}});}finally{await handler.close();}
     }
   };

@@ -31,14 +31,15 @@ export function createAuthenticator(config:AuthConfig,fetcher:typeof fetch=fetch
   if(https(config.resourceMetadataUri,config.allowedHosts).origin!==resource.origin)throw new Error('invalid_configuration');
   const budget=config.requestsPerMinute??60;if(!Number.isSafeInteger(budget)||budget<1||budget>600)throw new Error('invalid_configuration');
   let windowStart=Date.now(),count=0,inflight=0;
-  const jwks=createRemoteJWKSet(new URL(config.jwksUri),{timeoutDuration:3000,cooldownDuration:30000,[customFetch]:async(input,init)=>{
+  const resolver=(signal:AbortSignal)=>createRemoteJWKSet(new URL(config.jwksUri),{timeoutDuration:3000,cooldownDuration:30000,[customFetch]:async(input,init)=>{
     if(String(input)!==config.jwksUri)throw new Error('remote_unavailable');
-    const result=await boundedJson(fetcher,config.jwksUri,init);if(result.status!==200||!record(result.body)||!Array.isArray(result.body.keys)||result.body.keys.length>16)throw new Error('remote_unavailable');
+    const result=await boundedJson(fetcher,config.jwksUri,{...init,signal:init?.signal?AbortSignal.any([signal,init.signal]):signal});if(result.status!==200||!record(result.body)||!Array.isArray(result.body.keys)||result.body.keys.length>16)throw new Error('remote_unavailable');
     return Response.json(result.body);
   }});
-  const verify=async(token:string,audience:string)=> {
+  const verify=async(token:string,audience:string,jwks:ReturnType<typeof createRemoteJWKSet>,signal:AbortSignal)=> {
+    signal.throwIfAborted();
     try{const result=await jwtVerify(token,jwks,{issuer:config.issuer,audience,algorithms:['ES256','RS256','PS256','EdDSA'],typ:'at+jwt',requiredClaims:['iss','aud','sub','iat','nbf','exp','jti','client_id','scope'],clockTolerance:0});
-      return principal(result.payload,config,audience);
+      signal.throwIfAborted();return principal(result.payload,config,audience);
     }catch{throw new AuthFailure(401);}
   };
   const credentials='Basic '+Buffer.from(encodeURIComponent(config.exchangeClientId)+':'+encodeURIComponent(config.exchangeClientSecret)).toString('base64');
@@ -48,22 +49,25 @@ export function createAuthenticator(config:AuthConfig,fetcher:typeof fetch=fetch
       const started=Date.now();if(started-windowStart>=60000){windowStart=started;count=0;}
       if(++count>budget||inflight>=8)throw new AuthFailure(429);inflight++;
       try {
+        const signal=request.signal;signal.throwIfAborted();
+        // A caller can cancel its own key fetch without cancelling another principal's request.
+        const jwks=resolver(signal);
         const url=new URL(request.url);
         if(url.origin!==resource.origin||url.protocol!=='https:'||url.searchParams.has('access_token'))throw new AuthFailure(401);
         const header=request.headers.get('authorization');if(!header||!/^Bearer [A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(header)||header.length>16384)throw new AuthFailure(401);
-        const mcpToken=header.slice(7);const p=await verify(mcpToken,config.resource);
+        const mcpToken=header.slice(7);const p=await verify(mcpToken,config.resource,jwks,signal);
         // Provider metadata is checked against configured endpoints; never used to choose egress.
-        const discovery=await boundedJson(fetcher,config.metadataUri,{headers:{Accept:'application/json'}});
+        const discovery=await boundedJson(fetcher,config.metadataUri,{headers:{Accept:'application/json'},signal});
         const m=discovery.body;const supports=(key:string,value:string)=>record(m)&&Array.isArray(m[key])&&m[key].length<=64&&(m[key] as unknown[]).includes(value);
         if(discovery.status!==200||!record(m)||m.issuer!==config.issuer||m.jwks_uri!==config.jwksUri||m.token_endpoint!==config.tokenUri||m.introspection_endpoint!==config.introspectionUri||!supports('code_challenge_methods_supported','S256')||!supports('grant_types_supported','urn:ietf:params:oauth:grant-type:token-exchange')||!supports('token_endpoint_auth_methods_supported','client_secret_basic'))throw new AuthFailure(503);
-        const checked=await boundedJson(fetcher,config.introspectionUri,{method:'POST',headers:{Authorization:credentials,'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({token:mcpToken,token_type_hint:'access_token'}).toString()});
+        const checked=await boundedJson(fetcher,config.introspectionUri,{method:'POST',headers:{Authorization:credentials,'content-type':'application/x-www-form-urlencoded'},signal,body:new URLSearchParams({token:mcpToken,token_type_hint:'access_token'}).toString()});
         const i=checked.body;
         if(checked.status!==200||!record(i)||i.active!==true||i.iss!==p.issuer||i.sub!==p.subject||i.jti!==p.tokenId||i.exp!==p.expiresAt||i.client_id!==p.clientId||i.aud!==config.resource||typeof i.scope!=='string'||i.scope.split(' ').sort().join(' ')!==[...p.scopes].sort().join(' '))throw new AuthFailure(401);
         if(requiredScope&&!p.scopes.includes(requiredScope))throw new AuthFailure(403,requiredScope);
-        const exchanged=await boundedJson(fetcher,config.tokenUri,{method:'POST',headers:{Authorization:credentials,'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({grant_type:'urn:ietf:params:oauth:grant-type:token-exchange',subject_token:mcpToken,subject_token_type:'urn:ietf:params:oauth:token-type:access_token',requested_token_type:'urn:ietf:params:oauth:token-type:access_token',resource:config.apiResource,scope:p.scopes.join(' ')}).toString()});
+        const exchanged=await boundedJson(fetcher,config.tokenUri,{method:'POST',headers:{Authorization:credentials,'content-type':'application/x-www-form-urlencoded'},signal,body:new URLSearchParams({grant_type:'urn:ietf:params:oauth:grant-type:token-exchange',subject_token:mcpToken,subject_token_type:'urn:ietf:params:oauth:token-type:access_token',requested_token_type:'urn:ietf:params:oauth:token-type:access_token',resource:config.apiResource,scope:p.scopes.join(' ')}).toString()});
         const e=exchanged.body;
         if(exchanged.status!==200||!record(e)||e.token_type!=='Bearer'||e.issued_token_type!=='urn:ietf:params:oauth:token-type:access_token'||typeof e.access_token!=='string'||e.access_token.length>16384||e.access_token===mcpToken)throw new AuthFailure(401);
-        const delegated=await verify(e.access_token,config.apiResource);
+        const delegated=await verify(e.access_token,config.apiResource,jwks,signal);
         if(delegated.issuer!==p.issuer||delegated.subject!==p.subject||delegated.clientId!==p.clientId||delegated.scopes.some(s=>!p.scopes.includes(s))||requiredScope&&!delegated.scopes.includes(requiredScope)||Date.now()-started>15000)throw new AuthFailure(401);
         return {principal:p,apiToken:e.access_token,mcpToken};
       }catch(error){if(error instanceof AuthFailure)throw error;throw new AuthFailure(503);}
