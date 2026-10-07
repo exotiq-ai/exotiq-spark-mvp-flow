@@ -14,7 +14,7 @@ VALUES('https://issuer.example.invalid','renter','a1400000-0000-4000-8000-000000
 DO $$ DECLARE
  iss text:='https://issuer.example.invalid';aud text:='https://api.example.invalid/external-booking-api';
  op uuid:='a1400000-0000-4000-8000-000000000001';customer uuid:='c1400000-0000-4000-8000-000000000001';q public.external_quotes%ROWTYPE;
- receipt uuid;bid uuid;gid uuid;ref text;body jsonb;replay jsonb;claim jsonb;ctx jsonb;old_count int;recorded boolean;z record;
+ receipt uuid;bid uuid;legacy_bid uuid;gid uuid;ref text;body jsonb;replay jsonb;claim jsonb;ctx jsonb;old_count int;recorded boolean;z record;
 BEGIN
  SELECT * INTO q FROM public.external_create_quote('renter',customer,iss,aud,'agent-a',op,'b1400000-0000-4000-8000-000000000001','2035-01-01T10:00:00-05:00','2035-01-03T11:00:00-05:00','America/New_York','["premium"]');
  PERFORM public.external_hosted_authorize_quote_scopes(iss,'renter','hosted',aud,q.quote_id,q.terms_hash,'rental_requests:create',repeat('b',64),ARRAY['rental_requests:read','identity:handoff']);
@@ -89,6 +89,14 @@ BEGIN
  IF (SELECT status FROM public.bookings WHERE id=bid)<>'pending_payment' THEN RAISE EXCEPTION 'issued checkout cancellation released inventory';END IF;
  IF NOT EXISTS(SELECT FROM public.external_lifecycle_reconciliation_queue WHERE booking_id=bid AND reason='ambiguous_charge') THEN RAISE EXCEPTION 'unresolved checkout missing manual review';END IF;
  BEGIN UPDATE public.bookings SET rental_checkout_session_ref=NULL WHERE id=bid;RAISE EXCEPTION 'issued session clearance admitted';EXCEPTION WHEN check_violation THEN NULL;END;
+ -- A legacy booking has no external ledger FK. Its issued/ambiguous provider
+ -- attempt must itself block deletion, rather than accidentally relying on a
+ -- foreign key that exists only for API submissions.
+ legacy_bid:=gen_random_uuid();
+ INSERT INTO public.bookings SELECT (jsonb_populate_record(NULL::public.bookings,to_jsonb(b)||jsonb_build_object('id',legacy_bid,'booking_ref','LEGACYDELETE001','confirmation_token',gen_random_uuid(),'vehicle_id','b1400000-0000-4000-8000-000000000002','start_date','2035-03-01T15:00:00Z','end_date','2035-03-03T16:00:00Z'))).* FROM public.bookings b WHERE b.id=bid;
+ IF EXISTS(SELECT FROM public.external_request_idempotency WHERE booking_id=legacy_bid) THEN RAISE EXCEPTION 'legacy delete fixture incorrectly has ledger';END IF;
+ BEGIN DELETE FROM public.bookings WHERE id=legacy_bid;RAISE EXCEPTION 'legacy issued checkout deleted';EXCEPTION WHEN check_violation THEN IF SQLERRM<>'checkout_reservation_immutable' THEN RAISE;END IF;END;
+ IF NOT EXISTS(SELECT FROM public.bookings WHERE id=legacy_bid AND public.agent_inventory_blocking(status)) THEN RAISE EXCEPTION 'legacy deletion lost occupied inventory';END IF;
  UPDATE public.bookings SET operator_payment_intent_id='pi_partial' WHERE id=bid;
  BEGIN PERFORM public.external_complete_customer_handoff(iss,'renter','hosted',aud,repeat('e',64),(claim->>'claim_token')::uuid,'cs_test_synthetic');RAISE EXCEPTION 'partial payment fresh checkout allowed';EXCEPTION WHEN raise_exception THEN IF SQLERRM<>'forbidden' THEN RAISE;END IF;END;
  -- Legacy eight-argument consent still grants exactly its historical two scopes.
