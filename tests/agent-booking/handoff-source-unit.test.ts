@@ -33,4 +33,5 @@ it('actual signed source checkout returns to the exact authenticated generic acc
  const result=await source.handler(new Request('https://api.example.test/rent-checkout',{method:'POST',headers:{'X-Exotiq-Handoff-Timestamp':signed.timestamp,'X-Exotiq-Handoff-Proof':signed.proof},body:JSON.stringify(body)}));expect(result.status).toBe(200);
  const expected='https://customer.example.test/agent/account/10000000-0000-4000-8000-000000000001?booking_ref=synthetic&action=checkout';
  expect(source.checkoutParameters().success_url).toBe(expected);expect(source.checkoutParameters().cancel_url).toBe(expected);expect(JSON.stringify(source.checkoutParameters())).not.toContain('legacy');
+ expect(source.checkoutParameters().expires_at).toBeTypeOf('number');expect(source.checkoutParameters().expires_at*1000).toBeLessThanOrEqual(Date.now()+3600000);
 });

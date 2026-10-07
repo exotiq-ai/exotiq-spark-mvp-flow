@@ -30,4 +30,5 @@ it('requires current open/unpaid checkout exact amount/mode/metadata and safe fr
  expect(validateCheckoutSession({...session,currency:'eur',success_url:base+'&payment=success',cancel_url:base+'&payment=cancelled',url:session.url+'#opaque-provider-data'},booking,'test',base,'eur',false)).toBe(session.url+'#opaque-provider-data');
  expect(()=>validateCheckoutSession({...session,url:session.url+'#opaque-provider-data'},booking,'test',base)).toThrow();
  for(const patch of [{status:'complete'},{payment_status:'paid'},{amount_total:9999},{livemode:true},{expires_at:1},{success_url:'https://customer.example.test/booking/owned-ref?t=legacy'}])expect(()=>validateCheckoutSession({...session,...patch},booking,'test',base)).toThrow();
+ expect(()=>validateCheckoutSession({...session,expires_at:Math.floor(Date.now()/1000)+7200},{...booking,payment_due_at:new Date(Date.now()+3600000).toISOString()},'test',base)).toThrow();
 });
