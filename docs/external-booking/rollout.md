@@ -13,3 +13,7 @@ The external-booking-worker requires CRON_TRIGGER_TOKEN, INTERNAL_FUNCTION_TOKEN
 Notification outbox delivery uses one stable key, a2-minute live fenced lease, small bounded batches and provider message receipt. Missing/ambiguous responses retry within23hours and then require manual review; no exactly-once SMTP guarantee. Payment charge/refund attempts similarly preserve keys and provider windows. Optional redacted telemetry sink requires fixed allowed HTTPS host, token and event-id-dedupe-v1; absent sink leaves events durable for bounded retention. event_retention_days defaults30 and is adjustable1–90 by reviewed admin. Delivered/manual notification private context is scrubbed after retention. Inspect notification lag and manual-review counts through the narrow maintenance RPC.
 
 Full hosted OAuth/Stripe/identity/complete-schema parity and safe deployment/rollback drills remain release gates. Local isolated evidence cannot replace them.
+
+The source persistent limiter previously admitted requests indefinitely at capacity. The additive `20261007090720_persistent_rate_limit_capacity.sql` repair reserves each slot atomically, denies further calls, retains the server-only signature and bounds lock/statement waits. Include it in reviewed applied-schema and concurrency acceptance; API signature checks alone cannot compensate for an incorrectly implemented budget.
+
+See [pilot evidence](pilot-evidence.md) for the distinction between local composition and hosted release acceptance.
