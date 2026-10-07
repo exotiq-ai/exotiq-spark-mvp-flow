@@ -118,8 +118,11 @@ BEGIN
   -- authenticated renter to somebody else's duplicate legacy customer record.
   IF _customer_id IS DISTINCT FROM (SELECT id FROM public.customers WHERE team_id=_operator_id AND lower(email)=lower(customer.email) ORDER BY created_at,id LIMIT 1) THEN RAISE EXCEPTION 'consent_mismatch'; END IF;
   -- Exact owned customer only; missing document expiry is UNKNOWN, never proof.
-  PERFORM 1 FROM public.identity_verifications WHERE customer_id=_customer_id AND status='verified'
-    AND document_expiry>(clock_timestamp() AT TIME ZONE q.timezone)::date FOR SHARE;
+  PERFORM 1 FROM public.identity_verifications iv JOIN public.bookings prior ON prior.booking_ref=iv.booking_ref AND prior.customer_id=iv.customer_id
+    JOIN public.external_request_idempotency previous ON previous.booking_id=prior.id AND previous.customer_id=_customer_id AND previous.operator_id=_operator_id AND previous.issuer=_issuer AND previous.subject=_subject
+    JOIN public.external_customer_links link ON link.issuer=_issuer AND link.subject=_subject AND link.operator_id=_operator_id AND link.customer_id=_customer_id AND link.revoked_at IS NULL
+    WHERE iv.customer_id=_customer_id AND iv.status='verified' AND iv.verified_at>=link.verified_at
+    AND iv.document_expiry>(clock_timestamp() AT TIME ZONE q.timezone)::date FOR SHARE OF iv,prior,link;
   initial_status:=CASE WHEN FOUND THEN 'requested' ELSE 'pending_documents' END;
   SELECT * INTO team FROM public.teams WHERE id=q.operator_id;
   SELECT * INTO vehicle FROM public.vehicles WHERE id=q.vehicle_id;
@@ -139,9 +142,9 @@ BEGIN
   moment:=clock_timestamp();
   INSERT INTO public.external_booking_grants(issuer,subject,client_id,customer_id,operator_id,booking_id,action_scopes,created_at,expires_at)
     VALUES(_issuer,_subject,_client_id,_customer_id,_operator_id,booking.id,scope_list,moment,moment+interval '24 hours') RETURNING id INTO v_grant_id;
-  body:=jsonb_build_object('api_version','v1','source_checked_at',moment,'ref',booking.booking_ref,'status',initial_status,
+  body:=jsonb_build_object('api_version','v1','source_checked_at',date_trunc('milliseconds',moment),'ref',booking.booking_ref,'status',initial_status,
     'next_action',CASE initial_status WHEN 'requested' THEN 'await_operator' ELSE 'verify_identity' END,
-    'hold_expires_at',booking.created_at+CASE initial_status WHEN 'requested' THEN interval '72 hours' ELSE interval '24 hours' END,
+    'hold_expires_at',date_trunc('milliseconds',booking.created_at+CASE initial_status WHEN 'requested' THEN interval '72 hours' ELSE interval '24 hours' END),
     'links',jsonb_build_object('status',_public_origin||'/v1/rental-requests/'||booking.booking_ref));
   -- Freeze provider message inputs at commit. A retry with the same provider key
   -- must not use changed team names/status/terms or it becomes a different email.

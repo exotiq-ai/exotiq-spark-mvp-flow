@@ -60,8 +60,19 @@ export const RentalStatusResult = object({ ...RentalRequestResult.properties, pa
 export const CheckoutHandoffResult = object({ ...metadata, customer_url: httpsUrl, expires_at: timestamp, state: enumeration('pending_payment'), next_action: enumeration('hosted_checkout') });
 export const ConsentResult = object({ ...metadata, quote_id: uuid, state: enumeration('waiting', 'authorized'), consent_receipt_id: uuid, expires_at: timestamp }, ['consent_receipt_id', 'expires_at']);
 export const RecoveryResult = object({ ...metadata, ref: text(80), state: enumeration('authorization_required', 'authorized'), customer_url: httpsUrl, expires_at: timestamp });
+export const ConsentInput = object({terms_hash:{...text(64,64),pattern: "^[a-f0-9]{64}$"},action:{const:"rental_requests:create"}});
+export const CustomerConsentResult = object({...metadata,quote_id:uuid,state:{const:"authorized"},expires_at:timestamp});
+export const QuoteReviewResult = object({quote:QuoteResult,operator_name:text(160),vehicle_name:text(160),agent_client_id:text(512)});
+export const CustomerOperatorLinkInput = object({operator_id:uuid,full_name:text(160,2),phone:{...text(30,7),pattern:"^[+0-9() .-]{7,30}$"},consented:{const:true}});
+export const CustomerOperatorLinkResult = object({...metadata,operator_id:uuid,state:{const:"linked"}});
+const grantScopes:JsonSchema={...array(enumeration("rental_requests:read","checkout:handoff"),2,1),uniqueItems:true};
+export const GrantRenewalInput = object({grant_id:uuid});
+export const GrantRenewalReviewInput = object({});
+export const GrantRenewalCompleteInput = object({action_scopes:grantScopes,explicit_new_delegation:{type:"boolean"},consented:{const:true}});
+export const GrantRenewalReviewResult = object({...metadata,renewal_id:uuid,previous_grant_id:uuid,grant_id_to_revoke:uuid,ref:text(80),operator_id:uuid,agent_client_id:text(512),operator_name:text(160),vehicle_name:text(160),pickup_at:timestamp,return_at:timestamp,timezone:rentalWindow.timezone,status:enumeration(...BACKEND_STATUSES),hold_expires_at:nullable(timestamp),payment_due_at:nullable(timestamp),action_scopes:grantScopes,expires_at:timestamp,state:enumeration("authorization_required","authorized"),requires_new_delegation:{type:"boolean"}});
+export const GrantRenewalResult = object({...metadata,renewal_id:uuid,state:enumeration("authorization_required","authorized"),customer_url:httpsUrl,expires_at:timestamp,grant_id:uuid},["grant_id"]);
 export const ApiError = object({ code: enumeration(...ERROR_CODES), message: text(200), request_id: { ...text(80, 16), pattern: '^[A-Za-z0-9_-]+$' }, retryable: { type: 'boolean' }, details: object({ retry_after_seconds: integer(3600, 1), field: enumeration('operator_id', 'vehicle_id', 'pickup_at', 'return_at', 'timezone', 'quote_id', 'consent_receipt_id', 'selected_options', 'cursor', 'limit', 'Idempotency-Key') }, ['retry_after_seconds', 'field']) }, ['details']);
-export const schemas = { OperatorsQuery, VehiclesQuery, Operator, Vehicle, OperatorsPage, VehiclesPage, AvailabilityRequest, AvailabilityResult, QuoteRequest, QuoteItemization, PaymentScheduleItem, QuoteTerms, QuotePricingDetails, QuoteResult, RentalRequestInput, ScopedLinks, RentalRequestResult, RentalStatusResult, CheckoutHandoffResult, ConsentResult, RecoveryResult, ApiError };
+export const schemas = { OperatorsQuery, VehiclesQuery, Operator, Vehicle, OperatorsPage, VehiclesPage, AvailabilityRequest, AvailabilityResult, QuoteRequest, QuoteItemization, PaymentScheduleItem, QuoteTerms, QuotePricingDetails, QuoteResult, RentalRequestInput, ScopedLinks, RentalRequestResult, RentalStatusResult, CheckoutHandoffResult, ConsentResult, RecoveryResult, ConsentInput, CustomerConsentResult, QuoteReviewResult, CustomerOperatorLinkInput, CustomerOperatorLinkResult, GrantRenewalInput, GrantRenewalReviewInput, GrantRenewalCompleteInput, GrantRenewalReviewResult, GrantRenewalResult, ApiError };
 export type ContractName = keyof typeof schemas;
 export type ValidationResult = { ok: true } | { ok: false; issues: string[] };
 type JsonObject = Record<string, unknown>;
@@ -169,7 +180,8 @@ export function validateContract(name: ContractName, value: unknown, context: { 
       const checked = Date.parse(value.source_checked_at as string), expires = Date.parse(value.expires_at as string), available = Date.parse(value.availability_checked_at as string);
       if (expires <= checked || available > checked || (context.now !== undefined && (expires <= context.now || checked > context.now))) issues.push('$.expires_at');
     }
-    if (name === 'ConsentResult' && (value.state === 'authorized' ? !value.consent_receipt_id || !value.expires_at : value.consent_receipt_id !== undefined || value.expires_at !== undefined)) issues.push('$.state');
+    if (name === 'QuoteReviewResult' && !validateContract('QuoteResult',value.quote,context).ok) issues.push('$.quote');
+    if (name === 'ConsentResult' && (value.state === 'authorized' ? !value.consent_receipt_id || !value.expires_at : value.consent_receipt_id !== undefined || !value.expires_at)) issues.push('$.state');
   }
   return issues.length ? { ok: false, issues } : { ok: true };
 }

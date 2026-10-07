@@ -33,6 +33,7 @@ export class SupabaseRequestStore implements RequestStore {
         continue;
       }
       if (object(error) && ['invalid_input', 'not_found', 'dates_unavailable', 'quote_changed', 'quote_expired', 'consent_mismatch', 'consent_expired', 'idempotency_conflict', 'forbidden'].includes(String(error.message))) throw new BookingApiError(error.message as 'invalid_input');
+      if (object(error) && error.code === '40001') throw new BookingApiError('request_in_flight', {retry_after_seconds: 1});
       throw new BookingApiError('upstream_unavailable');
     }
     throw new BookingApiError('upstream_unavailable');

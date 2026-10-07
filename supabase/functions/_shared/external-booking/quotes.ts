@@ -41,6 +41,7 @@ export function canonicalQuoteWindow(value: unknown): QuoteInput {
   if (!validateContract('QuoteRequest', local).ok) return fail();
   return { ...local, pickup_at: new Date(timestampInstant(local.pickup_at)!).toISOString(), return_at: new Date(timestampInstant(local.return_at)!).toISOString() } as QuoteInput;
 }
+export function publicQuoteWindow(window:QuoteInput):QuoteInput {return {...window,pickup_at:localTimestamp(window.pickup_at,window.timezone),return_at:localTimestamp(window.return_at,window.timezone)};}
 /** Exact integer normalization and consistency checks only. All arithmetic amounts
  * originate in public_vehicle_quote; this boundary never estimates/reprices them.
  */

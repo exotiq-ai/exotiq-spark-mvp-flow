@@ -10,5 +10,5 @@ CREATE TABLE public.identity_verifications (
  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
  customer_id uuid NOT NULL REFERENCES public.customers(id) ON DELETE CASCADE,
  status text NOT NULL DEFAULT 'created', document_expiry date,
- verified_at timestamptz
+ verified_at timestamptz, booking_ref text
 );
