@@ -13,6 +13,7 @@
   "include": [
     "supabase/functions/external-booking-api/index.ts",
     "supabase/functions/external-booking-worker/index.ts",
+    "supabase/functions/_shared/external-booking/**/*.ts",
     "tests/agent-booking/helpers/edge-runtime-types.d.ts"
   ]
 }
