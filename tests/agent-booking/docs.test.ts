@@ -1,0 +1,28 @@
+import {readFileSync} from 'node:fs';
+import {describe,expect,it} from 'vitest';
+import {generateOpenApi,schemas} from '../../supabase/functions/_shared/external-booking/contracts';
+const required = {
+ '/v1/quotes/{quote_id}':'get', '/v1/quotes/{quote_id}/consents':'post',
+ '/v1/quotes/{quote_id}/consent-result':'get', '/v1/customers/operator-links':'post',
+ '/v1/grant-renewals':'post', '/v1/grant-renewals/{renewal_id}':'get',
+ '/v1/grant-renewals/{renewal_id}/review':'post', '/v1/grant-renewals/{renewal_id}/complete':'post',
+ '/v1/grants/{grant_id}/revoke':'post', '/v1/rental-requests/{ref}/grant-renewals':'post',
+};
+describe('published API contract',()=>{
+ it('includes the actual consent and recovery boundaries with private customer proof',()=>{
+  const api=generateOpenApi(); const paths=api.paths as Record<string,Record<string,any>>;
+  for(const [path,method] of Object.entries(required))expect(paths[path]?.[method],path).toBeDefined();
+  for(const path of ['/v1/quotes/{quote_id}/consents','/v1/customers/operator-links','/v1/grants/{grant_id}/revoke','/v1/grant-renewals/{renewal_id}/review','/v1/grant-renewals/{renewal_id}/complete'])expect(paths[path].post.security[0].hostedCustomerProof).toEqual([]);
+  expect(paths['/v1/quotes/{quote_id}/consent-result'].get.responses['202']).toBeDefined();
+  expect(paths['/v1/grants/{grant_id}/revoke'].post.responses['204'].content).toBeUndefined();
+ });
+ it('resolves every schema reference and unique operation/path parameter',()=>{
+  const api=generateOpenApi();const ids=new Set();
+  const walk=(value:any)=>{if(!value||typeof value!=='object')return;if(value.$ref)expect(Object.keys(schemas)).toContain(value.$ref.replace('#/components/schemas/',''));for(const next of Object.values(value))walk(next);};walk(api);
+  for(const [path,methods] of Object.entries(api.paths))for(const op of Object.values(methods)){
+   expect(ids.has(op.operationId)).toBe(false);ids.add(op.operationId);
+   for(const name of [...path.matchAll(/\{([^}]+)\}/g)].map(m=>m[1]))expect(op.parameters.some(p=>p.in==='path'&&p.name===name&&p.required)).toBe(true);
+  }
+ });
+ it('publishes exactly the generated artifact',()=>expect(JSON.parse(readFileSync('docs/external-booking/openapi.yaml','utf8'))).toEqual(generateOpenApi()));
+});

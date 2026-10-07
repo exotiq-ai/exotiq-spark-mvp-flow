@@ -227,7 +227,7 @@ export async function verifyCursor(token: string, context: CursorContext, secret
   } catch { throw new Error('Invalid cursor'); }
 }
 
-type ResponseSpec = { description: string; content?: Record<string, { schema: { $ref: string } }>; headers?: Record<string, unknown> };
+type ResponseSpec = { description: string; content?: Record<string, { schema: { $ref?: string; oneOf?: { $ref: string }[] } }>; headers?: Record<string, unknown> };
 type OperationSpec = { operationId: string; description: string; security: Record<string, string[]>[]; parameters: { name: string; in: string; required: boolean; schema: JsonSchema }[]; responses: Record<string, ResponseSpec>; requestBody?: unknown };
 const response = (name: ContractName, description: string): ResponseSpec => ({ description, content: { 'application/json': { schema: { $ref: `#/components/schemas/${name}` } } } });
 const allErrors = (): Record<string, ResponseSpec> => Object.fromEntries([400, 401, 403, 404, 409, 410, 429, 503].map((status) => [status, { ...response('ApiError', `Structured error (${status}); no private booking existence or exception disclosure.`), ...(status === 401 ? { headers: { 'WWW-Authenticate': { schema: { type: 'string', maxLength: 500 }, description: 'Bearer challenge; never echoes credentials.' } } } : {}), ...(status === 429 || status === 503 ? { headers: { 'Retry-After': { schema: integer(3600, 1) } } } : {}) }]));
@@ -236,10 +236,29 @@ function operation(id: string, output: ContractName, scopes: string[], descripti
   return { operationId: id, description, security: scopes.length ? [{ customerOAuth: scopes }] : [{}, { customerOAuth: ['catalog:read'] }], parameters, responses: { '200': response(output, 'Successful authoritative response'), ...allErrors() }, ...(input ? { requestBody: { required: true, content: { 'application/json': { schema: { $ref: `#/components/schemas/${input}` } } } } } : {}) };
 }
 /** Generator only; deployment supplies verified issuer/redirects and approved server.
- * No server URL is inferred from production or demo hosts. These relative OAuth
- * paths are the contract's mounted authorization endpoints, not provider evidence.
+ * No server URL is inferred from production or demo hosts. The .invalid OAuth URLs are documentation placeholders for a separately
+ * configured managed issuer. The API does not implement authorization/token endpoints.
  */
 export function generateOpenApi() {
+  const parameter = (name: string, schema: JsonSchema) => ({ name, in: 'path', required: true, schema });
+  const customer = (op: OperationSpec): OperationSpec => ({ ...op, security: op.security.map(security => ({ ...security, hostedCustomerProof: [] })) });
+  const created = (op: OperationSpec): OperationSpec => { op.responses['201'] = op.responses['200']; delete op.responses['200']; return op; };
+  const bound = (op: OperationSpec, name: string): OperationSpec => { op.parameters.push(parameter(name,uuid)); return op; };
+  const quoteReview = bound(operation('reviewQuote', 'QuoteResult', ['quotes:create'], 'Owned quote read. Hosted customer BFF must provide independent proof and receives QuoteReviewResult; agent receives QuoteResult.'),'quote_id');
+  quoteReview.responses['200'].content!['application/json'].schema = { oneOf: ['QuoteResult','QuoteReviewResult'].map(name=>({$ref:'#/components/schemas/'+name})) };
+  const consent = bound(created(customer(operation('authorizeQuote', 'CustomerConsentResult', ['quotes:create'], 'Customer browser only: fresh verified managed session, request-bound BFF proof and exact terms hash authorize this quote. Grants no payment/approval authority.', 'ConsentInput'))),'quote_id');
+  const rendezvous = bound(operation('getQuoteConsentResult', 'ConsentResult', ['rental_requests:create'], 'Agent server only, same issuer/subject/original client and quote. Receipt remains server-to-server; waiting returns 202. Consumed receipt can support original-key ledger replay.'),'quote_id');
+  rendezvous.responses['202'] = response('ConsentResult','Awaiting customer consent; Retry-After: 5; no booking created');
+  const onboard = created(customer(operation('linkOperatorCustomer','CustomerOperatorLinkResult',['quotes:create'],'Customer browser only. Email derives exclusively from signed verified OIDC proof, never typed email/customer selectors. Tenant binding is explicit.','CustomerOperatorLinkInput')));
+  const renewalStart = created(operation('beginGrantRenewal','GrantRenewalResult',['rental_requests:read'],'Original agent requests fresh hosted customer authorization. Expired IDs may renew; revoked IDs require explicit new delegation. Holds are preserved.','GrantRenewalInput'));
+  const renewalReview = bound(operation('getGrantRenewal','GrantRenewalResult',['rental_requests:read'],'Original agent receives rendezvous state. Hosted customer BFF requires proof and receives safe GrantRenewalReviewResult. No bearer or receipt is returned. Monthly and near-72-hour holds retain ownership continuity.'),'renewal_id');
+  renewalReview.responses['200'].content!['application/json'].schema = { oneOf: ['GrantRenewalResult','GrantRenewalReviewResult'].map(name=>({$ref:'#/components/schemas/'+name})) };
+  const renewalBind = bound(customer(operation('bindGrantRenewalReview','GrantRenewalReviewResult',['rental_requests:read'],'Customer browser explicitly binds the freshly authenticated session to this renewal.','GrantRenewalReviewInput')),'renewal_id');
+  const renewalComplete = bound(customer(operation('completeGrantRenewal','GrantRenewalReviewResult',['rental_requests:read'],'Customer explicitly authorizes stored original agent/scopes; no automatic grant revival. Revoked IDs stay revoked.','GrantRenewalCompleteInput')),'renewal_id');
+  const revoke = bound(customer(operation('revokeGrant','GrantRenewalReviewResult',['rental_requests:read'],'Customer browser revokes this owned grant. Every subsequent request checks persisted revocation.','GrantRenewalReviewInput')),'grant_id');
+  delete revoke.responses['200']; revoke.responses['204'] = { description:'Owned grant revoked; no body.' };
+  const refRenewal = created(operation('beginRequestGrantRenewal','GrantRenewalResult',['rental_requests:read'],'Original durable-ledger owner starts hosted recovery using request ref, including expired/revoked grants. Different owner remains 404.','GrantRenewalReviewInput'));
+  refRenewal.parameters.push(parameter('ref',RentalRequestResult.properties!.ref));
   const requests = operation('submitRentalRequest', 'RentalRequestResult', ['rental_requests:create'], 'Authenticated customer and matching one-use consent receipt required. First creation returns 201; same principal/idempotency key and identical intent returns original result with 200. Request is pending approval, never confirmation.', 'RentalRequestInput');
   requests.parameters.push({ name: 'Idempotency-Key', in: 'header', required: true, schema: { ...text(128, 16), pattern: '^[A-Za-z0-9_-]+$' } });
   requests.responses['201'] = response('RentalRequestResult', 'First durable request creation');
@@ -261,10 +280,20 @@ export function generateOpenApi() {
       '/v1/vehicles': { get: operation('listVehicles', 'VehiclesPage', [], 'Bounded eligible vehicle catalog. Optional dates filter discovery only; listing never promises availability. Cursor binds operation and normalized filters; repeat current visibility checks on every page.', undefined, 'VehiclesQuery') },
       '/v1/availability': { post: operation('checkAvailability', 'AvailabilityResult', [], 'Exact offset/tenant-timezone interval check. AVAILABLE is a checked observation, never a hold. UNKNOWN returns 200 with bounded retry delay and safe reason; quote/write prerequisites fail with 503.', 'AvailabilityRequest') },
       '/v1/quotes': { post: quote },
+      '/v1/quotes/{quote_id}': { get: quoteReview },
+      '/v1/quotes/{quote_id}/consents': { post: consent },
+      '/v1/quotes/{quote_id}/consent-result': { get: rendezvous },
+      '/v1/customers/operator-links': { post: onboard },
+      '/v1/grant-renewals': { post: renewalStart },
+      '/v1/grant-renewals/{renewal_id}': { get: renewalReview },
+      '/v1/grant-renewals/{renewal_id}/review': { post: renewalBind },
+      '/v1/grant-renewals/{renewal_id}/complete': { post: renewalComplete },
+      '/v1/grants/{grant_id}/revoke': { post: revoke },
+      '/v1/rental-requests/{ref}/grant-renewals': { post: refRenewal },
       '/v1/rental-requests': { post: requests },
       '/v1/rental-requests/{ref}': { get: status },
       '/v1/rental-requests/{ref}/checkout-handoff': { post: handoff },
     },
-    components: { schemas, securitySchemes: { customerOAuth: { type: 'oauth2', description: 'Audience-bound verified customer OAuth. OAuth scope alone never establishes per-booking authorization or consent. Issuer/two-client compatibility requires implementation evidence.', flows: { authorizationCode: { authorizationUrl: '/oauth/authorize', tokenUrl: '/oauth/token', scopes: Object.fromEntries(SCOPES.map((scope) => [scope, scope])) } } } } },
+    components: { schemas, securitySchemes: { hostedCustomerProof: { type:'apiKey', in:'header', name:'X-Exotiq-Hosted-Proof', description:'Private server-to-server request attestation, independently bound to verified customer API bearer/method/path/body/CSRF; never a customer/agent bearer.' }, customerOAuth: { type: 'oauth2', description: 'Audience-bound verified customer OAuth. OAuth scope alone never establishes per-booking authorization or consent. Issuer/two-client compatibility requires implementation evidence.', flows: { authorizationCode: { authorizationUrl: 'https://oauth.example.invalid/authorize', tokenUrl: 'https://oauth.example.invalid/token', scopes: Object.fromEntries(SCOPES.map((scope) => [scope, scope])) } } } } },
   };
 }
