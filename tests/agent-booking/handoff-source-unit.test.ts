@@ -41,3 +41,12 @@ it('actual public source checkout retains its token-gated return and ignores cal
  expect(source.checkoutParameters()).toMatchObject({success_url:'https://book.example.test/booking/synthetic?t=legacy&payment=success',cancel_url:'https://book.example.test/booking/synthetic?t=legacy&payment=cancelled'});
  expect(source.checkoutParameters().line_items[0].price_data.unit_amount).toBe(10000);
 });
+
+it.each(['rent-checkout','identity-create-session'])('actual %s stops an aborted unfinished body before source/provider work',async endpoint=>{
+ const source=sourceHandler('supabase/functions/'+endpoint+'/index.ts'),abort=new AbortController();let controller:ReadableStreamDefaultController<Uint8Array>|undefined;
+ const body=new ReadableStream<Uint8Array>({start(c){controller=c;c.enqueue(new TextEncoder().encode('{'));}});
+ const request=new Request('https://api.example.test/'+endpoint,{method:'POST',body,signal:abort.signal,duplex:'half'} as RequestInit);
+ const pending=source.handler(request);abort.abort();
+ try{const result=await Promise.race([pending,new Promise<null>(resolve=>setTimeout(()=>resolve(null),100))]);expect(result).toBeInstanceOf(Response);expect(result!.status).toBe(400);expect(source.counts()).toEqual({providerCalls:0,queries:0});}
+ finally{controller?.error(Error('Synthetic stream cleanup'));await pending.catch(()=>undefined);}
+});
