@@ -6,8 +6,14 @@ export interface HostedCustomerProof {issuer:string;subject:string;clientId:stri
 const hash=async(value:string)=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value))),x=>x.toString(16).padStart(2,'0')).join('');
 async function boundedBody(request:Request):Promise<string>{
  const reader=request.clone().body?.getReader();if(!reader)return '';let size=0;const chunks:Uint8Array[]=[];
- try {for(;;){const part=await reader.read();if(part.done)break;if(part.value){size+=part.value.byteLength;if(size>65536){await reader.cancel();throw new BookingApiError('invalid_input');}chunks.push(part.value);}}
+ try {for(;;){const part=await reader.read();if(part.done)break;if(part.value){size+=part.value.byteLength;if(size>65536){throw new BookingApiError('invalid_input');}chunks.push(part.value);}}
  const merged=new Uint8Array(size);let offset=0;for(const c of chunks){merged.set(c,offset);offset+=c.byteLength;}return new TextDecoder('utf-8',{fatal:true}).decode(merged);
+ }catch(error){
+  // A cloned stream is a tee: awaiting cancellation of just one branch can
+  // wait forever while the original is unread. Cancel both without blocking.
+  void reader.cancel().catch(()=>undefined);
+  if(request.body&&!request.body.locked)void request.body.cancel().catch(()=>undefined);
+  throw error;
  }finally{reader.releaseLock();}
 }
 /** This is an INTERNAL BFF request attestation, never an OAuth access token.
