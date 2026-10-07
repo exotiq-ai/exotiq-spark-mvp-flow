@@ -118,9 +118,10 @@ describe('safe availability and actual runtime quote composition',()=>{
   });
 });
 
-it('does not start shared JWKS resolution after disconnect during the boundary budget',async()=>{
- const abort=new AbortController();let resolutions=0;const calls:string[]=[];
- const handler=createRuntime(config,async(input)=>{const url=new URL(String(input));calls.push(url.pathname);if(url.pathname.endsWith('/check_rate_limit')){abort.abort();return Response.json(true);}throw Error('Unexpected egress');},{now:()=>now,keyResolver:async(...args)=>{resolutions++;return resolver(...args);}});
- const bearer=await token(),response=await handler(new Request('https://api.example.invalid/v1/quotes',{method:'POST',headers:{authorization:'Bearer '+bearer,'content-type':'application/json'},body:JSON.stringify(input),signal:abort.signal}));
+it('does not start shared JWKS resolution after disconnect during body parsing',async()=>{
+ const abort=new AbortController();let resolutions=0;const calls:string[]=[];let controller:ReadableStreamDefaultController<Uint8Array>|undefined;
+ const body=new ReadableStream<Uint8Array>({start(c){controller=c;}});
+ const handler=createRuntime(config,async(target)=>{const url=new URL(String(target));calls.push(url.pathname);if(url.pathname.endsWith('/check_rate_limit')){setTimeout(()=>{abort.abort();controller!.enqueue(new TextEncoder().encode(JSON.stringify(window)));controller!.close();},10);return Response.json(true);}throw Error('Unexpected egress');},{now:()=>now,keyResolver:async(...args)=>{resolutions++;return resolver(...args);}});
+ const bearer=await token({scope:"catalog:read"}),response=await handler(new Request('https://api.example.invalid/v1/availability',{method:'POST',headers:{authorization:'Bearer '+bearer,'content-type':'application/json'},body,signal:abort.signal,duplex:'half'} as RequestInit));
  expect([401,503]).toContain(response.status);expect(resolutions).toBe(0);expect(calls).toEqual(['/rest/v1/rpc/check_rate_limit']);
 });
