@@ -5,11 +5,11 @@ import {verifyInternalHandoff,signInternalHandoff} from '../../supabase/function
 import * as bridge from '../../supabase/functions/_shared/external-booking/provider-handoff.ts';
 import {readSourceHandoffBody} from '../../supabase/functions/_shared/external-booking/source-body.ts';
 // Execute actual source handlers with offline SDK transport. No provider proof.
-function sourceHandler(path:string){
+function sourceHandler(path:string,fixtureClock:()=>number=Date.now){
  let handler:any,providerCalls=0,queries=0,checkoutParameters:any;
- const booking={id:'booking',customer_id:'customer',booking_ref:'synthetic',confirmation_token:'legacy',status:'pending_payment',booking_source:'marketplace',payment_due_at:new Date(Date.now()+3600000).toISOString(),total_value:100,platform_fee_cents:1000,protection_total_cents:0,team_id:'10000000-0000-4000-8000-000000000001',vehicle_id:'vehicle'};
- const db={auth:{getUser:async()=>({data:{user:null}})},rpc:async(name:string)=>({data:name==='external_provider_handoff_context'?{booking_id:booking.id,booking_ref:booking.booking_ref,customer_id:booking.customer_id,operator_id:booking.team_id,mode:'test'}:name==='external_reserve_rental_checkout'?{attempt_key:'persisted-source-key',customer_ref:null,session_ref:null,provider_expires_at:Math.floor(Date.now()/1000)+3600}:true,error:null}),from:(table:string)=>{queries++;const chain:any={select:()=>chain,eq:()=>chain,single:async()=>({data:table==='teams'?{name:'Operator',currency:'USD',stripe_test_account_id:'acct_synthetic'}:booking}),maybeSingle:async()=>({data:table==='identity_verifications'?{status:'verified',document_expiry:null}:booking})};return chain;}};
- const stripe={customers:{list:async()=>({data:[]})},checkout:{sessions:{create:async(parameters:any)=>{providerCalls++;checkoutParameters=parameters;return {id:'cs_test_synthetic',url:'https://checkout.stripe.com/c/pay/test',status:'open',payment_status:'unpaid',livemode:false,expires_at:Math.floor(Date.now()/1000)+600,amount_total:10000,currency:'usd',metadata:parameters.metadata,success_url:parameters.success_url,cancel_url:parameters.cancel_url};}}}};
+ const booking={id:'booking',customer_id:'customer',booking_ref:'synthetic',confirmation_token:'legacy',status:'pending_payment',booking_source:'marketplace',payment_due_at:new Date(fixtureClock()+3600000).toISOString(),total_value:100,platform_fee_cents:1000,protection_total_cents:0,team_id:'10000000-0000-4000-8000-000000000001',vehicle_id:'vehicle'};
+ const db={auth:{getUser:async()=>({data:{user:null}})},rpc:async(name:string)=>({data:name==='external_provider_handoff_context'?{booking_id:booking.id,booking_ref:booking.booking_ref,customer_id:booking.customer_id,operator_id:booking.team_id,mode:'test'}:name==='external_reserve_rental_checkout'?{attempt_key:'persisted-source-key',customer_ref:null,session_ref:null,provider_expires_at:Math.floor(Date.parse(booking.payment_due_at)/1000)}:true,error:null}),from:(table:string)=>{queries++;const chain:any={select:()=>chain,eq:()=>chain,single:async()=>({data:table==='teams'?{name:'Operator',currency:'USD',stripe_test_account_id:'acct_synthetic'}:booking}),maybeSingle:async()=>({data:table==='identity_verifications'?{status:'verified',document_expiry:null}:booking})};return chain;}};
+ const stripe={customers:{list:async()=>({data:[]})},checkout:{sessions:{create:async(parameters:any)=>{providerCalls++;checkoutParameters=parameters;return {id:'cs_test_synthetic',url:'https://checkout.stripe.com/c/pay/test',status:'open',payment_status:'unpaid',livemode:false,expires_at:Math.floor(fixtureClock()/1000)+600,amount_total:10000,currency:'usd',metadata:parameters.metadata,success_url:parameters.success_url,cancel_url:parameters.cancel_url};}}}};
  const fakeRequire=(name:string)=>{
   if(name.includes('source-body'))return {readSourceHandoffBody};
   if(name.includes('/http/server'))return {serve:(fn:any)=>handler=fn};
@@ -51,4 +51,12 @@ it.each(['rent-checkout','identity-create-session'])('actual %s stops an aborted
  const pending=source.handler(request);abort.abort();
  try{const result=await Promise.race([pending,new Promise<null>(resolve=>setTimeout(()=>resolve(null),100))]);expect(result).toBeInstanceOf(Response);expect(result!.status).toBe(400);expect(source.counts()).toEqual({providerCalls:0,queries:0});}
  finally{controller?.error(Error('Synthetic stream cleanup'));await pending.catch(()=>undefined);}
+});
+
+it('simulated reservation uses the original booking deadline when the fixture clock advances',async()=>{
+ const start=Date.now();let clockReads=0;const fixtureClock=()=>start+(clockReads++===0?0:2000);
+ const source=sourceHandler('supabase/functions/rent-checkout/index.ts',fixtureClock),body={booking_ref:'synthetic',token:'legacy',external_handoff:{nonce_hash:'a'.repeat(64),claim_token:'00000000-0000-4000-8000-000000000000'}},signed=await signInternalHandoff('rent-checkout',body,'a'.repeat(43));
+ const result=await source.handler(new Request('https://api.example.test/rent-checkout',{method:'POST',headers:{'X-Exotiq-Handoff-Timestamp':signed.timestamp,'X-Exotiq-Handoff-Proof':signed.proof},body:JSON.stringify(body)}));
+ expect(result.status).toBe(200);expect(source.counts().providerCalls).toBe(1);
+ expect(source.checkoutParameters().expires_at*1000).toBeLessThanOrEqual(start+3600000);
 });
