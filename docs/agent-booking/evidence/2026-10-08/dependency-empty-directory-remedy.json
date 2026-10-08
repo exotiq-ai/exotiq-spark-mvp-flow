@@ -1,0 +1,14 @@
+{
+  "root": "<FRONTEND_CHECKOUT>/node_modules/@types",
+  "removed_empty_generated_directories": [
+    "chai 2",
+    "deep-eql 2",
+    "estree 2",
+    "json5 2",
+    "node 2",
+    "react 2",
+    "react-dom 2",
+    "trusted-types 2"
+  ],
+  "scope": "Only empty non-symlink directories ending space2 in isolated frontend node_modules/@types; no source/package/lock/config changes. Origin of duplicate folders is unproven."
+}

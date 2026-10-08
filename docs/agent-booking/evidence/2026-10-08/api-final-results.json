@@ -1,0 +1,59 @@
+[
+  {
+    "name": "api-unit-final",
+    "command": [
+      "npm",
+      "run",
+      "test:agent:unit"
+    ],
+    "exit_code": 0,
+    "seconds": 2.89,
+    "log": "<HANDOFF_ROOT>/testing/2026-10-08/api-unit-final.log"
+  },
+  {
+    "name": "api-contract-final",
+    "command": [
+      "npm",
+      "run",
+      "test:agent:contract"
+    ],
+    "exit_code": 0,
+    "seconds": 1.51,
+    "log": "<HANDOFF_ROOT>/testing/2026-10-08/api-contract-final.log"
+  },
+  {
+    "name": "api-typecheck-final",
+    "command": [
+      "npx",
+      "--no-install",
+      "tsc",
+      "-p",
+      "tsconfig.external-api.json"
+    ],
+    "exit_code": 0,
+    "seconds": 0.99,
+    "log": "<HANDOFF_ROOT>/testing/2026-10-08/api-typecheck-final.log"
+  },
+  {
+    "name": "canonical-check",
+    "command": [
+      "node",
+      "scripts/agent-booking/generate-contract.mjs",
+      "--check"
+    ],
+    "exit_code": 0,
+    "seconds": 0.37,
+    "log": "<HANDOFF_ROOT>/testing/2026-10-08/canonical-check.log"
+  },
+  {
+    "name": "consumer-check",
+    "command": [
+      "node",
+      "scripts/agent-booking/check-consumer-contracts.mjs",
+      "<FRONTEND_CHECKOUT>"
+    ],
+    "exit_code": 0,
+    "seconds": 0.04,
+    "log": "<HANDOFF_ROOT>/testing/2026-10-08/consumer-check.log"
+  }
+]

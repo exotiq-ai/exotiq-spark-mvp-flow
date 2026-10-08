@@ -1,0 +1,15 @@
+{
+  "mode": "yolo",
+  "granularity": "fine",
+  "commit_docs": false,
+  "workflow": {
+    "research": true,
+    "plan_check": true,
+    "nyquist_validation": true,
+    "security_enforcement": true,
+    "ui_phase": false,
+    "ui_safety_gate": false,
+    "auto_advance": false,
+    "_auto_chain_active": false
+  }
+}

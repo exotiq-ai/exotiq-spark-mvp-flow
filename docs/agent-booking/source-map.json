@@ -1,0 +1,38 @@
+{
+  "prepared_at": "2026-10-08T19:34:26.789803+00:00",
+  "publication": "Paired draft review branches; not merged or deployed",
+  "backend": {
+    "repository": "exotiq-ai/exotiq-spark-mvp-flow",
+    "branch": "codex/agent-booking-backend",
+    "tested_implementation_commit": "ecdbb7228fe29424a6f4c13bc779e12639311511",
+    "tested_base_commit": "442dd4d1cb00823132d0a0f24a26892a70dd5288",
+    "observed_github_main_commit": "2c5700b24e6de6d62f0a67bb892e8cd593aef2a0",
+    "main_only_commits": 172,
+    "requires_main_reconciliation": true
+  },
+  "frontend": {
+    "repository": "exotiq-ai/exotiq-rent",
+    "branch": "codex/agent-booking-frontend",
+    "tested_implementation_commit": "3411a4e49901441553e23772a829d4386067144b",
+    "tested_base_commit": "a2260c3de1b539d0a59ab5fa4d21e12f341cb92d",
+    "observed_github_main_commit": "a2260c3de1b539d0a59ab5fa4d21e12f341cb92d",
+    "main_only_commits": 0
+  },
+  "verification": {
+    "date": "2026-10-08",
+    "api_unit_passed": 321,
+    "api_contract_passed": 36,
+    "mcp_passed": 50,
+    "mcp_guarded_sql_skipped": 5,
+    "frontend_passed": 673,
+    "frontend_skipped": 20,
+    "local_next_chromium_passed": 12,
+    "browser_api_provider_boundary": "synthetic",
+    "hosted_confirmed_journey": "not executed",
+    "named_agent_trial": "not executed",
+    "full_accepted_phases": 0,
+    "full_accepted_plans": 0
+  },
+  "latest_scope": "Proposed Exotiq Scottsdale demo request/hold rehearsal; discuss target/state before plan amendments; migration staging reserved",
+  "private_environment_inventory": "Retained locally; resolve actual deployment bindings read-only"
+}

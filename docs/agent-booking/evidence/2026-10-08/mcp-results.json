@@ -1,0 +1,27 @@
+[
+  {
+    "name": "mcp-default",
+    "command": [
+      "npm",
+      "--prefix",
+      "packages/renter-mcp",
+      "test"
+    ],
+    "exit_code": 0,
+    "seconds": 11.6,
+    "log": "<HANDOFF_ROOT>/testing/2026-10-08/mcp-default.log"
+  },
+  {
+    "name": "mcp-typecheck",
+    "command": [
+      "npm",
+      "--prefix",
+      "packages/renter-mcp",
+      "run",
+      "typecheck"
+    ],
+    "exit_code": 0,
+    "seconds": 1.42,
+    "log": "<HANDOFF_ROOT>/testing/2026-10-08/mcp-typecheck.log"
+  }
+]

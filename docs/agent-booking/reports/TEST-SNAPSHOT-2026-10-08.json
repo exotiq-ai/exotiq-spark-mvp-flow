@@ -1,0 +1,68 @@
+{
+  "recorded_at": "2026-10-08T17:30:10.490555+00:00",
+  "timezone": "America/Denver",
+  "scope": "Fresh isolated offline/source/browser tests plus read-only public discovery audit. No hosted provider confirmation or named-agent trial.",
+  "originals": {
+    "backend": {
+      "path": "<ORIGINAL_BACKEND_CHECKOUT>",
+      "head": "442dd4d1cb00823132d0a0f24a26892a70dd5288",
+      "same_head_as_previous_snapshot": true,
+      "same_status_as_previous_snapshot": true,
+      "tracked_changes": ""
+    },
+    "frontend": {
+      "path": "<ORIGINAL_FRONTEND_CHECKOUT>",
+      "head": "a2260c3de1b539d0a59ab5fa4d21e12f341cb92d",
+      "same_head_as_previous_snapshot": true,
+      "same_status_as_previous_snapshot": true,
+      "tracked_changes": ""
+    }
+  },
+  "builds": {
+    "backend": {
+      "path": "<BACKEND_CHECKOUT>",
+      "head": "ecdbb7228fe29424a6f4c13bc779e12639311511",
+      "status": "",
+      "diff_whitespace_pass": true
+    },
+    "frontend": {
+      "path": "<FRONTEND_CHECKOUT>",
+      "head": "3411a4e49901441553e23772a829d4386067144b",
+      "status": "",
+      "diff_whitespace_pass": true
+    }
+  },
+  "verification": {
+    "api_unit": {
+      "passed": 321
+    },
+    "api_contract": {
+      "passed": 36
+    },
+    "mcp_default": {
+      "passed": 50,
+      "guarded_sql_skipped": 5
+    },
+    "frontend": {
+      "passed": 673,
+      "skipped": 20
+    },
+    "real_next_chromium": {
+      "passed": 12,
+      "api_provider_boundaries": "synthetic"
+    },
+    "typechecks": "API-specific tsconfig.external-api.json, MCP, frontend passed after documented dependency remedy; does not establish native checking of every Edge handler",
+    "canonical_consumer_checks": "passed",
+    "public_get_probes": 21,
+    "hosted_confirmation": "not executed",
+    "actual_named_agent": "not executed",
+    "prior_partial_sql": "Historical October7 evidence only; not rerun today; not complete deployed schema/provider acceptance"
+  },
+  "repair": {
+    "commit": "ecdbb7228fe29424a6f4c13bc779e12639311511",
+    "scope": "test fixture preserves original booking deadline; meaningful two-second clock regression RED then GREEN",
+    "dependency_remedy": "eight verified empty isolated @types directories removed with rmdir; no tracked frontend source/lock/config edits; origin unproven"
+  },
+  "evidence_directory": "<HANDOFF_ROOT>/testing/2026-10-08",
+  "final_original_recheck_at": "2026-10-08T17:56:41.958078+00:00"
+}

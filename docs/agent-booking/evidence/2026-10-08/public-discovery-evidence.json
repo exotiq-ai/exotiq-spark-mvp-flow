@@ -1,0 +1,1024 @@
+{
+  "observedAt": "2026-10-08T17:15:15.162Z",
+  "timezone": "America/Denver",
+  "scope": "Read-only unauthenticated GET of exact Exotiq public origins. No provider, private customer, booking, charge or identity operation.",
+  "limitations": [
+    "Root-host standard-path probes do not establish an API/MCP origin selected elsewhere.",
+    "Declared User-Agent requests test returned markup; they do not prove actual provider search indexing or agent compatibility.",
+    "Observed public production responses are independent of isolated source and may differ from deployed build.",
+    "Optional llms/agents files and a conventional mcp.json location are not universal standards.",
+    "Body parsing limited to 768KiB; truncation and transport failures are explicit."
+  ],
+  "requests": [
+    {
+      "requestedUrl": "https://exotiq.rent/",
+      "requestedUserAgent": "ExotiqDiscoveryAudit/0.1",
+      "method": "GET",
+      "fetchedAt": "2026-10-08T17:15:06.223Z",
+      "chain": [
+        {
+          "url": "https://exotiq.rent/",
+          "status": 301
+        },
+        {
+          "url": "https://book.exotiq.rent/",
+          "status": 307
+        },
+        {
+          "url": "https://book.exotiq.rent/exotiq",
+          "status": 200
+        }
+      ],
+      "finalUrl": "https://book.exotiq.rent/exotiq",
+      "status": 200,
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "x-robots-tag": null,
+        "cache-control": "private,no-cache,no-store,max-age=0,must-revalidate",
+        "location": null,
+        "link": "</_next/static/media/5611c55482296524.p.woff2>; rel=preload; as=\"font\"; crossorigin=\"\"; type=\"font/woff2\", </_next/static/media/e4af272ccee01ff0-s.p.woff2>; rel=preload; as=\"font\"; crossorigin=\"\"; type=\"font/woff2\"",
+        "server": "Netlify",
+        "vary": "RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding"
+      },
+      "recordedBytes": 560071,
+      "recordedBodySha256": "3f607c0c20bdaf0b6d2f7a0a4ff701ac41923a75776337850cff289f72cd5d16",
+      "html": {
+        "title": "Exotic Demo Fleet | Drive Exotiq",
+        "canonical": [
+          "https://book.exotiq.rent/exotiq"
+        ],
+        "metaRobots": [],
+        "jsonLdCount": 0,
+        "jsonLdValid": true,
+        "jsonLdTypes": [],
+        "publicTenantLinks": [
+          "/exotiq/2024-mercedes-amg-one",
+          "/exotiq/2024-koenigsegg-jesko",
+          "/exotiq/2024-aston-martin-valkyrie",
+          "/exotiq/2023-pagani-huayra",
+          "/exotiq/2023-mclaren-speedtail"
+        ],
+        "hasTwoDollarPrice": true,
+        "mentionsDemo": true
+      }
+    },
+    {
+      "requestedUrl": "https://exotiq.rent/robots.txt",
+      "requestedUserAgent": "ExotiqDiscoveryAudit/0.1",
+      "method": "GET",
+      "fetchedAt": "2026-10-08T17:15:06.246Z",
+      "chain": [
+        {
+          "url": "https://exotiq.rent/robots.txt",
+          "status": 301
+        },
+        {
+          "url": "https://book.exotiq.rent/robots.txt",
+          "status": 200
+        }
+      ],
+      "finalUrl": "https://book.exotiq.rent/robots.txt",
+      "status": 200,
+      "headers": {
+        "content-type": "text/plain",
+        "x-robots-tag": null,
+        "cache-control": "public,max-age=0,must-revalidate",
+        "location": null,
+        "link": null,
+        "server": "Netlify",
+        "vary": "RSC, Next-Router-State-Tree, Next-Router-Prefetch"
+      },
+      "recordedBytes": 145,
+      "recordedBodySha256": "8bac44f87589f06e6b2527bb1e9995985c0b298306a15088bfe58ecc8eceb2e0",
+      "robotsText": "User-Agent: *\nAllow: /\nDisallow: /verify\nDisallow: /booking/\nDisallow: /share/\nDisallow: /preview\n\nSitemap: https://book.exotiq.rent/sitemap.xml\n"
+    },
+    {
+      "requestedUrl": "https://exotiq.rent/sitemap.xml",
+      "requestedUserAgent": "ExotiqDiscoveryAudit/0.1",
+      "method": "GET",
+      "fetchedAt": "2026-10-08T17:15:06.247Z",
+      "chain": [
+        {
+          "url": "https://exotiq.rent/sitemap.xml",
+          "status": 301
+        },
+        {
+          "url": "https://book.exotiq.rent/sitemap.xml",
+          "status": 200
+        }
+      ],
+      "finalUrl": "https://book.exotiq.rent/sitemap.xml",
+      "status": 200,
+      "headers": {
+        "content-type": "application/xml",
+        "x-robots-tag": null,
+        "cache-control": "public,max-age=0,must-revalidate",
+        "location": null,
+        "link": null,
+        "server": "Netlify",
+        "vary": "RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding"
+      },
+      "recordedBytes": 9708,
+      "recordedBodySha256": "5728425274f3ce6dfb045e9f9dba795acb1ebef9260021a802f4ee4e3cf29c20",
+      "sitemap": {
+        "isXml": true,
+        "locations": [
+          "https://book.exotiq.rent/exotiq",
+          "https://book.exotiq.rent/exotiq/2024-mercedes-amg-one",
+          "https://book.exotiq.rent/exotiq/2024-koenigsegg-jesko",
+          "https://book.exotiq.rent/exotiq/2024-aston-martin-valkyrie",
+          "https://book.exotiq.rent/exotiq/2023-pagani-huayra",
+          "https://book.exotiq.rent/exotiq/2023-mclaren-speedtail",
+          "https://book.exotiq.rent/exotiq/2024-bugatti-chiron-sport",
+          "https://book.exotiq.rent/exotiq/2023-bugatti-chiron-sport",
+          "https://book.exotiq.rent/exotiq/2024-bentley-mulliner-batur",
+          "https://book.exotiq.rent/exotiq/2024-lamborghini-revuelto",
+          "https://book.exotiq.rent/exotiq/2023-lamborghini-countach-lpi-800-4",
+          "https://book.exotiq.rent/exotiq/2024-ferrari-sf90-stradale",
+          "https://book.exotiq.rent/exotiq/2024-ferrari-purosangue",
+          "https://book.exotiq.rent/exotiq/2023-lamborghini-aventador-svj",
+          "https://book.exotiq.rent/exotiq/2023-mclaren-765lt",
+          "https://book.exotiq.rent/exotiq/2024-rolls-royce-cullinan",
+          "https://book.exotiq.rent/exotiq/2023-rolls-royce-wraith",
+          "https://book.exotiq.rent/exotiq/2024-porsche-gt3-rs",
+          "https://book.exotiq.rent/exotiq/2023-ferrari-812-superfast",
+          "https://book.exotiq.rent/exotiq/2024-lamborghini-hurac-n-evo",
+          "https://book.exotiq.rent/exotiq/2024-rolls-royce-ghost",
+          "https://book.exotiq.rent/exotiq/2023-mclaren-720s-spider",
+          "https://book.exotiq.rent/exotiq/2024-mclaren-720s-spider",
+          "https://book.exotiq.rent/exotiq/2024-ferrari-296-gtb",
+          "https://book.exotiq.rent/exotiq/2024-ferrari-f8-tributo",
+          "https://book.exotiq.rent/exotiq/2024-bentley-flying-spur",
+          "https://book.exotiq.rent/exotiq/2024-aston-martin-db12",
+          "https://book.exotiq.rent/exotiq/2023-ferrari-488-gtb",
+          "https://book.exotiq.rent/exotiq/2024-maserati-mc20",
+          "https://book.exotiq.rent/exotiq/2024-aston-martin-dbs-superleggera",
+          "https://book.exotiq.rent/exotiq/2024-porsche-911-turbo-s",
+          "https://book.exotiq.rent/exotiq/2024-mclaren-artura",
+          "https://book.exotiq.rent/exotiq/2023-aston-martin-vantage",
+          "https://book.exotiq.rent/exotiq/2024-ferrari-roma",
+          "https://book.exotiq.rent/exotiq/2024-mercedes-maybach-s680",
+          "https://book.exotiq.rent/exotiq/2023-porsche-911-turbo-s",
+          "https://book.exotiq.rent/exotiq/2024-lamborghini-urus",
+          "https://book.exotiq.rent/exotiq/2024-bentley-bentayga-speed",
+          "https://book.exotiq.rent/exotiq/2023-bentley-continental-gt",
+          "https://book.exotiq.rent/exotiq/2023-bmw-m8-competition",
+          "https://book.exotiq.rent/exotiq/2023-audi-r8-v10-plus",
+          "https://book.exotiq.rent/exotiq/2024-porsche-panamera-turbo-s",
+          "https://book.exotiq.rent/exotiq/2024-porsche-taycan-turbo-s",
+          "https://book.exotiq.rent/exotiq/2024-aston-martin-dbx707",
+          "https://book.exotiq.rent/exotiq/2023-maserati-quattroporte-trofeo",
+          "https://book.exotiq.rent/exotiq/2023-mercedes-amg-gt-r",
+          "https://book.exotiq.rent/exotiq/2024-audi-r8-v10-plus",
+          "https://book.exotiq.rent/exotiq/2024-audi-e-tron-gt-rs",
+          "https://book.exotiq.rent/exotiq/2023-porsche-718-cayman-gt4",
+          "https://book.exotiq.rent/exotiq/2023-bmw-i8-roadster",
+          "https://book.exotiq.rent/exotiq/2024-bmw-m8-competition",
+          "https://book.exotiq.rent/exotiq/2017-audi-s8",
+          "https://book.exotiq.rent/exotiq/2017-audi-s8-plus"
+        ],
+        "includesDemo": true
+      }
+    },
+    {
+      "requestedUrl": "https://exotiq.rent/llms.txt",
+      "requestedUserAgent": "ExotiqDiscoveryAudit/0.1",
+      "method": "GET",
+      "fetchedAt": "2026-10-08T17:15:08.905Z",
+      "chain": [
+        {
+          "url": "https://exotiq.rent/llms.txt",
+          "status": 301
+        },
+        {
+          "url": "https://book.exotiq.rent/llms.txt",
+          "status": 404
+        }
+      ],
+      "finalUrl": "https://book.exotiq.rent/llms.txt",
+      "status": 404,
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "x-robots-tag": null,
+        "cache-control": "private,no-cache,no-store,max-age=0,must-revalidate",
+        "location": null,
+        "link": "</_next/static/media/5611c55482296524.p.woff2>; rel=preload; as=\"font\"; crossorigin=\"\"; type=\"font/woff2\", </_next/static/media/e4af272ccee01ff0-s.p.woff2>; rel=preload; as=\"font\"; crossorigin=\"\"; type=\"font/woff2\"",
+        "server": "Netlify",
+        "vary": "RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding"
+      },
+      "recordedBytes": 12366,
+      "recordedBodySha256": "26b3a41cf40a3ca17d795dc3bb9c09b2baa5651f5bf1a1451867ced1f0a36873",
+      "html": {
+        "title": "Drive Exotiq | Curated Exotic &amp; Luxury Rentals",
+        "canonical": [],
+        "metaRobots": [
+          {
+            "name": "robots",
+            "content": "noindex"
+          }
+        ],
+        "jsonLdCount": 0,
+        "jsonLdValid": true,
+        "jsonLdTypes": [],
+        "publicTenantLinks": [],
+        "hasTwoDollarPrice": false,
+        "mentionsDemo": false
+      },
+      "textArtifact": {
+        "isText": false,
+        "sample": null
+      }
+    },
+    {
+      "requestedUrl": "https://exotiq.rent/llms-full.txt",
+      "requestedUserAgent": "ExotiqDiscoveryAudit/0.1",
+      "method": "GET",
+      "fetchedAt": "2026-10-08T17:15:08.906Z",
+      "chain": [
+        {
+          "url": "https://exotiq.rent/llms-full.txt",
+          "status": 301
+        },
+        {
+          "url": "https://book.exotiq.rent/llms-full.txt",
+          "status": 404
+        }
+      ],
+      "finalUrl": "https://book.exotiq.rent/llms-full.txt",
+      "status": 404,
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "x-robots-tag": null,
+        "cache-control": "private,no-cache,no-store,max-age=0,must-revalidate",
+        "location": null,
+        "link": "</_next/static/media/5611c55482296524.p.woff2>; rel=preload; as=\"font\"; crossorigin=\"\"; type=\"font/woff2\", </_next/static/media/e4af272ccee01ff0-s.p.woff2>; rel=preload; as=\"font\"; crossorigin=\"\"; type=\"font/woff2\"",
+        "server": "Netlify",
+        "vary": "RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding"
+      },
+      "recordedBytes": 12386,
+      "recordedBodySha256": "42ae127b6053db548c8839ac90b3c596ab379fe7ae2b78167d685f58f24b720d",
+      "html": {
+        "title": "Drive Exotiq | Curated Exotic &amp; Luxury Rentals",
+        "canonical": [],
+        "metaRobots": [
+          {
+            "name": "robots",
+            "content": "noindex"
+          }
+        ],
+        "jsonLdCount": 0,
+        "jsonLdValid": true,
+        "jsonLdTypes": [],
+        "publicTenantLinks": [],
+        "hasTwoDollarPrice": false,
+        "mentionsDemo": false
+      },
+      "textArtifact": {
+        "isText": false,
+        "sample": null
+      }
+    },
+    {
+      "requestedUrl": "https://exotiq.rent/agents.txt",
+      "requestedUserAgent": "ExotiqDiscoveryAudit/0.1",
+      "method": "GET",
+      "fetchedAt": "2026-10-08T17:15:08.908Z",
+      "chain": [
+        {
+          "url": "https://exotiq.rent/agents.txt",
+          "status": 301
+        },
+        {
+          "url": "https://book.exotiq.rent/agents.txt",
+          "status": 404
+        }
+      ],
+      "finalUrl": "https://book.exotiq.rent/agents.txt",
+      "status": 404,
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "x-robots-tag": null,
+        "cache-control": "private,no-cache,no-store,max-age=0,must-revalidate",
+        "location": null,
+        "link": "</_next/static/media/5611c55482296524.p.woff2>; rel=preload; as=\"font\"; crossorigin=\"\"; type=\"font/woff2\", </_next/static/media/e4af272ccee01ff0-s.p.woff2>; rel=preload; as=\"font\"; crossorigin=\"\"; type=\"font/woff2\"",
+        "server": "Netlify",
+        "vary": "RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding"
+      },
+      "recordedBytes": 12374,
+      "recordedBodySha256": "8abf1823b7201bf652c55ddc613b860a42c5715c25c880ad67005e885ded3428",
+      "html": {
+        "title": "Drive Exotiq | Curated Exotic &amp; Luxury Rentals",
+        "canonical": [],
+        "metaRobots": [
+          {
+            "name": "robots",
+            "content": "noindex"
+          }
+        ],
+        "jsonLdCount": 0,
+        "jsonLdValid": true,
+        "jsonLdTypes": [],
+        "publicTenantLinks": [],
+        "hasTwoDollarPrice": false,
+        "mentionsDemo": false
+      },
+      "textArtifact": {
+        "isText": false,
+        "sample": null
+      }
+    },
+    {
+      "requestedUrl": "https://exotiq.rent/.well-known/mcp.json",
+      "requestedUserAgent": "ExotiqDiscoveryAudit/0.1",
+      "method": "GET",
+      "fetchedAt": "2026-10-08T17:15:11.618Z",
+      "chain": [
+        {
+          "url": "https://exotiq.rent/.well-known/mcp.json",
+          "status": 301
+        },
+        {
+          "url": "https://book.exotiq.rent/.well-known/mcp.json",
+          "status": 404
+        }
+      ],
+      "finalUrl": "https://book.exotiq.rent/.well-known/mcp.json",
+      "status": 404,
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "x-robots-tag": null,
+        "cache-control": "private,no-cache,no-store,max-age=0,must-revalidate",
+        "location": null,
+        "link": "</_next/static/media/5611c55482296524.p.woff2>; rel=preload; as=\"font\"; crossorigin=\"\"; type=\"font/woff2\", </_next/static/media/e4af272ccee01ff0-s.p.woff2>; rel=preload; as=\"font\"; crossorigin=\"\"; type=\"font/woff2\"",
+        "server": "Netlify",
+        "vary": "RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding"
+      },
+      "recordedBytes": 12874,
+      "recordedBodySha256": "febcbab5dd63e417f9b6cfe947a4fbde3d7ec3d6f85bbf87d57aea003d1b3821",
+      "html": {
+        "title": "Drive Exotiq | Curated Exotic &amp; Luxury Rentals",
+        "canonical": [],
+        "metaRobots": [
+          {
+            "name": "robots",
+            "content": "noindex"
+          }
+        ],
+        "jsonLdCount": 0,
+        "jsonLdValid": true,
+        "jsonLdTypes": [],
+        "publicTenantLinks": [],
+        "hasTwoDollarPrice": false,
+        "mentionsDemo": false
+      },
+      "json": {
+        "parseable": false
+      }
+    },
+    {
+      "requestedUrl": "https://exotiq.rent/.well-known/oauth-protected-resource",
+      "requestedUserAgent": "ExotiqDiscoveryAudit/0.1",
+      "method": "GET",
+      "fetchedAt": "2026-10-08T17:15:11.619Z",
+      "chain": [
+        {
+          "url": "https://exotiq.rent/.well-known/oauth-protected-resource",
+          "status": 301
+        },
+        {
+          "url": "https://book.exotiq.rent/.well-known/oauth-protected-resource",
+          "status": 404
+        }
+      ],
+      "finalUrl": "https://book.exotiq.rent/.well-known/oauth-protected-resource",
+      "status": 404,
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "x-robots-tag": null,
+        "cache-control": "private,no-cache,no-store,max-age=0,must-revalidate",
+        "location": null,
+        "link": "</_next/static/media/5611c55482296524.p.woff2>; rel=preload; as=\"font\"; crossorigin=\"\"; type=\"font/woff2\", </_next/static/media/e4af272ccee01ff0-s.p.woff2>; rel=preload; as=\"font\"; crossorigin=\"\"; type=\"font/woff2\"",
+        "server": "Netlify",
+        "vary": "RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding"
+      },
+      "recordedBytes": 12938,
+      "recordedBodySha256": "8083cbe9c73fe316b2b50949878965046eed7327d3c99634ae2b36d358be8b56",
+      "html": {
+        "title": "Drive Exotiq | Curated Exotic &amp; Luxury Rentals",
+        "canonical": [],
+        "metaRobots": [
+          {
+            "name": "robots",
+            "content": "noindex"
+          }
+        ],
+        "jsonLdCount": 0,
+        "jsonLdValid": true,
+        "jsonLdTypes": [],
+        "publicTenantLinks": [],
+        "hasTwoDollarPrice": false,
+        "mentionsDemo": false
+      },
+      "json": {
+        "parseable": false
+      }
+    },
+    {
+      "requestedUrl": "https://exotiq.rent/openapi.json",
+      "requestedUserAgent": "ExotiqDiscoveryAudit/0.1",
+      "method": "GET",
+      "fetchedAt": "2026-10-08T17:15:11.620Z",
+      "chain": [
+        {
+          "url": "https://exotiq.rent/openapi.json",
+          "status": 301
+        },
+        {
+          "url": "https://book.exotiq.rent/openapi.json",
+          "status": 404
+        }
+      ],
+      "finalUrl": "https://book.exotiq.rent/openapi.json",
+      "status": 404,
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "x-robots-tag": null,
+        "cache-control": "private,no-cache,no-store,max-age=0,must-revalidate",
+        "location": null,
+        "link": "</_next/static/media/5611c55482296524.p.woff2>; rel=preload; as=\"font\"; crossorigin=\"\"; type=\"font/woff2\", </_next/static/media/e4af272ccee01ff0-s.p.woff2>; rel=preload; as=\"font\"; crossorigin=\"\"; type=\"font/woff2\"",
+        "server": "Netlify",
+        "vary": "RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding"
+      },
+      "recordedBytes": 12382,
+      "recordedBodySha256": "f7ba855e0a7aa2e8a4319a10a074a6d459c62445dbbbff35a2e9705f8f4a8783",
+      "html": {
+        "title": "Drive Exotiq | Curated Exotic &amp; Luxury Rentals",
+        "canonical": [],
+        "metaRobots": [
+          {
+            "name": "robots",
+            "content": "noindex"
+          }
+        ],
+        "jsonLdCount": 0,
+        "jsonLdValid": true,
+        "jsonLdTypes": [],
+        "publicTenantLinks": [],
+        "hasTwoDollarPrice": false,
+        "mentionsDemo": false
+      },
+      "json": {
+        "parseable": false
+      }
+    },
+    {
+      "requestedUrl": "https://book.exotiq.rent/robots.txt",
+      "requestedUserAgent": "ExotiqDiscoveryAudit/0.1",
+      "method": "GET",
+      "fetchedAt": "2026-10-08T17:15:12.519Z",
+      "chain": [
+        {
+          "url": "https://book.exotiq.rent/robots.txt",
+          "status": 200
+        }
+      ],
+      "finalUrl": "https://book.exotiq.rent/robots.txt",
+      "status": 200,
+      "headers": {
+        "content-type": "text/plain",
+        "x-robots-tag": null,
+        "cache-control": "public,max-age=0,must-revalidate",
+        "location": null,
+        "link": null,
+        "server": "Netlify",
+        "vary": "RSC, Next-Router-State-Tree, Next-Router-Prefetch"
+      },
+      "recordedBytes": 145,
+      "recordedBodySha256": "8bac44f87589f06e6b2527bb1e9995985c0b298306a15088bfe58ecc8eceb2e0",
+      "robotsText": "User-Agent: *\nAllow: /\nDisallow: /verify\nDisallow: /booking/\nDisallow: /share/\nDisallow: /preview\n\nSitemap: https://book.exotiq.rent/sitemap.xml\n"
+    },
+    {
+      "requestedUrl": "https://book.exotiq.rent/sitemap.xml",
+      "requestedUserAgent": "ExotiqDiscoveryAudit/0.1",
+      "method": "GET",
+      "fetchedAt": "2026-10-08T17:15:12.519Z",
+      "chain": [
+        {
+          "url": "https://book.exotiq.rent/sitemap.xml",
+          "status": 200
+        }
+      ],
+      "finalUrl": "https://book.exotiq.rent/sitemap.xml",
+      "status": 200,
+      "headers": {
+        "content-type": "application/xml",
+        "x-robots-tag": null,
+        "cache-control": "public,max-age=0,must-revalidate",
+        "location": null,
+        "link": null,
+        "server": "Netlify",
+        "vary": "RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding"
+      },
+      "recordedBytes": 9708,
+      "recordedBodySha256": "116ff6ff60b5c6ac4e0d0ff9d28a55626ba27e514a0e3d6b2bf037a62ce4ea36",
+      "sitemap": {
+        "isXml": true,
+        "locations": [
+          "https://book.exotiq.rent/exotiq",
+          "https://book.exotiq.rent/exotiq/2024-mercedes-amg-one",
+          "https://book.exotiq.rent/exotiq/2024-koenigsegg-jesko",
+          "https://book.exotiq.rent/exotiq/2024-aston-martin-valkyrie",
+          "https://book.exotiq.rent/exotiq/2023-pagani-huayra",
+          "https://book.exotiq.rent/exotiq/2023-mclaren-speedtail",
+          "https://book.exotiq.rent/exotiq/2024-bugatti-chiron-sport",
+          "https://book.exotiq.rent/exotiq/2023-bugatti-chiron-sport",
+          "https://book.exotiq.rent/exotiq/2024-bentley-mulliner-batur",
+          "https://book.exotiq.rent/exotiq/2024-lamborghini-revuelto",
+          "https://book.exotiq.rent/exotiq/2023-lamborghini-countach-lpi-800-4",
+          "https://book.exotiq.rent/exotiq/2024-ferrari-sf90-stradale",
+          "https://book.exotiq.rent/exotiq/2024-ferrari-purosangue",
+          "https://book.exotiq.rent/exotiq/2023-lamborghini-aventador-svj",
+          "https://book.exotiq.rent/exotiq/2023-mclaren-765lt",
+          "https://book.exotiq.rent/exotiq/2024-rolls-royce-cullinan",
+          "https://book.exotiq.rent/exotiq/2023-rolls-royce-wraith",
+          "https://book.exotiq.rent/exotiq/2024-porsche-gt3-rs",
+          "https://book.exotiq.rent/exotiq/2023-ferrari-812-superfast",
+          "https://book.exotiq.rent/exotiq/2024-lamborghini-hurac-n-evo",
+          "https://book.exotiq.rent/exotiq/2024-rolls-royce-ghost",
+          "https://book.exotiq.rent/exotiq/2023-mclaren-720s-spider",
+          "https://book.exotiq.rent/exotiq/2024-mclaren-720s-spider",
+          "https://book.exotiq.rent/exotiq/2024-ferrari-296-gtb",
+          "https://book.exotiq.rent/exotiq/2024-ferrari-f8-tributo",
+          "https://book.exotiq.rent/exotiq/2024-bentley-flying-spur",
+          "https://book.exotiq.rent/exotiq/2024-aston-martin-db12",
+          "https://book.exotiq.rent/exotiq/2023-ferrari-488-gtb",
+          "https://book.exotiq.rent/exotiq/2024-maserati-mc20",
+          "https://book.exotiq.rent/exotiq/2024-aston-martin-dbs-superleggera",
+          "https://book.exotiq.rent/exotiq/2024-porsche-911-turbo-s",
+          "https://book.exotiq.rent/exotiq/2024-mclaren-artura",
+          "https://book.exotiq.rent/exotiq/2023-aston-martin-vantage",
+          "https://book.exotiq.rent/exotiq/2024-ferrari-roma",
+          "https://book.exotiq.rent/exotiq/2024-mercedes-maybach-s680",
+          "https://book.exotiq.rent/exotiq/2023-porsche-911-turbo-s",
+          "https://book.exotiq.rent/exotiq/2024-lamborghini-urus",
+          "https://book.exotiq.rent/exotiq/2024-bentley-bentayga-speed",
+          "https://book.exotiq.rent/exotiq/2023-bentley-continental-gt",
+          "https://book.exotiq.rent/exotiq/2023-bmw-m8-competition",
+          "https://book.exotiq.rent/exotiq/2023-audi-r8-v10-plus",
+          "https://book.exotiq.rent/exotiq/2024-porsche-panamera-turbo-s",
+          "https://book.exotiq.rent/exotiq/2024-porsche-taycan-turbo-s",
+          "https://book.exotiq.rent/exotiq/2024-aston-martin-dbx707",
+          "https://book.exotiq.rent/exotiq/2023-maserati-quattroporte-trofeo",
+          "https://book.exotiq.rent/exotiq/2023-mercedes-amg-gt-r",
+          "https://book.exotiq.rent/exotiq/2024-audi-r8-v10-plus",
+          "https://book.exotiq.rent/exotiq/2024-audi-e-tron-gt-rs",
+          "https://book.exotiq.rent/exotiq/2023-porsche-718-cayman-gt4",
+          "https://book.exotiq.rent/exotiq/2023-bmw-i8-roadster",
+          "https://book.exotiq.rent/exotiq/2024-bmw-m8-competition",
+          "https://book.exotiq.rent/exotiq/2017-audi-s8",
+          "https://book.exotiq.rent/exotiq/2017-audi-s8-plus"
+        ],
+        "includesDemo": true
+      }
+    },
+    {
+      "requestedUrl": "https://book.exotiq.rent/llms.txt",
+      "requestedUserAgent": "ExotiqDiscoveryAudit/0.1",
+      "method": "GET",
+      "fetchedAt": "2026-10-08T17:15:12.519Z",
+      "chain": [
+        {
+          "url": "https://book.exotiq.rent/llms.txt",
+          "status": 404
+        }
+      ],
+      "finalUrl": "https://book.exotiq.rent/llms.txt",
+      "status": 404,
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "x-robots-tag": null,
+        "cache-control": "private,no-cache,no-store,max-age=0,must-revalidate",
+        "location": null,
+        "link": "</_next/static/media/5611c55482296524.p.woff2>; rel=preload; as=\"font\"; crossorigin=\"\"; type=\"font/woff2\", </_next/static/media/e4af272ccee01ff0-s.p.woff2>; rel=preload; as=\"font\"; crossorigin=\"\"; type=\"font/woff2\"",
+        "server": "Netlify",
+        "vary": "RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding"
+      },
+      "recordedBytes": 12366,
+      "recordedBodySha256": "26b3a41cf40a3ca17d795dc3bb9c09b2baa5651f5bf1a1451867ced1f0a36873",
+      "html": {
+        "title": "Drive Exotiq | Curated Exotic &amp; Luxury Rentals",
+        "canonical": [],
+        "metaRobots": [
+          {
+            "name": "robots",
+            "content": "noindex"
+          }
+        ],
+        "jsonLdCount": 0,
+        "jsonLdValid": true,
+        "jsonLdTypes": [],
+        "publicTenantLinks": [],
+        "hasTwoDollarPrice": false,
+        "mentionsDemo": false
+      },
+      "textArtifact": {
+        "isText": false,
+        "sample": null
+      }
+    },
+    {
+      "requestedUrl": "https://book.exotiq.rent/llms-full.txt",
+      "requestedUserAgent": "ExotiqDiscoveryAudit/0.1",
+      "method": "GET",
+      "fetchedAt": "2026-10-08T17:15:12.827Z",
+      "chain": [
+        {
+          "url": "https://book.exotiq.rent/llms-full.txt",
+          "status": 404
+        }
+      ],
+      "finalUrl": "https://book.exotiq.rent/llms-full.txt",
+      "status": 404,
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "x-robots-tag": null,
+        "cache-control": "private,no-cache,no-store,max-age=0,must-revalidate",
+        "location": null,
+        "link": "</_next/static/media/5611c55482296524.p.woff2>; rel=preload; as=\"font\"; crossorigin=\"\"; type=\"font/woff2\", </_next/static/media/e4af272ccee01ff0-s.p.woff2>; rel=preload; as=\"font\"; crossorigin=\"\"; type=\"font/woff2\"",
+        "server": "Netlify",
+        "vary": "RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding"
+      },
+      "recordedBytes": 12386,
+      "recordedBodySha256": "42ae127b6053db548c8839ac90b3c596ab379fe7ae2b78167d685f58f24b720d",
+      "html": {
+        "title": "Drive Exotiq | Curated Exotic &amp; Luxury Rentals",
+        "canonical": [],
+        "metaRobots": [
+          {
+            "name": "robots",
+            "content": "noindex"
+          }
+        ],
+        "jsonLdCount": 0,
+        "jsonLdValid": true,
+        "jsonLdTypes": [],
+        "publicTenantLinks": [],
+        "hasTwoDollarPrice": false,
+        "mentionsDemo": false
+      },
+      "textArtifact": {
+        "isText": false,
+        "sample": null
+      }
+    },
+    {
+      "requestedUrl": "https://book.exotiq.rent/agents.txt",
+      "requestedUserAgent": "ExotiqDiscoveryAudit/0.1",
+      "method": "GET",
+      "fetchedAt": "2026-10-08T17:15:12.827Z",
+      "chain": [
+        {
+          "url": "https://book.exotiq.rent/agents.txt",
+          "status": 404
+        }
+      ],
+      "finalUrl": "https://book.exotiq.rent/agents.txt",
+      "status": 404,
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "x-robots-tag": null,
+        "cache-control": "private,no-cache,no-store,max-age=0,must-revalidate",
+        "location": null,
+        "link": "</_next/static/media/5611c55482296524.p.woff2>; rel=preload; as=\"font\"; crossorigin=\"\"; type=\"font/woff2\", </_next/static/media/e4af272ccee01ff0-s.p.woff2>; rel=preload; as=\"font\"; crossorigin=\"\"; type=\"font/woff2\"",
+        "server": "Netlify",
+        "vary": "RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding"
+      },
+      "recordedBytes": 12374,
+      "recordedBodySha256": "8abf1823b7201bf652c55ddc613b860a42c5715c25c880ad67005e885ded3428",
+      "html": {
+        "title": "Drive Exotiq | Curated Exotic &amp; Luxury Rentals",
+        "canonical": [],
+        "metaRobots": [
+          {
+            "name": "robots",
+            "content": "noindex"
+          }
+        ],
+        "jsonLdCount": 0,
+        "jsonLdValid": true,
+        "jsonLdTypes": [],
+        "publicTenantLinks": [],
+        "hasTwoDollarPrice": false,
+        "mentionsDemo": false
+      },
+      "textArtifact": {
+        "isText": false,
+        "sample": null
+      }
+    },
+    {
+      "requestedUrl": "https://book.exotiq.rent/.well-known/mcp.json",
+      "requestedUserAgent": "ExotiqDiscoveryAudit/0.1",
+      "method": "GET",
+      "fetchedAt": "2026-10-08T17:15:12.828Z",
+      "chain": [
+        {
+          "url": "https://book.exotiq.rent/.well-known/mcp.json",
+          "status": 404
+        }
+      ],
+      "finalUrl": "https://book.exotiq.rent/.well-known/mcp.json",
+      "status": 404,
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "x-robots-tag": null,
+        "cache-control": "private,no-cache,no-store,max-age=0,must-revalidate",
+        "location": null,
+        "link": "</_next/static/media/5611c55482296524.p.woff2>; rel=preload; as=\"font\"; crossorigin=\"\"; type=\"font/woff2\", </_next/static/media/e4af272ccee01ff0-s.p.woff2>; rel=preload; as=\"font\"; crossorigin=\"\"; type=\"font/woff2\"",
+        "server": "Netlify",
+        "vary": "RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding"
+      },
+      "recordedBytes": 12874,
+      "recordedBodySha256": "febcbab5dd63e417f9b6cfe947a4fbde3d7ec3d6f85bbf87d57aea003d1b3821",
+      "html": {
+        "title": "Drive Exotiq | Curated Exotic &amp; Luxury Rentals",
+        "canonical": [],
+        "metaRobots": [
+          {
+            "name": "robots",
+            "content": "noindex"
+          }
+        ],
+        "jsonLdCount": 0,
+        "jsonLdValid": true,
+        "jsonLdTypes": [],
+        "publicTenantLinks": [],
+        "hasTwoDollarPrice": false,
+        "mentionsDemo": false
+      },
+      "json": {
+        "parseable": false
+      }
+    },
+    {
+      "requestedUrl": "https://book.exotiq.rent/.well-known/oauth-protected-resource",
+      "requestedUserAgent": "ExotiqDiscoveryAudit/0.1",
+      "method": "GET",
+      "fetchedAt": "2026-10-08T17:15:13.099Z",
+      "chain": [
+        {
+          "url": "https://book.exotiq.rent/.well-known/oauth-protected-resource",
+          "status": 404
+        }
+      ],
+      "finalUrl": "https://book.exotiq.rent/.well-known/oauth-protected-resource",
+      "status": 404,
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "x-robots-tag": null,
+        "cache-control": "private,no-cache,no-store,max-age=0,must-revalidate",
+        "location": null,
+        "link": "</_next/static/media/5611c55482296524.p.woff2>; rel=preload; as=\"font\"; crossorigin=\"\"; type=\"font/woff2\", </_next/static/media/e4af272ccee01ff0-s.p.woff2>; rel=preload; as=\"font\"; crossorigin=\"\"; type=\"font/woff2\"",
+        "server": "Netlify",
+        "vary": "RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding"
+      },
+      "recordedBytes": 12938,
+      "recordedBodySha256": "8083cbe9c73fe316b2b50949878965046eed7327d3c99634ae2b36d358be8b56",
+      "html": {
+        "title": "Drive Exotiq | Curated Exotic &amp; Luxury Rentals",
+        "canonical": [],
+        "metaRobots": [
+          {
+            "name": "robots",
+            "content": "noindex"
+          }
+        ],
+        "jsonLdCount": 0,
+        "jsonLdValid": true,
+        "jsonLdTypes": [],
+        "publicTenantLinks": [],
+        "hasTwoDollarPrice": false,
+        "mentionsDemo": false
+      },
+      "json": {
+        "parseable": false
+      }
+    },
+    {
+      "requestedUrl": "https://book.exotiq.rent/openapi.json",
+      "requestedUserAgent": "ExotiqDiscoveryAudit/0.1",
+      "method": "GET",
+      "fetchedAt": "2026-10-08T17:15:13.099Z",
+      "chain": [
+        {
+          "url": "https://book.exotiq.rent/openapi.json",
+          "status": 404
+        }
+      ],
+      "finalUrl": "https://book.exotiq.rent/openapi.json",
+      "status": 404,
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "x-robots-tag": null,
+        "cache-control": "private,no-cache,no-store,max-age=0,must-revalidate",
+        "location": null,
+        "link": "</_next/static/media/5611c55482296524.p.woff2>; rel=preload; as=\"font\"; crossorigin=\"\"; type=\"font/woff2\", </_next/static/media/e4af272ccee01ff0-s.p.woff2>; rel=preload; as=\"font\"; crossorigin=\"\"; type=\"font/woff2\"",
+        "server": "Netlify",
+        "vary": "RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding"
+      },
+      "recordedBytes": 12382,
+      "recordedBodySha256": "f7ba855e0a7aa2e8a4319a10a074a6d459c62445dbbbff35a2e9705f8f4a8783",
+      "html": {
+        "title": "Drive Exotiq | Curated Exotic &amp; Luxury Rentals",
+        "canonical": [],
+        "metaRobots": [
+          {
+            "name": "robots",
+            "content": "noindex"
+          }
+        ],
+        "jsonLdCount": 0,
+        "jsonLdValid": true,
+        "jsonLdTypes": [],
+        "publicTenantLinks": [],
+        "hasTwoDollarPrice": false,
+        "mentionsDemo": false
+      },
+      "json": {
+        "parseable": false
+      }
+    },
+    {
+      "requestedUrl": "https://book.exotiq.rent/exotiq",
+      "requestedUserAgent": "ExotiqDiscoveryAudit/0.1",
+      "method": "GET",
+      "fetchedAt": "2026-10-08T17:15:13.099Z",
+      "chain": [
+        {
+          "url": "https://book.exotiq.rent/exotiq",
+          "status": 200
+        }
+      ],
+      "finalUrl": "https://book.exotiq.rent/exotiq",
+      "status": 200,
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "x-robots-tag": null,
+        "cache-control": "private,no-cache,no-store,max-age=0,must-revalidate",
+        "location": null,
+        "link": "</_next/static/media/5611c55482296524.p.woff2>; rel=preload; as=\"font\"; crossorigin=\"\"; type=\"font/woff2\", </_next/static/media/e4af272ccee01ff0-s.p.woff2>; rel=preload; as=\"font\"; crossorigin=\"\"; type=\"font/woff2\"",
+        "server": "Netlify",
+        "vary": "RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding"
+      },
+      "recordedBytes": 560071,
+      "recordedBodySha256": "3f607c0c20bdaf0b6d2f7a0a4ff701ac41923a75776337850cff289f72cd5d16",
+      "html": {
+        "title": "Exotic Demo Fleet | Drive Exotiq",
+        "canonical": [
+          "https://book.exotiq.rent/exotiq"
+        ],
+        "metaRobots": [],
+        "jsonLdCount": 0,
+        "jsonLdValid": true,
+        "jsonLdTypes": [],
+        "publicTenantLinks": [
+          "/exotiq/2024-mercedes-amg-one",
+          "/exotiq/2024-koenigsegg-jesko",
+          "/exotiq/2024-aston-martin-valkyrie",
+          "/exotiq/2023-pagani-huayra",
+          "/exotiq/2023-mclaren-speedtail"
+        ],
+        "hasTwoDollarPrice": true,
+        "mentionsDemo": true
+      }
+    },
+    {
+      "requestedUrl": "https://book.exotiq.rent/exotiq",
+      "requestedUserAgent": "OAI-SearchBot",
+      "method": "GET",
+      "fetchedAt": "2026-10-08T17:15:13.532Z",
+      "chain": [
+        {
+          "url": "https://book.exotiq.rent/exotiq",
+          "status": 200
+        }
+      ],
+      "finalUrl": "https://book.exotiq.rent/exotiq",
+      "status": 200,
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "x-robots-tag": null,
+        "cache-control": "private,no-cache,no-store,max-age=0,must-revalidate",
+        "location": null,
+        "link": "</_next/static/media/5611c55482296524.p.woff2>; rel=preload; as=\"font\"; crossorigin=\"\"; type=\"font/woff2\", </_next/static/media/e4af272ccee01ff0-s.p.woff2>; rel=preload; as=\"font\"; crossorigin=\"\"; type=\"font/woff2\"",
+        "server": "Netlify",
+        "vary": "RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding"
+      },
+      "recordedBytes": 560071,
+      "recordedBodySha256": "3f607c0c20bdaf0b6d2f7a0a4ff701ac41923a75776337850cff289f72cd5d16",
+      "html": {
+        "title": "Exotic Demo Fleet | Drive Exotiq",
+        "canonical": [
+          "https://book.exotiq.rent/exotiq"
+        ],
+        "metaRobots": [],
+        "jsonLdCount": 0,
+        "jsonLdValid": true,
+        "jsonLdTypes": [],
+        "publicTenantLinks": [
+          "/exotiq/2024-mercedes-amg-one",
+          "/exotiq/2024-koenigsegg-jesko",
+          "/exotiq/2024-aston-martin-valkyrie",
+          "/exotiq/2023-pagani-huayra",
+          "/exotiq/2023-mclaren-speedtail"
+        ],
+        "hasTwoDollarPrice": true,
+        "mentionsDemo": true
+      }
+    },
+    {
+      "requestedUrl": "https://book.exotiq.rent/exotiq",
+      "requestedUserAgent": "Claude-SearchBot",
+      "method": "GET",
+      "fetchedAt": "2026-10-08T17:15:13.532Z",
+      "chain": [
+        {
+          "url": "https://book.exotiq.rent/exotiq",
+          "status": 200
+        }
+      ],
+      "finalUrl": "https://book.exotiq.rent/exotiq",
+      "status": 200,
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "x-robots-tag": null,
+        "cache-control": "private,no-cache,no-store,max-age=0,must-revalidate",
+        "location": null,
+        "link": "</_next/static/media/5611c55482296524.p.woff2>; rel=preload; as=\"font\"; crossorigin=\"\"; type=\"font/woff2\", </_next/static/media/e4af272ccee01ff0-s.p.woff2>; rel=preload; as=\"font\"; crossorigin=\"\"; type=\"font/woff2\"",
+        "server": "Netlify",
+        "vary": "RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding"
+      },
+      "recordedBytes": 560071,
+      "recordedBodySha256": "3f607c0c20bdaf0b6d2f7a0a4ff701ac41923a75776337850cff289f72cd5d16",
+      "html": {
+        "title": "Exotic Demo Fleet | Drive Exotiq",
+        "canonical": [
+          "https://book.exotiq.rent/exotiq"
+        ],
+        "metaRobots": [],
+        "jsonLdCount": 0,
+        "jsonLdValid": true,
+        "jsonLdTypes": [],
+        "publicTenantLinks": [
+          "/exotiq/2024-mercedes-amg-one",
+          "/exotiq/2024-koenigsegg-jesko",
+          "/exotiq/2024-aston-martin-valkyrie",
+          "/exotiq/2023-pagani-huayra",
+          "/exotiq/2023-mclaren-speedtail"
+        ],
+        "hasTwoDollarPrice": true,
+        "mentionsDemo": true
+      }
+    },
+    {
+      "requestedUrl": "https://book.exotiq.rent/exotiq/2024-mercedes-amg-one",
+      "requestedUserAgent": "ExotiqDiscoveryAudit/0.1",
+      "method": "GET",
+      "fetchedAt": "2026-10-08T17:15:14.304Z",
+      "chain": [
+        {
+          "url": "https://book.exotiq.rent/exotiq/2024-mercedes-amg-one",
+          "status": 200
+        }
+      ],
+      "finalUrl": "https://book.exotiq.rent/exotiq/2024-mercedes-amg-one",
+      "status": 200,
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "x-robots-tag": null,
+        "cache-control": "private,no-cache,no-store,max-age=0,must-revalidate",
+        "location": null,
+        "link": "</_next/static/media/5611c55482296524.p.woff2>; rel=preload; as=\"font\"; crossorigin=\"\"; type=\"font/woff2\", </_next/static/media/e4af272ccee01ff0-s.p.woff2>; rel=preload; as=\"font\"; crossorigin=\"\"; type=\"font/woff2\"",
+        "server": "Netlify",
+        "vary": "RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding"
+      },
+      "recordedBytes": 45195,
+      "recordedBodySha256": "b5ccec90a9075ce3b16b7cebab5cf78c36311e2dede98af60a7bbf0fc19cef1e",
+      "html": {
+        "title": "Mercedes-AMG One | Exotic Demo Fleet | Drive Exotiq",
+        "canonical": [
+          "https://book.exotiq.rent/exotiq/2024-mercedes-amg-one"
+        ],
+        "metaRobots": [],
+        "jsonLdCount": 0,
+        "jsonLdValid": true,
+        "jsonLdTypes": [],
+        "publicTenantLinks": [
+          "/exotiq/2024-mercedes-amg-one/book"
+        ],
+        "hasTwoDollarPrice": false,
+        "mentionsDemo": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+[
+  {
+    "name": "frontend-browser-final",
+    "command": [
+      "npm",
+      "exec",
+      "--offline",
+      "--",
+      "playwright",
+      "test",
+      "--config=playwright.agent-handoff.config.ts"
+    ],
+    "exit_code": 0,
+    "seconds": 31.18,
+    "log": "<HANDOFF_ROOT>/testing/2026-10-08/frontend-browser-final.log"
+  }
+]

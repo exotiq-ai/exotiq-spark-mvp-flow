@@ -1,0 +1,556 @@
+{
+  "date": "2026-10-08",
+  "scope": "Portable review copies; local paths and selected environment identifiers redacted. Original local evidence retained. No credentials, provider accounts, customer exports or database volumes included.",
+  "files": [
+    {
+      "file": "handoff.md",
+      "source": "CLAUDE-HANDOFF-2026-10-08.md",
+      "sha256": "ba0d67b159385c856a8aeaf451f557febb0e9196cf121cf643a9e6a306a0b03c"
+    },
+    {
+      "file": "kickoff.md",
+      "source": "CLAUDE-KICKOFF-PROMPT-2026-10-08.md",
+      "sha256": "82f24bb2ba243d0e68c1ca8f2c849d86bfc6fdd4656deb30865fe11dc156f614"
+    },
+    {
+      "file": "reports/BUILD-STATUS.md",
+      "source": "BUILD-STATUS.md",
+      "sha256": "7a97eccdacf8627686e94c04bc6692deb37d02102ca5ad17b559e0a05d9d0657"
+    },
+    {
+      "file": "reports/BUILD-DISCOVERIES.md",
+      "source": "BUILD-DISCOVERIES.md",
+      "sha256": "9f4e81c7f3b6b7dcc42a321ea2fccded8160dae119c3955ba746354559785a48"
+    },
+    {
+      "file": "reports/DISCOVERY-TEST-RESULTS-2026-10-08.md",
+      "source": "DISCOVERY-TEST-RESULTS-2026-10-08.md",
+      "sha256": "1fda1f2b1749bc13737153614d37815c863d917386838d3bc4cb6d55b89ddc73"
+    },
+    {
+      "file": "reports/OPERATIONS-PILOT-ASSESSMENT-2026-10-08.md",
+      "source": "OPERATIONS-PILOT-ASSESSMENT-2026-10-08.md",
+      "sha256": "327564464c66f9c24a1b4ce47e94ecf939d0acc22d48b7cc63d1b3d7032fbf44"
+    },
+    {
+      "file": "reports/OPERATIONS-REVIEW.md",
+      "source": "OPERATIONS-REVIEW.md",
+      "sha256": "88eff1b8b27dade16ea263fa6b139c172b4b86aaa955b715bc8cd546376c823c"
+    },
+    {
+      "file": "reports/INTEGRATION-HANDOFF-REVIEW.md",
+      "source": "INTEGRATION-HANDOFF-REVIEW.md",
+      "sha256": "52a4adb5b8dfe3efd87ed59cb962d052c438c2b977cefebd7ab946181695494f"
+    },
+    {
+      "file": "reports/MCP-PREPARATION-REVIEW.md",
+      "source": "MCP-PREPARATION-REVIEW.md",
+      "sha256": "943466882bd106270d713986e2fbe7e8016ab43d9d013498c47e8876aa1ee2d1"
+    },
+    {
+      "file": "reports/ACTION-PLAN-2026-10-08.md",
+      "source": "ACTION-PLAN-2026-10-08.md",
+      "sha256": "15eb39ca69f040724e8b6ffe69042d8ed60666979de395e0c77c10e60359bea3"
+    },
+    {
+      "file": "reports/TEST-SNAPSHOT-2026-10-08.json",
+      "source": "TEST-SNAPSHOT-2026-10-08.json",
+      "sha256": "8db32f8b11bb3ef7ea5f3a28f03e5acd7c7449acd3ac235519393d3ee802095e"
+    },
+    {
+      "file": "reports/PLANNING-FINAL-SNAPSHOT-2026-10-08.json",
+      "source": "PLANNING-FINAL-SNAPSHOT-2026-10-08.json",
+      "sha256": "967819a71a5015b9eea4bf481054a900514199b67ab5d0e89588e81a96ef5dbc"
+    },
+    {
+      "file": "reports/BUILD-FINAL-SNAPSHOT.json",
+      "source": "BUILD-FINAL-SNAPSHOT.json",
+      "sha256": "e1ad40f6a2a9b2e310d860743835952b31fbec29859bfc4ec9f07746f5f06948"
+    },
+    {
+      "file": "planning/PROJECT.md",
+      "source": ".planning/PROJECT.md",
+      "sha256": "b094268ebd947a939d067092760a52102bd5f4e4ef8b204c1144e14f1f403318"
+    },
+    {
+      "file": "planning/REQUIREMENTS.md",
+      "source": ".planning/REQUIREMENTS.md",
+      "sha256": "d70e855d24f6ab32fe79975e15eb6214a2ba64c0829ae5f80d48b987c5f4bcab"
+    },
+    {
+      "file": "planning/ROADMAP.md",
+      "source": ".planning/ROADMAP.md",
+      "sha256": "76f39d68d5c410b7bde73f91bfafe146f69b4e34c99a4449c5453438dfda4ba6"
+    },
+    {
+      "file": "planning/STATE.md",
+      "source": ".planning/STATE.md",
+      "sha256": "07658d2cbc1f303c6136315a424e88bf7980e935180c03ab7f2e0698267e94cc"
+    },
+    {
+      "file": "planning/config.json",
+      "source": ".planning/config.json",
+      "sha256": "dca2e4802e74e29f68d73e0de6a0d9e89b5a23c9d4e2d92289bfcc8e3b7b5754"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-01-PLAN.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-01-PLAN.md",
+      "sha256": "482d027ed2ab286424a4a22b539392b9b35168140424c632687e862ac0feab88"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-01-SUMMARY.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-01-SUMMARY.md",
+      "sha256": "882c906e8e61968c3e8f3f23dedc281749b2d7b5a14bcafaf5074f4ffae9fa05"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-02-PLAN.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-02-PLAN.md",
+      "sha256": "c1261f6c22bed3bec980ea2c72e51298883dfa66f13aa26b6931f12ba5618b78"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-02-SUMMARY.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-02-SUMMARY.md",
+      "sha256": "0d584c75a65093c892df9856d0613c8945f64df85fb514979237b402c2db0639"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-03-PLAN.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-03-PLAN.md",
+      "sha256": "579e06bd8dd05e7cb93688a6e67e2f8d5af9c8b36667832c6bc01ebb38b43596"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-03-SUMMARY.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-03-SUMMARY.md",
+      "sha256": "4d4f008003e4eb00334c495848f4d00e3725ccb5961af367ecc647c50d955e68"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-04-PLAN.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-04-PLAN.md",
+      "sha256": "bf1243c6e8544e46278e04d600c0acf95eafee203588b5aa060873bf59c6c0cc"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-04-SUMMARY.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-04-SUMMARY.md",
+      "sha256": "47d9fcb8b4ed6e0f9e51115c935ead241b030b62c19419924c9690ddbd9ce152"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-05-PLAN.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-05-PLAN.md",
+      "sha256": "0fe2ecf416170e248d37887c70b807a362b4c340cf7dccf8e4c958d6980459ad"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-05-SUMMARY.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-05-SUMMARY.md",
+      "sha256": "33c8fdf976e26509afb74ab1fe3285dcad2b8189c79ff46e0c03b8234e7861c3"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-06-PLAN.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-06-PLAN.md",
+      "sha256": "a8666a9a2d7a01992b8ec37e2d17de11c4f3986f1d50dacf65b0070ceb102b71"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-06-SUMMARY.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-06-SUMMARY.md",
+      "sha256": "5f0987ec852482c254a6dcc646ea7e1a950449acd4d0df750d7d79066e6b047f"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-07-PLAN.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-07-PLAN.md",
+      "sha256": "8544ccbab4bfce1c7eb4d8064e54777d16f5cb4c1f372181230fb586e8a9ff98"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-07-SUMMARY.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-07-SUMMARY.md",
+      "sha256": "4152acf25a671515bcfeaa6a55e732859d610d48d76ee97e1147924ba21d19f4"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-08-BACKEND-NOTES.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-08-BACKEND-NOTES.md",
+      "sha256": "cc5a8c2cd11d9f129d2358ef00b26a6ead3cc4bbdbd7d4a002033f7a49feb4aa"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-08-FRONTEND-NOTES.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-08-FRONTEND-NOTES.md",
+      "sha256": "b147f793bba000e6608d79df05751a0da4651dbffe9e398a0b5fd7998e246093"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-08-PLAN.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-08-PLAN.md",
+      "sha256": "f2c5bad378319ff127704722baf621e018f792ba58a64e5c0caf33f5c7bc2723"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-08-SUMMARY.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-08-SUMMARY.md",
+      "sha256": "1ff5e44ce27e6a002b88d6061ccf077780b4145393954e9a56c842a2ac10b14a"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-09-API-NOTES.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-09-API-NOTES.md",
+      "sha256": "64b7dfe4d6b3fb221dc0e6908623dc059d8af7b169a9b52feee08e440776a0a3"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-09-LIFECYCLE-NOTES.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-09-LIFECYCLE-NOTES.md",
+      "sha256": "35656796754e54010dd16a755510b181a93ab321e3c027784c7e302ef14a1cd9"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-09-PLAN.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-09-PLAN.md",
+      "sha256": "47b396b8315ff23fb9dca3a5985b2e198ac768761636a920fada06c8bc4bd1c5"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-09-SUMMARY.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-09-SUMMARY.md",
+      "sha256": "87cb19a24937495d721820fe2fa4f06ec2239ce27e92361265c546459a418a65"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-10-MCP-NOTES.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-10-MCP-NOTES.md",
+      "sha256": "f65c2c12256b502fa47b7ab1fdbad984b38c05d7617753d99df057bd51e17693"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-10-PLAN.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-10-PLAN.md",
+      "sha256": "f0875f8fc02c9945620626efb16d5ebd504d60f14dfade6861196c0bf6bd6f9e"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-10-SUMMARY.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-10-SUMMARY.md",
+      "sha256": "404b6a51aca022893ae972948df2f538a876a370860aa16d6d352979fd1ce2bc"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-11-PLAN.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-11-PLAN.md",
+      "sha256": "23559e0439ab2dcc1b9a0ceb94f8aa8f1d1c881b66bfb9fc10d5e1439a496952"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-11-SUMMARY.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-11-SUMMARY.md",
+      "sha256": "92082ff19005dd49f88a841b49cce2d57f4be4cb0b0bd9a90ff861cd1d51b33d"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-12-PLAN.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-12-PLAN.md",
+      "sha256": "9ad62b2d901753b7fb96c816e9f1568e325ddaa5505c2dda5005de1ddef76314"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-12-SUMMARY.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-12-SUMMARY.md",
+      "sha256": "6e0a90d11f96c807f66a75bcc14c9dd16a56d65c762d9eebd00e79fb209aadc9"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-13-PLAN.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-13-PLAN.md",
+      "sha256": "c093b47c1e8f6e526d6477948ef545095affbdd4d4f657cdf55f1bea28e0c2c6"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-13-SUMMARY.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-13-SUMMARY.md",
+      "sha256": "8368cd1a933e7c093999a311ef938cc723a7170c7ae18b78f141a99830be993d"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-14-BACKEND-NOTES.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-14-BACKEND-NOTES.md",
+      "sha256": "25bbdb31d9088c9a125701be38bcb888e67c0a0d0429daec616410d77ba10dd2"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-14-PLAN.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-14-PLAN.md",
+      "sha256": "1539648303311584960b161803daa50c59fbc2af9ba48b17854588098b7595bd"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-14-SUMMARY.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-14-SUMMARY.md",
+      "sha256": "273d3a3d2f064355a2e2c441831e8ebf5767bf6902d0f369b87ce475909ff607"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-15-PLAN.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-15-PLAN.md",
+      "sha256": "2f8dedd06756708d275b5d50e5dcf3bfb8a46d664958a26510ed96889544da5d"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-15-SUMMARY.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-15-SUMMARY.md",
+      "sha256": "abbee7d608cfeefb39a3500a761f8965e225279d2eb9c1cc1b7a1a8ce32030b5"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-16-PLAN.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-16-PLAN.md",
+      "sha256": "f232b3ba8c718aef9b224b1a0f7cb2d86419f589b54beb3365f64f2aa3613502"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-16-SUMMARY.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-16-SUMMARY.md",
+      "sha256": "13ce3601f717013cadb2ebb44187d732396782d751ccc06744b8fff9004eaf62"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-CONTEXT.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-CONTEXT.md",
+      "sha256": "47d26761c3984221ee6ff9ec88458ed5b29dc95bcb4d788c58d39902ae0f5735"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-RESEARCH.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-RESEARCH.md",
+      "sha256": "30ded78554983e0ba23236a71df19ed7dff9d4354e30d0c3403ea26a888701d7"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-SECURITY.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-SECURITY.md",
+      "sha256": "f6a967f29897d19e244a02a6ae2af1561def605ddc41bfc0e2b12b2166a6fbec"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-VALIDATION.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-VALIDATION.md",
+      "sha256": "74f2d57ecc0f4ad27a51c8a1c38b940dffd13ce4674f3ac30e33d5f70ed1446e"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/01-VERIFICATION.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/01-VERIFICATION.md",
+      "sha256": "4b18c9a62ad7e115e593c126f09250fd47ccd34e4bbf5f2fe92a268c7e7fca3f"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/14-FRONTEND-NOTES.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/14-FRONTEND-NOTES.md",
+      "sha256": "397793b1c682feb7c2fe1f9307161e4e07d9433de27bc1ad13da876c57ba43e7"
+    },
+    {
+      "file": "planning/phases/01-api-docs-mcp-foundation/FRONTEND-RELEASE-HARDENING-NOTES.md",
+      "source": ".planning/phases/01-api-docs-mcp-foundation/FRONTEND-RELEASE-HARDENING-NOTES.md",
+      "sha256": "ffceeaebc57139e7894f80623a795ea2cc7ddf8197013831de7d171b005e9acf"
+    },
+    {
+      "file": "planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-01-PLAN.md",
+      "source": ".planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-01-PLAN.md",
+      "sha256": "665d4c32b741f743dc95b3175f635c5889c7d155c3ab1e8e21400731775e6129"
+    },
+    {
+      "file": "planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-02-PLAN.md",
+      "source": ".planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-02-PLAN.md",
+      "sha256": "317cbfd6d20e0d90b1bfe6f09de835595033d8f1a03e09d8d16d8b565600f54c"
+    },
+    {
+      "file": "planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-03-PLAN.md",
+      "source": ".planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-03-PLAN.md",
+      "sha256": "f61aa7086cf370f529278006dcafd060c99e4e3eaff6eb83fc021c220b86e3f4"
+    },
+    {
+      "file": "planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-04-PLAN.md",
+      "source": ".planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-04-PLAN.md",
+      "sha256": "d67f13056b70eaed1301f84625fcd618da7a2c9466697afa37443b28a564599e"
+    },
+    {
+      "file": "planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-05-PLAN.md",
+      "source": ".planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-05-PLAN.md",
+      "sha256": "4ac5df595a8c8d95cf041de9bb82ee024a18f6380735a2135ca6cb25b72cd766"
+    },
+    {
+      "file": "planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-06-PLAN.md",
+      "source": ".planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-06-PLAN.md",
+      "sha256": "1fc1389b3bb1227338c05b2f1def5b7dafeda030018fadf49e33c302d976aab4"
+    },
+    {
+      "file": "planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-07-PLAN.md",
+      "source": ".planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-07-PLAN.md",
+      "sha256": "cd0b01e4de1d8e532175408003326c557609c37a783f1a103ed7abdbc636ee33"
+    },
+    {
+      "file": "planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-08-PLAN.md",
+      "source": ".planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-08-PLAN.md",
+      "sha256": "b6b454ff25e64328e2af3ef8356a338a005d1ec761ac2a1ff5b4e407a6ab9ddf"
+    },
+    {
+      "file": "planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-09-PLAN.md",
+      "source": ".planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-09-PLAN.md",
+      "sha256": "4477d7b67bbbe6dae78cb77a936abde0ed973b9d6342cc97ae9b1f5e5bce5b8b"
+    },
+    {
+      "file": "planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-10-PLAN.md",
+      "source": ".planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-10-PLAN.md",
+      "sha256": "ad411c36625ff172a95f66c41d902ace112499ea45b20f2336f83489b4eb694a"
+    },
+    {
+      "file": "planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-11-PLAN.md",
+      "source": ".planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-11-PLAN.md",
+      "sha256": "131f0cef53ff0c69764a229154b073a42bfc6ad1515711f4614cb573fea28a83"
+    },
+    {
+      "file": "planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-12-PLAN.md",
+      "source": ".planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-12-PLAN.md",
+      "sha256": "9bf58e22bee7744f2c58851abf3f2a4b0370a917ce368619e6ff3ab7a1760d61"
+    },
+    {
+      "file": "planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-13-PLAN.md",
+      "source": ".planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-13-PLAN.md",
+      "sha256": "0c3340cb8d376fd3bc4355eef344e1251fb3361c416478ef3ec7381cb3dd5e8e"
+    },
+    {
+      "file": "planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-14-PLAN.md",
+      "source": ".planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-14-PLAN.md",
+      "sha256": "a901b8f268d15ef860e779794238c494408f7e4d50f465c7f5c28bc579bf9b64"
+    },
+    {
+      "file": "planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-15-PLAN.md",
+      "source": ".planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-15-PLAN.md",
+      "sha256": "4940de5a74ab74a603f486a1c8565b73e960e607f93ad76ab161e034b743acdc"
+    },
+    {
+      "file": "planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-16-PLAN.md",
+      "source": ".planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-16-PLAN.md",
+      "sha256": "a0723e4c0ddae8c219f02dd5367c3bd8f1f0d422c7abf05c765369b9113a1ec2"
+    },
+    {
+      "file": "planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-17-PLAN.md",
+      "source": ".planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-17-PLAN.md",
+      "sha256": "73801cd0be66a9ca3edc131806dbeceb91109831aa3fef80f45d8e712e19bd6b"
+    },
+    {
+      "file": "planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-18-PLAN.md",
+      "source": ".planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-18-PLAN.md",
+      "sha256": "739eb8e32277aa35f98aa7c57ad3b376489e80afcfcc74848be8a03ed1a2eed6"
+    },
+    {
+      "file": "planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-19-PLAN.md",
+      "source": ".planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-19-PLAN.md",
+      "sha256": "92475582837d5fd7d9732836b60af10e95faaa330b643a0c6d17d25549b420f1"
+    },
+    {
+      "file": "planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-20-PLAN.md",
+      "source": ".planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-20-PLAN.md",
+      "sha256": "1d031b3f32b052bc13f8a92cd5aa59175ae4e222c02039b26ba959032deb55f2"
+    },
+    {
+      "file": "planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-21-PLAN.md",
+      "source": ".planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-21-PLAN.md",
+      "sha256": "c8aa1b5c2051c7da7e5bf36f3889b1fc54d0193ea352c98bf9420dfb6887faf6"
+    },
+    {
+      "file": "planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-22-PLAN.md",
+      "source": ".planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-22-PLAN.md",
+      "sha256": "2e2d9ad04c45caed62545683d6af66560fbc27ad18cd1fb6cd7956ffe088b0d1"
+    },
+    {
+      "file": "planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-CONTEXT.md",
+      "source": ".planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-CONTEXT.md",
+      "sha256": "f43c07f64b114df4eae39f7d5b4960a081c691c84c15286ef1d9575eca58155d"
+    },
+    {
+      "file": "planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-PLAN-CHECK.md",
+      "source": ".planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-PLAN-CHECK.md",
+      "sha256": "3057c09683ae33b78164a79d8926dc6a5de9cfbf126a235be55c3bdf2171f0d2"
+    },
+    {
+      "file": "planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-RESEARCH.md",
+      "source": ".planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-RESEARCH.md",
+      "sha256": "4520ec011ef4ff292176c939853763b2f8f9b19e681f456c4289ec5e80169edd"
+    },
+    {
+      "file": "planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-VALIDATION-MAP.json",
+      "source": ".planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-VALIDATION-MAP.json",
+      "sha256": "64eb9c0cb397b3cc71eb3957f896b4c8ffd8fe785e7978c282cc8de6bb6cc5f1"
+    },
+    {
+      "file": "planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-VALIDATION.md",
+      "source": ".planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-VALIDATION.md",
+      "sha256": "45c792b570381d5fda68d6b3089ad54332a609245ed7ca525ad144bae605650c"
+    },
+    {
+      "file": "evidence/2026-10-08/api-unit-final.log",
+      "source": "testing/2026-10-08/api-unit-final.log",
+      "sha256": "cae56cacd96fb74e0ea541630151ce09bdda619cdd9fea2b7fca107ab53c33aa"
+    },
+    {
+      "file": "evidence/2026-10-08/api-contract-final.log",
+      "source": "testing/2026-10-08/api-contract-final.log",
+      "sha256": "b90914a0d65a3ce3a403b95eb5869050b727d9ff9e9c072b4c3ab7560f0cf9f0"
+    },
+    {
+      "file": "evidence/2026-10-08/api-final-results.json",
+      "source": "testing/2026-10-08/api-final-results.json",
+      "sha256": "616e673c8b8165c7e090f5ccf0a0ef7b84aae46264b53133708fe90337889645"
+    },
+    {
+      "file": "evidence/2026-10-08/mcp-default.log",
+      "source": "testing/2026-10-08/mcp-default.log",
+      "sha256": "007312d33ded6bf2038c89e974da628dff320ee470e387d8e191fd3607166cca"
+    },
+    {
+      "file": "evidence/2026-10-08/mcp-results.json",
+      "source": "testing/2026-10-08/mcp-results.json",
+      "sha256": "ca37bb310d1842321cf843286f4c01b95418af42432faae6221e4bba7634f30c"
+    },
+    {
+      "file": "evidence/2026-10-08/frontend-full.log",
+      "source": "testing/2026-10-08/frontend-full.log",
+      "sha256": "81f37301f23a21b06e4bb1ff56e18301b2798456e11e2ab83d9f72917349eb95"
+    },
+    {
+      "file": "evidence/2026-10-08/frontend-results.json",
+      "source": "testing/2026-10-08/frontend-results.json",
+      "sha256": "2a81cd77d48a418e5d5f8ed75512332c90aeaf23af7cbb02ad74b60705c4e371"
+    },
+    {
+      "file": "evidence/2026-10-08/frontend-browser-final.log",
+      "source": "testing/2026-10-08/frontend-browser-final.log",
+      "sha256": "53d52f83c78f3b1096cffd4c086429fbb8c69cff37633c3695a160f50d58cd96"
+    },
+    {
+      "file": "evidence/2026-10-08/browser-final-results.json",
+      "source": "testing/2026-10-08/browser-final-results.json",
+      "sha256": "5a1e7abd5a78484b5aaf54ccb452f84e1435953d3c4a6a0700b8943a824f6d11"
+    },
+    {
+      "file": "evidence/2026-10-08/canonical-check.log",
+      "source": "testing/2026-10-08/canonical-check.log",
+      "sha256": "c18a1165e7d75972c04e96ab0be853be8a10bc105b070ee8198fcce8e66bac70"
+    },
+    {
+      "file": "evidence/2026-10-08/consumer-check.log",
+      "source": "testing/2026-10-08/consumer-check.log",
+      "sha256": "14f9f3d296d126e99368ede850902725befeb238d41b849694aa2374a2c51898"
+    },
+    {
+      "file": "evidence/2026-10-08/api-typecheck-final.log",
+      "source": "testing/2026-10-08/api-typecheck-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "evidence/2026-10-08/mcp-typecheck.log",
+      "source": "testing/2026-10-08/mcp-typecheck.log",
+      "sha256": "0f19bd1433ff6aef2c6aa11d690ef48d4a07ca5efb2c400abf285879c1885cc4"
+    },
+    {
+      "file": "evidence/2026-10-08/frontend-typecheck-remedied.log",
+      "source": "testing/2026-10-08/frontend-typecheck-remedied.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "evidence/2026-10-08/checkout-clock-red.log",
+      "source": "testing/2026-10-08/checkout-clock-red.log",
+      "sha256": "883183ff0a4c45b7988b3ea0d01f6e13f05875bf74a155f8098971c9aee873c1"
+    },
+    {
+      "file": "evidence/2026-10-08/checkout-clock-green.log",
+      "source": "testing/2026-10-08/checkout-clock-green.log",
+      "sha256": "e37fef9c65fc9ba74ea67091b3fc32bf5dfbc8efea917869ace41ec7310bf332"
+    },
+    {
+      "file": "evidence/2026-10-08/dependency-empty-directory-remedy.json",
+      "source": "testing/2026-10-08/dependency-empty-directory-remedy.json",
+      "sha256": "464f104ce720c43287ab455fd082ef85292a2acb913cf7e94570f3fa309a4613"
+    },
+    {
+      "file": "evidence/2026-10-08/phase02-plan-check-iteration1.md",
+      "source": "testing/2026-10-08/phase02-plan-check-iteration1.md",
+      "sha256": "1edf1bf015693b97b2bf3d0e7bd495fa808ced231370454cf89c8b1bb07df0a9"
+    },
+    {
+      "file": "evidence/2026-10-08/phase02-plan-check-iteration2.md",
+      "source": "testing/2026-10-08/phase02-plan-check-iteration2.md",
+      "sha256": "6d1ab04b93dbf3c20062439844db872ab1373e8976bb812b93c17f4c9f4fa19f"
+    },
+    {
+      "file": "evidence/2026-10-08/public-discovery-evidence.json",
+      "source": "testing/2026-10-08/public-discovery-evidence.json",
+      "sha256": "915384f9e40def6838c0b69ddd85af11bcd6421fae83c28b0674ca1e3862aeeb"
+    }
+  ]
+}

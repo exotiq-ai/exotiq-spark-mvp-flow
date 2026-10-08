@@ -1,0 +1,120 @@
+{
+  "recorded_at": "2026-10-07T19:42:17.762102+00:00",
+  "scope": "isolated local implementation; no hosted acceptance or deployment",
+  "originals": {
+    "backend": {
+      "path": "<ORIGINAL_BACKEND_CHECKOUT>",
+      "head": "442dd4d1cb00823132d0a0f24a26892a70dd5288",
+      "same_head_as_build_start": true,
+      "same_status_as_build_start": true,
+      "tracked_changes": "",
+      "status": "?? .cursor/settings.json\n?? STRIPE_SETUP_GUIDE.md\n?? _LOCAL-CLONE-NOTE.md\n?? clickwrap-acceptance-spec.md\n?? docs/CLOUD_OPTIMIZATION_TODO.md\n?? docs/QA-REMAINING-GAPS.md\n?? docs/QA_FULL_SYSTEM_AUDIT.md\n?? docs/SOW-04-QA-RESULTS.md\n?? docs/payments/EXOTIQ_AI_PRICING_PAGE_BRIEF_2026-09-14.md\n?? docs/payments/TRIAL_AND_BILLING_PLAN_2026-09-14.md\n?? docs/qa-sows/\n?? \"docs/rari/_archive/RARI_AGENT_CONFIG_UPDATE 2.md\"\n?? \"docs/rari/_archive/RARI_COMPLETE_SOLUTION_JAN_8_2026 2.md\"\n?? \"docs/rari/_archive/RARI_LOVEABLE_MASTER_PROMPT 2.md\"\n?? \"docs/rari/_archive/RARI_WIDGET_INTEGRATION_PLAN 2.md\"\n?? exotiq-spark-mvp-flow/\n?? \"public/brand/logos/exotiq-mark-black 2.png\"\n?? \"public/brand/logos/exotiq-mark-white 2.png\"\n?? \"public/favicon 2.svg\"\n?? \"public/pwa-icon-512-maskable 2.png\"\n?? \"scripts/rari/cross-surface-parity-check 2.ts\"\n?? \"scripts/rari/sync-elevenlabs-tools 2.ts\"\n?? \"scripts/rari/tenant-isolation-proof 2.ts\"\n?? \"scripts/stripe/live-preflight 2.ts\"\n?? \"src/components/rari/RariMessageFeedback 2.tsx\"\n?? \"src/hooks/useMarketplaceReadiness 2.ts\"\n?? \"src/lib/__tests__/exotiqLegParity.test 2.ts\"\n?? \"src/lib/__tests__/smokeTest.test 2.ts\"\n?? \"src/lib/smokeTest 2.ts\"\n?? supabase/.temp/\n?? \"supabase/functions/_shared/fleet-tools/auth 2.ts\"\n?? \"supabase/functions/_shared/fleet-tools/executor 2.ts\"\n?? \"supabase/functions/_shared/fleet-tools/registry 2.ts\"\n?? \"supabase/functions/admin-smoke-run/index 2.ts\"\n?? \"supabase/functions/stripe-connect-status/index 2.ts\"\n?? \"supabase/migrations/20260730195135_f89d9f7a-817b-4e85-975f-1f336b47884d 2.sql\"\n?? \"supabase/migrations/20260731031542_1c44592a-4633-46a1-b1fb-59d9de6f59d6 2.sql\"\n?? \"supabase/migrations/20260731031647_7284e1ef-a621-43c5-b4d6-ad63149cb477 2.sql\"\n?? tests/e2e/.gitignore\n?? tests/e2e/auth.setup.ts\n?? tests/e2e/helpers/\n?? tests/e2e/tier1-auth.spec.ts\n?? tests/e2e/tier1-damage-flow.spec.ts\n?? tests/e2e/tier1-deep-links.spec.ts\n?? tests/e2e/tier1-search.spec.ts\n?? tests/e2e/tier1-sidebar-navigation.spec.ts\n?? tests/e2e/tier2-back-forward.spec.ts\n?? tests/e2e/tier2-calendar-filters.spec.ts\n?? tests/e2e/tier2-console-errors.spec.ts\n?? tests/e2e/tier2-lazy-loading.spec.ts\n"
+    },
+    "frontend": {
+      "path": "<ORIGINAL_FRONTEND_CHECKOUT>",
+      "head": "a2260c3de1b539d0a59ab5fa4d21e12f341cb92d",
+      "same_head_as_build_start": true,
+      "same_status_as_build_start": true,
+      "tracked_changes": "",
+      "status": ""
+    }
+  },
+  "builds": {
+    "backend": {
+      "path": "<BACKEND_CHECKOUT>",
+      "branch": "codex/agent-booking-backend",
+      "head": "7c3a9932f7d2dee17c2e30e646043af6279a07a8",
+      "status": "",
+      "diff_whitespace_pass": true
+    },
+    "frontend": {
+      "path": "<FRONTEND_CHECKOUT>",
+      "branch": "codex/agent-booking-frontend",
+      "head": "3411a4e49901441553e23772a829d4386067144b",
+      "status": "",
+      "diff_whitespace_pass": true
+    }
+  },
+  "canonical_sha256": "7cc0779f647906c58b937e4e0c99bb8c46d7b54231adc5ecfdf0994a1fde5af5",
+  "source_audit_sha256": "74fa2e861eb59ae88542bcdfe1066749e24025a92c2cf32e2ccb3bec33d28b78",
+  "verification": {
+    "api_unit": {
+      "passed": 320,
+      "files": 27
+    },
+    "api_contract": {
+      "passed": 36,
+      "files": 6
+    },
+    "mcp_default": {
+      "passed": 50,
+      "skipped_guarded_sql": 5,
+      "files": 7
+    },
+    "mcp_guarded_composition": {
+      "passed": 8,
+      "duration_seconds": 93.7,
+      "four_journeys_end_state": "pending_documents",
+      "schema": "partial",
+      "provider_parity": false
+    },
+    "backend_existing": {
+      "passed": 261,
+      "files": 22
+    },
+    "frontend_full_checkpoint": {
+      "passed": 665,
+      "skipped": 20,
+      "head": "ce44f37"
+    },
+    "frontend_final_affected": {
+      "passed": 73,
+      "head": "3411a4e"
+    },
+    "frontend_real_next_chromium": {
+      "passed": 12,
+      "provider_api_boundary": "synthetic"
+    },
+    "typechecks_builds": "passed; details in BUILD-STATUS",
+    "hosted_pilot": "not implemented/executed; absent evidence refused before network"
+  },
+  "independent_reviews": {
+    "goal_verification": "gaps_found; fifteen local plans, zero full hosted acceptance",
+    "fresh_api_recheck": "320 unit / 36 contract passed at final7c3a9932 on2026-10-07 13:43:16 America/Denver",
+    "security_integration": "all six original handoff defects locally mitigated; provider cleanup and managed acceptance remain",
+    "operations": "local default-deny/continuity/cancellation controls verified; managed limits explicit"
+  },
+  "root_local_labs": "guarded integration and initial staging containers stopped; volumes and evidence retained",
+  "temporary_database_shutdown": {
+    "staging-lab": {
+      "status": "exited",
+      "volume_preserved": true,
+      "shutdown": "manifest ownership guard"
+    },
+    "inventory-lab": {
+      "status": "exited",
+      "volume_preserved": true,
+      "shutdown": "manifest ownership guard"
+    },
+    "integration-lab": {
+      "status": "exited",
+      "volume_preserved": true,
+      "shutdown": "manifest ownership guard"
+    },
+    "plan-06-worktree/request-lab": {
+      "status": "exited",
+      "volume_preserved": true,
+      "shutdown": "manifest ownership guard"
+    },
+    "plan-08-worktree/request-lab": {
+      "status": "exited",
+      "volume_preserved": true,
+      "shutdown": "manifest ownership guard"
+    },
+    "plan-09-api-worktree/request-lab": {
+      "status": "exited",
+      "volume_preserved": true,
+      "shutdown": "manifest ownership guard"
+    }
+  }
+}

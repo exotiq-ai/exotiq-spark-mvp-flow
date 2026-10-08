@@ -1,0 +1,4496 @@
+{
+  "scope": "Planned coverage, not execution. Every exact test/config/command reference records current existence and owning task(s). New tests require meaningful RED, never empty stubs. Plan-level threat references are conservative; actual owner tests must prove mitigation.",
+  "plans": [
+    {
+      "plan": "02-01",
+      "wave": 1,
+      "depends_on": [],
+      "requirements": [
+        "STAGE-02",
+        "PILOT-02"
+      ],
+      "files_modified": [
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/stage-attestation.mjs",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/stage-attestation-unit.test.ts",
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/guard-environment.mjs",
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/test-suites.mjs",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/environment.test.ts"
+      ],
+      "objective": "Attested environment contracts and exact test discovery."
+    },
+    {
+      "plan": "02-02",
+      "wave": 2,
+      "depends_on": [
+        "02-01"
+      ],
+      "requirements": [
+        "STAGE-02",
+        "PILOT-02"
+      ],
+      "files_modified": [
+        "<BACKEND_CHECKOUT>/supabase/functions/_shared/external-booking/managed-jwks.ts",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/managed-jwks-unit.test.ts",
+        "<BACKEND_CHECKOUT>/supabase/functions/external-booking-api/index.ts",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/failures.test.ts"
+      ],
+      "objective": "Bound shared managed JWKS transport."
+    },
+    {
+      "plan": "02-03",
+      "wave": 2,
+      "depends_on": [
+        "02-01"
+      ],
+      "requirements": [
+        "PAYREC-02",
+        "SCHEMA-02"
+      ],
+      "files_modified": [
+        "<BACKEND_CHECKOUT>/supabase/functions/_shared/external-booking/payment-reconciliation.ts",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/payment-reconciliation-unit.test.ts",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/sql/payment-reconciliation.sql",
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/run-reconciliation-sql.mjs",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/sql/reconciliation-baseline.sql",
+        "<BACKEND_CHECKOUT>/supabase/migrations/20261008090000_authoritative_payment_resolution.sql"
+      ],
+      "objective": "Audited payment-resolution ledger and atomic safe clearance."
+    },
+    {
+      "plan": "02-04",
+      "wave": 3,
+      "depends_on": [
+        "02-03"
+      ],
+      "requirements": [
+        "PAYREC-02",
+        "OPS-02"
+      ],
+      "files_modified": [
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/check-edge.mjs",
+        "<BACKEND_CHECKOUT>/deno.agent.json",
+        "<BACKEND_CHECKOUT>/deno.agent.lock",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/payment-reconciliation-worker-unit.test.ts",
+        "<BACKEND_CHECKOUT>/supabase/functions/_shared/external-booking/payment-reconciliation.ts",
+        "<BACKEND_CHECKOUT>/supabase/functions/_shared/external-booking/stripe-resolution.ts",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/payment-reconciliation-unit.test.ts",
+        "<BACKEND_CHECKOUT>/supabase/functions/external-payment-reconciler/index.ts",
+        "<BACKEND_CHECKOUT>/supabase/functions/rent-payment-scheduler/index.ts",
+        "<BACKEND_CHECKOUT>/supabase/config.toml"
+      ],
+      "objective": "Provider-authoritative reconciliation worker."
+    },
+    {
+      "plan": "02-05",
+      "wave": 4,
+      "depends_on": [
+        "02-04"
+      ],
+      "requirements": [
+        "PAYREC-02",
+        "OPS-02"
+      ],
+      "files_modified": [
+        "<BACKEND_CHECKOUT>/supabase/functions/external-payment-operations/index.ts",
+        "<BACKEND_CHECKOUT>/supabase/migrations/20261008090010_payment_case_operator_access.sql",
+        "<BACKEND_CHECKOUT>/supabase/config.toml",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/payment-operations-unit.test.ts",
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/check-edge.mjs",
+        "<BACKEND_CHECKOUT>/src/pages/PaymentCases.tsx",
+        "<BACKEND_CHECKOUT>/src/pages/PaymentCases.test.tsx",
+        "<BACKEND_CHECKOUT>/src/lib/paymentCases.ts",
+        "<BACKEND_CHECKOUT>/src/App.tsx",
+        "<BACKEND_CHECKOUT>/src/pages/Dashboard.tsx"
+      ],
+      "objective": "Private operator payment-case resolver."
+    },
+    {
+      "plan": "02-06",
+      "wave": 1,
+      "depends_on": [],
+      "requirements": [
+        "DISC-02",
+        "TENANT-02"
+      ],
+      "files_modified": [
+        "<FRONTEND_CHECKOUT>/domain/booking/discovery.ts",
+        "<FRONTEND_CHECKOUT>/domain/booking/discovery.test.ts",
+        "<FRONTEND_CHECKOUT>/domain/booking/config.ts",
+        "<FRONTEND_CHECKOUT>/domain/booking/publicContracts.ts",
+        "<FRONTEND_CHECKOUT>/domain/booking/marketplaceService.ts",
+        "<FRONTEND_CHECKOUT>/domain/booking/supabaseService.ts"
+      ],
+      "objective": "Source-backed public eligibility and canonical host policy."
+    },
+    {
+      "plan": "02-07",
+      "wave": 2,
+      "depends_on": [
+        "02-06"
+      ],
+      "requirements": [
+        "DISC-02",
+        "TENANT-02",
+        "SCHEMA-02"
+      ],
+      "files_modified": [
+        "<BACKEND_CHECKOUT>/supabase/migrations/20261008090020_public_discovery_projection.sql",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/public-discovery-source-unit.test.ts",
+        "<FRONTEND_CHECKOUT>/domain/booking/marketplaceService.ts",
+        "<FRONTEND_CHECKOUT>/domain/booking/supabaseService.ts"
+      ],
+      "objective": "Authoritative public discovery metadata projection."
+    },
+    {
+      "plan": "02-08",
+      "wave": 4,
+      "depends_on": [
+        "02-19"
+      ],
+      "requirements": [
+        "SCHEMA-02",
+        "DISC-02",
+        "TENANT-02"
+      ],
+      "files_modified": [
+        "<FRONTEND_CHECKOUT>/domain/booking/structuredData.ts",
+        "<FRONTEND_CHECKOUT>/domain/booking/structuredData.test.ts",
+        "<FRONTEND_CHECKOUT>/app/layout.tsx",
+        "<FRONTEND_CHECKOUT>/app/[operatorSlug]/page.tsx",
+        "<FRONTEND_CHECKOUT>/app/[operatorSlug]/[vehicleSlug]/page.tsx",
+        "<FRONTEND_CHECKOUT>/playwright.agent-discovery.config.ts",
+        "<FRONTEND_CHECKOUT>/tests/agent/discovery-browser.spec.ts",
+        "<FRONTEND_CHECKOUT>/tests/agent/discovery-fixture.ts"
+      ],
+      "objective": "Truthful escaped JSON-LD and actual browser discovery."
+    },
+    {
+      "plan": "02-09",
+      "wave": 3,
+      "depends_on": [
+        "02-06",
+        "02-07"
+      ],
+      "requirements": [
+        "DOCS-02",
+        "AGENT-02",
+        "DISC-02"
+      ],
+      "files_modified": [
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/generate-discovery.mjs",
+        "<BACKEND_CHECKOUT>/docs/external-booking/public-discovery.json",
+        "<BACKEND_CHECKOUT>/docs/external-booking/agent-connection.md",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/discovery-docs-unit.test.ts",
+        "<FRONTEND_CHECKOUT>/domain/booking/publicDiscovery.generated.json"
+      ],
+      "objective": "Generate public connection artifacts from canonical contracts."
+    },
+    {
+      "plan": "02-10",
+      "wave": 8,
+      "depends_on": [
+        "02-02",
+        "02-05",
+        "02-20",
+        "02-22"
+      ],
+      "requirements": [
+        "STAGE-02",
+        "OPS-02",
+        "AGENT-02"
+      ],
+      "files_modified": [],
+      "objective": "Select external accounts, resource budget and human owners."
+    },
+    {
+      "plan": "02-11",
+      "wave": 9,
+      "depends_on": [
+        "02-01",
+        "02-10"
+      ],
+      "requirements": [
+        "STAGE-02",
+        "PILOT-02"
+      ],
+      "files_modified": [
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/provision-staging.mjs",
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/stage-attestation.mjs",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/stage-provision-unit.test.ts",
+        "<BACKEND_CHECKOUT>/docs/external-booking/staging-resources.md",
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/seed-staging.mjs",
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/guard-environment.mjs",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/fixtures.test.ts",
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/synthetic-cohort.mjs"
+      ],
+      "objective": "Provision selected isolated staging and synthetic cohort."
+    },
+    {
+      "plan": "02-12",
+      "wave": 10,
+      "depends_on": [
+        "02-02",
+        "02-05",
+        "02-07",
+        "02-11",
+        "02-20"
+      ],
+      "requirements": [
+        "STAGE-02",
+        "SCHEMA-02",
+        "PILOT-02"
+      ],
+      "files_modified": [
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/prepare-staging-schema.mjs",
+        "<BACKEND_CHECKOUT>/supabase/staging/phase02-baseline.sql",
+        "<BACKEND_CHECKOUT>/supabase/staging/phase02-bundle.json",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/schema-bundle-unit.test.ts",
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/apply-staging-schema.mjs",
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/deploy-staging.mjs",
+        "<BACKEND_CHECKOUT>/docs/external-booking/staging-runbook.md",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/managed-schema.test.ts",
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/snapshot-staging-authority.mjs"
+      ],
+      "objective": "Review and apply complete staging database and runtime."
+    },
+    {
+      "plan": "02-13",
+      "wave": 11,
+      "depends_on": [
+        "02-12"
+      ],
+      "requirements": [
+        "STAGE-02",
+        "PAYREC-02",
+        "PILOT-02",
+        "OPS-02"
+      ],
+      "files_modified": [
+        "<BACKEND_CHECKOUT>/tests/agent-booking/managed-auth.test.ts",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/fixtures/managed-clients.ts",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/handoff-continuity.test.ts",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/managed-providers.test.ts",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/payment-reconciliation.test.ts",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/fixtures/managed-payments.ts",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/managed-rollback.test.ts",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/handoff-resolver.test.ts",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/rollback.test.ts"
+      ],
+      "objective": "Genuine managed auth, provider, reconciliation and rollback acceptance."
+    },
+    {
+      "plan": "02-14",
+      "wave": 12,
+      "depends_on": [
+        "02-13",
+        "02-20"
+      ],
+      "requirements": [
+        "PILOT-02",
+        "AGENT-02",
+        "STAGE-02"
+      ],
+      "files_modified": [
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/run-pilot.mjs",
+        "<BACKEND_CHECKOUT>/playwright.agent.config.ts",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/pilot-runner-unit.test.ts",
+        "<BACKEND_CHECKOUT>/package.json",
+        "<BACKEND_CHECKOUT>/package-lock.json",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/pilot.spec.ts",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/fixtures/pilot-fixture.ts",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/fixtures/pilot-evidence.ts",
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/run-tests.mjs"
+      ],
+      "objective": "Implement guarded actual Playwright API/MCP pilot driver."
+    },
+    {
+      "plan": "02-15",
+      "wave": 14,
+      "depends_on": [
+        "02-05",
+        "02-21",
+        "02-22"
+      ],
+      "requirements": [
+        "OPS-02",
+        "AGENT-02"
+      ],
+      "files_modified": [
+        "<BACKEND_CHECKOUT>/docs/external-booking/payment-operations.md",
+        "<BACKEND_CHECKOUT>/docs/external-booking/rollout.md",
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/validate-pilot-operations.mjs",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/pilot-operations-unit.test.ts",
+        "<BACKEND_CHECKOUT>/docs/external-booking/phase02-feedback.json",
+        "<BACKEND_CHECKOUT>/docs/external-booking/agent-pilot.md",
+        "<BACKEND_CHECKOUT>/docs/external-booking/agent-client-matrix.json",
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/validate-agent-pilot.mjs",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/agent-pilot-unit.test.ts"
+      ],
+      "objective": "Watched operations runbook and named-agent evidence harness."
+    },
+    {
+      "plan": "02-16",
+      "wave": 15,
+      "depends_on": [
+        "02-15",
+        "02-22"
+      ],
+      "requirements": [
+        "AGENT-02",
+        "OPS-02",
+        "PILOT-02"
+      ],
+      "files_modified": [
+        "<BACKEND_CHECKOUT>/docs/external-booking/phase02-feedback.json"
+      ],
+      "objective": "Human-controlled Dot or another real-agent rehearsal."
+    },
+    {
+      "plan": "02-17",
+      "wave": 6,
+      "depends_on": [
+        "02-02",
+        "02-04",
+        "02-20"
+      ],
+      "requirements": [
+        "EVOL-02",
+        "DISC-02",
+        "DOCS-02",
+        "OPS-02"
+      ],
+      "files_modified": [
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/dependency-preflight.mjs",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/dependency-preflight-unit.test.ts",
+        "<BACKEND_CHECKOUT>/.github/workflows/ci.yml",
+        "<FRONTEND_CHECKOUT>/domain/booking/frameworkDependencies.test.ts",
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/audit-public-discovery.mjs",
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/release-gates.mjs",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/release-gates.test.ts",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/discovery-measurement-unit.test.ts"
+      ],
+      "objective": "Reproducible dependency, public discovery and release checks."
+    },
+    {
+      "plan": "02-18",
+      "wave": 16,
+      "depends_on": [
+        "02-15",
+        "02-16",
+        "02-17",
+        "02-21",
+        "02-22"
+      ],
+      "requirements": [
+        "OPS-02",
+        "AGENT-02",
+        "PILOT-02",
+        "EVOL-02"
+      ],
+      "files_modified": [],
+      "objective": "Review readiness for a small watched pilot."
+    },
+    {
+      "plan": "02-19",
+      "wave": 3,
+      "depends_on": [
+        "02-06",
+        "02-07"
+      ],
+      "requirements": [
+        "DISC-02",
+        "TENANT-02",
+        "SCHEMA-02"
+      ],
+      "files_modified": [
+        "<FRONTEND_CHECKOUT>/app/page.tsx",
+        "<FRONTEND_CHECKOUT>/app/layout.tsx",
+        "<FRONTEND_CHECKOUT>/app/[operatorSlug]/page.tsx",
+        "<FRONTEND_CHECKOUT>/app/[operatorSlug]/[vehicleSlug]/page.tsx",
+        "<FRONTEND_CHECKOUT>/domain/booking/seo.ts",
+        "<FRONTEND_CHECKOUT>/app/robots.ts",
+        "<FRONTEND_CHECKOUT>/app/sitemap.ts",
+        "<FRONTEND_CHECKOUT>/domain/booking/discovery.test.ts",
+        "<FRONTEND_CHECKOUT>/netlify.toml"
+      ],
+      "objective": "Wire source-backed marketplace routes and crawler policy."
+    },
+    {
+      "plan": "02-20",
+      "wave": 5,
+      "depends_on": [
+        "02-08",
+        "02-09"
+      ],
+      "requirements": [
+        "DOCS-02",
+        "AGENT-02",
+        "DISC-02"
+      ],
+      "files_modified": [
+        "<FRONTEND_CHECKOUT>/app/agents/page.tsx",
+        "<FRONTEND_CHECKOUT>/app/llms.txt/route.ts",
+        "<FRONTEND_CHECKOUT>/app/[operatorSlug]/llms.txt/route.ts",
+        "<FRONTEND_CHECKOUT>/domain/booking/discoveryArtifacts.ts",
+        "<FRONTEND_CHECKOUT>/domain/booking/discoveryArtifacts.test.ts",
+        "<FRONTEND_CHECKOUT>/tests/agent/discovery-browser.spec.ts",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/discovery-docs-unit.test.ts",
+        "<BACKEND_CHECKOUT>/docs/external-booking/oauth-compatibility.md",
+        "<FRONTEND_CHECKOUT>/app/agents.md/route.ts"
+      ],
+      "objective": "Serve public agent guides and prove HTTP/OAuth discovery."
+    },
+    {
+      "plan": "02-21",
+      "wave": 13,
+      "depends_on": [
+        "02-14",
+        "02-17"
+      ],
+      "requirements": [
+        "PILOT-02",
+        "AGENT-02",
+        "STAGE-02"
+      ],
+      "files_modified": [
+        "<BACKEND_CHECKOUT>/docs/external-booking/pilot-evidence.md",
+        "<BACKEND_CHECKOUT>/docs/external-booking/mcp-compatibility.md",
+        "<BACKEND_CHECKOUT>/docs/external-booking/public-discovery.json",
+        "<BACKEND_CHECKOUT>/docs/external-booking/agent-connection.md",
+        "<FRONTEND_CHECKOUT>/domain/booking/publicDiscovery.generated.json"
+      ],
+      "objective": "Execute provider-confirmed pilot and publish actual receipts."
+    },
+    {
+      "plan": "02-22",
+      "wave": 7,
+      "depends_on": [
+        "02-17",
+        "02-20"
+      ],
+      "requirements": [
+        "EVOL-02",
+        "OPS-02",
+        "AGENT-02"
+      ],
+      "files_modified": [
+        "<BACKEND_CHECKOUT>/docs/external-booking/evolution.md",
+        "<BACKEND_CHECKOUT>/docs/external-booking/phase02-feedback.json",
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/validate-phase-feedback.mjs",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/phase-feedback-unit.test.ts"
+      ],
+      "objective": "Validated next-phase feedback and maintenance ownership."
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "02-01-1",
+      "plan": "02-01-PLAN.md",
+      "wave": 1,
+      "requirements": [
+        "STAGE-02",
+        "PILOT-02"
+      ],
+      "threat_refs": [
+        "T-02-01-01",
+        "T-02-01-02"
+      ],
+      "secure_behavior": "- Live/mismatched account, project, issuer, resource or webhook/job destination rejects before network.\n    - Demo label and candidate ACTIVE project do not imply permission; stale or unsigned owner selection rejects.\n    - Auth/location/Connect fixtures require run/project/tenant ownership; issued reservation deletion is refused.",
+      "task_type": "auto",
+      "commands": [
+        "cd '<BACKEND_CHECKOUT>' && node scripts/agent-booking/run-tests.mjs unit tests/agent-booking/stage-attestation-unit.test.ts"
+      ],
+      "files": [
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/stage-attestation.mjs",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/stage-attestation-unit.test.ts"
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/stage-attestation-unit.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-01-1",
+              "plan": "02-01",
+              "wave": 1
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/run-tests.mjs",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-14-2",
+              "plan": "02-14",
+              "wave": 12
+            }
+          ],
+          "creation": "existing"
+        }
+      ],
+      "test_files": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/stage-attestation-unit.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-01-1",
+              "plan": "02-01",
+              "wave": 1
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "config_files": []
+    },
+    {
+      "task_id": "02-01-2",
+      "plan": "02-01-PLAN.md",
+      "wave": 1,
+      "requirements": [
+        "STAGE-02",
+        "PILOT-02"
+      ],
+      "threat_refs": [
+        "T-02-01-01",
+        "T-02-01-02"
+      ],
+      "secure_behavior": "- No hosted file is silently classified as offline; exact CLI paths cannot widen discovery.\n    - Missing managed credentials refuses; pilot must not launch Vitest as a browser.",
+      "task_type": "auto",
+      "commands": [
+        "cd '<BACKEND_CHECKOUT>' && node scripts/agent-booking/run-tests.mjs unit tests/agent-booking/environment.test.ts tests/agent-booking/stage-attestation-unit.test.ts"
+      ],
+      "files": [
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/guard-environment.mjs",
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/test-suites.mjs",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/environment.test.ts"
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/environment.test.ts",
+          "exists": true,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-01-2",
+              "plan": "02-01",
+              "wave": 1
+            }
+          ],
+          "creation": "existing"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/run-tests.mjs",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-14-2",
+              "plan": "02-14",
+              "wave": 12
+            }
+          ],
+          "creation": "existing"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/stage-attestation-unit.test.ts",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-01-1",
+              "plan": "02-01",
+              "wave": 1
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "test_files": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/environment.test.ts",
+          "exists": true,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-01-2",
+              "plan": "02-01",
+              "wave": 1
+            }
+          ],
+          "creation": "existing"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/stage-attestation-unit.test.ts",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-01-1",
+              "plan": "02-01",
+              "wave": 1
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "config_files": []
+    },
+    {
+      "task_id": "02-02-1",
+      "plan": "02-02-PLAN.md",
+      "wave": 2,
+      "requirements": [
+        "STAGE-02",
+        "PILOT-02"
+      ],
+      "threat_refs": [
+        "T-02-02-01",
+        "T-02-02-02"
+      ],
+      "secure_behavior": "- Known-length/chunked oversize, 129 keys, malformed UTF8/JSON, stalled reads and redirects fail safely.\n    - Shared concurrent fetch/rotation remains valid; abandoning one caller never cancels another.\n    - Disconnected request starts zero JWKS calls even with fully buffered body.",
+      "task_type": "auto",
+      "commands": [
+        "cd '<BACKEND_CHECKOUT>' && node scripts/agent-booking/run-tests.mjs unit tests/agent-booking/managed-jwks-unit.test.ts"
+      ],
+      "files": [
+        "<BACKEND_CHECKOUT>/supabase/functions/_shared/external-booking/managed-jwks.ts",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/managed-jwks-unit.test.ts"
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/managed-jwks-unit.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-02-1",
+              "plan": "02-02",
+              "wave": 2
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/run-tests.mjs",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-14-2",
+              "plan": "02-14",
+              "wave": 12
+            }
+          ],
+          "creation": "existing"
+        }
+      ],
+      "test_files": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/managed-jwks-unit.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-02-1",
+              "plan": "02-02",
+              "wave": 2
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "config_files": []
+    },
+    {
+      "task_id": "02-02-2",
+      "plan": "02-02-PLAN.md",
+      "wave": 2,
+      "requirements": [
+        "STAGE-02",
+        "PILOT-02"
+      ],
+      "threat_refs": [
+        "T-02-02-01",
+        "T-02-02-02"
+      ],
+      "secure_behavior": "- All production API key resolution uses the bounded transport; introspection remains per protected call.\n    - Cold aborted requests still start zero resolver/RPC calls.",
+      "task_type": "auto",
+      "commands": [
+        "cd '<BACKEND_CHECKOUT>' && node scripts/agent-booking/run-tests.mjs unit tests/agent-booking/managed-jwks-unit.test.ts tests/agent-booking/failures.test.ts && npx --no-install tsc -p tsconfig.external-api.json"
+      ],
+      "files": [
+        "<BACKEND_CHECKOUT>/supabase/functions/external-booking-api/index.ts",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/failures.test.ts"
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/failures.test.ts",
+          "exists": true,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-02-2",
+              "plan": "02-02",
+              "wave": 2
+            }
+          ],
+          "creation": "existing"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/run-tests.mjs",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-14-2",
+              "plan": "02-14",
+              "wave": 12
+            }
+          ],
+          "creation": "existing"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/managed-jwks-unit.test.ts",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-02-1",
+              "plan": "02-02",
+              "wave": 2
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/tsconfig.external-api.json",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [],
+          "creation": "existing"
+        }
+      ],
+      "test_files": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/failures.test.ts",
+          "exists": true,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-02-2",
+              "plan": "02-02",
+              "wave": 2
+            }
+          ],
+          "creation": "existing"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/managed-jwks-unit.test.ts",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-02-1",
+              "plan": "02-02",
+              "wave": 2
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "config_files": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tsconfig.external-api.json",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [],
+          "creation": "existing"
+        }
+      ]
+    },
+    {
+      "task_id": "02-03-1",
+      "plan": "02-03-PLAN.md",
+      "wave": 2,
+      "requirements": [
+        "PAYREC-02",
+        "SCHEMA-02"
+      ],
+      "threat_refs": [
+        "T-02-03-01",
+        "T-02-03-02"
+      ],
+      "secure_behavior": "- Session-open/processing/paid/partial/missing/wrong account/mode/old unknown attempts retain inventory.\n    - Only complete current terminal no-charge evidence for every possible leg/attempt allows clearance.\n    - Stale lease/evidence or concurrent settlement cannot clear; unknown legacy attempts remain unresolved.",
+      "task_type": "auto",
+      "commands": [
+        "cd '<BACKEND_CHECKOUT>' && node scripts/agent-booking/run-tests.mjs unit tests/agent-booking/payment-reconciliation-unit.test.ts"
+      ],
+      "files": [
+        "<BACKEND_CHECKOUT>/supabase/functions/_shared/external-booking/payment-reconciliation.ts",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/payment-reconciliation-unit.test.ts",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/sql/payment-reconciliation.sql",
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/run-reconciliation-sql.mjs",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/sql/reconciliation-baseline.sql"
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/payment-reconciliation-unit.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-03-1",
+              "plan": "02-03",
+              "wave": 2
+            },
+            {
+              "task": "02-03-2",
+              "plan": "02-03",
+              "wave": 2
+            },
+            {
+              "task": "02-04-1",
+              "plan": "02-04",
+              "wave": 3
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/run-tests.mjs",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-14-2",
+              "plan": "02-14",
+              "wave": 12
+            }
+          ],
+          "creation": "existing"
+        }
+      ],
+      "test_files": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/payment-reconciliation-unit.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-03-1",
+              "plan": "02-03",
+              "wave": 2
+            },
+            {
+              "task": "02-03-2",
+              "plan": "02-03",
+              "wave": 2
+            },
+            {
+              "task": "02-04-1",
+              "plan": "02-04",
+              "wave": 3
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "config_files": []
+    },
+    {
+      "task_id": "02-03-2",
+      "plan": "02-03-PLAN.md",
+      "wave": 2,
+      "requirements": [
+        "PAYREC-02",
+        "SCHEMA-02"
+      ],
+      "threat_refs": [
+        "T-02-03-01",
+        "T-02-03-02"
+      ],
+      "secure_behavior": "- Reserved metadata/history stays immutable and DELETE protected after successful unpaid resolution.\n    - Settlement arriving first wins; releasing first only succeeds after all provider charge paths are terminal.\n    - Expired lease/version, omitted leg/attempt or unreviewed legacy scope fails.",
+      "task_type": "auto",
+      "commands": [
+        "cd '<BACKEND_CHECKOUT>' && node scripts/agent-booking/run-tests.mjs unit tests/agent-booking/payment-reconciliation-unit.test.ts && node scripts/agent-booking/run-reconciliation-sql.mjs --fresh --run-root .agent-labs/reconciliation"
+      ],
+      "files": [
+        "<BACKEND_CHECKOUT>/supabase/migrations/20261008090000_authoritative_payment_resolution.sql",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/sql/payment-reconciliation.sql",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/payment-reconciliation-unit.test.ts"
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/payment-reconciliation-unit.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-03-1",
+              "plan": "02-03",
+              "wave": 2
+            },
+            {
+              "task": "02-03-2",
+              "plan": "02-03",
+              "wave": 2
+            },
+            {
+              "task": "02-04-1",
+              "plan": "02-04",
+              "wave": 3
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/run-tests.mjs",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-14-2",
+              "plan": "02-14",
+              "wave": 12
+            }
+          ],
+          "creation": "existing"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/run-reconciliation-sql.mjs",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-03-1",
+              "plan": "02-03",
+              "wave": 2
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "test_files": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/payment-reconciliation-unit.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-03-1",
+              "plan": "02-03",
+              "wave": 2
+            },
+            {
+              "task": "02-03-2",
+              "plan": "02-03",
+              "wave": 2
+            },
+            {
+              "task": "02-04-1",
+              "plan": "02-04",
+              "wave": 3
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "config_files": []
+    },
+    {
+      "task_id": "02-04-0",
+      "plan": "02-04-PLAN.md",
+      "wave": 3,
+      "requirements": [
+        "PAYREC-02",
+        "OPS-02"
+      ],
+      "threat_refs": [
+        "T-02-04-01",
+        "T-02-04-02"
+      ],
+      "secure_behavior": "- Missing/wrong runtime or config/entrypoint override refuses; no Node transpile substitutes native checking.\n    - Reconciliation profile includes real new reconciler, source scheduler and transitive shared adapters, never future operations file.\n    - A deliberate real handler type error makes native Deno check fail; frozen dependencies/version mismatch cannot silently pass.",
+      "task_type": "auto",
+      "commands": [
+        "cd '<BACKEND_CHECKOUT>' && node scripts/agent-booking/run-tests.mjs unit tests/agent-booking/payment-reconciliation-worker-unit.test.ts && node scripts/agent-booking/check-edge.mjs --bootstrap --profile=scheduler"
+      ],
+      "files": [
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/check-edge.mjs",
+        "<BACKEND_CHECKOUT>/deno.agent.json",
+        "<BACKEND_CHECKOUT>/deno.agent.lock",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/payment-reconciliation-worker-unit.test.ts"
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/payment-reconciliation-worker-unit.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-04-0",
+              "plan": "02-04",
+              "wave": 3
+            },
+            {
+              "task": "02-04-2",
+              "plan": "02-04",
+              "wave": 3
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/run-tests.mjs",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-14-2",
+              "plan": "02-14",
+              "wave": 12
+            }
+          ],
+          "creation": "existing"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/check-edge.mjs",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-04-0",
+              "plan": "02-04",
+              "wave": 3
+            },
+            {
+              "task": "02-05-1",
+              "plan": "02-05",
+              "wave": 4
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "test_files": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/payment-reconciliation-worker-unit.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-04-0",
+              "plan": "02-04",
+              "wave": 3
+            },
+            {
+              "task": "02-04-2",
+              "plan": "02-04",
+              "wave": 3
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "config_files": []
+    },
+    {
+      "task_id": "02-04-1",
+      "plan": "02-04-PLAN.md",
+      "wave": 3,
+      "requirements": [
+        "PAYREC-02",
+        "OPS-02"
+      ],
+      "threat_refs": [
+        "T-02-04-01",
+        "T-02-04-02"
+      ],
+      "secure_behavior": "- Expired Checkout with canceled/no-charge intent and complete attempt coverage may be terminal; processing/succeeded/missing never is.\n    - Expire races retrieve session+intent current truth; wrong customer/booking/destination/mode/amount fails.\n    - Old unknown create is never replayed with a fresh pruned key; current durable session retrieval may continue.",
+      "task_type": "auto",
+      "commands": [
+        "cd '<BACKEND_CHECKOUT>' && node scripts/agent-booking/run-tests.mjs unit tests/agent-booking/payment-reconciliation-unit.test.ts"
+      ],
+      "files": [
+        "<BACKEND_CHECKOUT>/supabase/functions/_shared/external-booking/payment-reconciliation.ts",
+        "<BACKEND_CHECKOUT>/supabase/functions/_shared/external-booking/stripe-resolution.ts",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/payment-reconciliation-unit.test.ts"
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/payment-reconciliation-unit.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-03-1",
+              "plan": "02-03",
+              "wave": 2
+            },
+            {
+              "task": "02-03-2",
+              "plan": "02-03",
+              "wave": 2
+            },
+            {
+              "task": "02-04-1",
+              "plan": "02-04",
+              "wave": 3
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/run-tests.mjs",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-14-2",
+              "plan": "02-14",
+              "wave": 12
+            }
+          ],
+          "creation": "existing"
+        }
+      ],
+      "test_files": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/payment-reconciliation-unit.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-03-1",
+              "plan": "02-03",
+              "wave": 2
+            },
+            {
+              "task": "02-03-2",
+              "plan": "02-03",
+              "wave": 2
+            },
+            {
+              "task": "02-04-1",
+              "plan": "02-04",
+              "wave": 3
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "config_files": []
+    },
+    {
+      "task_id": "02-04-2",
+      "plan": "02-04-PLAN.md",
+      "wave": 3,
+      "requirements": [
+        "PAYREC-02",
+        "OPS-02"
+      ],
+      "threat_refs": [
+        "T-02-04-01",
+        "T-02-04-02"
+      ],
+      "secure_behavior": "- Claim/provider/finalize are separate bounded transactions; stale workers cannot finish.\n    - Fair queue visits50 rows, lease expiry permits retry, poison case doesn't starve others.\n    - Pausing new admission never stops recovery; provider failure prevents unsafe expiry.",
+      "task_type": "auto",
+      "commands": [
+        "cd '<BACKEND_CHECKOUT>' && node scripts/agent-booking/run-tests.mjs unit tests/agent-booking/payment-reconciliation-worker-unit.test.ts tests/agent-booking/checkout-expiry-unit.test.ts && node scripts/agent-booking/check-edge.mjs --profile=reconciliation && npx --no-install tsc -p tsconfig.external-api.json"
+      ],
+      "files": [
+        "<BACKEND_CHECKOUT>/supabase/functions/external-payment-reconciler/index.ts",
+        "<BACKEND_CHECKOUT>/supabase/functions/rent-payment-scheduler/index.ts",
+        "<BACKEND_CHECKOUT>/supabase/config.toml",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/payment-reconciliation-worker-unit.test.ts"
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/payment-reconciliation-worker-unit.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-04-0",
+              "plan": "02-04",
+              "wave": 3
+            },
+            {
+              "task": "02-04-2",
+              "plan": "02-04",
+              "wave": 3
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/run-tests.mjs",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-14-2",
+              "plan": "02-14",
+              "wave": 12
+            }
+          ],
+          "creation": "existing"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/checkout-expiry-unit.test.ts",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [],
+          "creation": "existing"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/check-edge.mjs",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-04-0",
+              "plan": "02-04",
+              "wave": 3
+            },
+            {
+              "task": "02-05-1",
+              "plan": "02-05",
+              "wave": 4
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/tsconfig.external-api.json",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [],
+          "creation": "existing"
+        }
+      ],
+      "test_files": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/payment-reconciliation-worker-unit.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-04-0",
+              "plan": "02-04",
+              "wave": 3
+            },
+            {
+              "task": "02-04-2",
+              "plan": "02-04",
+              "wave": 3
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/checkout-expiry-unit.test.ts",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [],
+          "creation": "existing"
+        }
+      ],
+      "config_files": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tsconfig.external-api.json",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [],
+          "creation": "existing"
+        }
+      ]
+    },
+    {
+      "task_id": "02-05-1",
+      "plan": "02-05-PLAN.md",
+      "wave": 4,
+      "requirements": [
+        "PAYREC-02",
+        "OPS-02"
+      ],
+      "threat_refs": [
+        "T-02-05-01",
+        "T-02-05-02"
+      ],
+      "secure_behavior": "- Cross-tenant/member-only/unverified/expired user cannot inspect or request resolution.\n    - Operator action starts trusted reconciliation; supplied paid=false or arbitrary account/session IDs reject.\n    - Human notes/audit attribution cannot become provider truth or a refund authorization.",
+      "task_type": "auto",
+      "commands": [
+        "cd '<BACKEND_CHECKOUT>' && node scripts/agent-booking/run-tests.mjs unit tests/agent-booking/payment-operations-unit.test.ts && node scripts/agent-booking/check-edge.mjs --profile=operations"
+      ],
+      "files": [
+        "<BACKEND_CHECKOUT>/supabase/functions/external-payment-operations/index.ts",
+        "<BACKEND_CHECKOUT>/supabase/migrations/20261008090010_payment_case_operator_access.sql",
+        "<BACKEND_CHECKOUT>/supabase/config.toml",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/payment-operations-unit.test.ts",
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/check-edge.mjs"
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/payment-operations-unit.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-05-1",
+              "plan": "02-05",
+              "wave": 4
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/run-tests.mjs",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-14-2",
+              "plan": "02-14",
+              "wave": 12
+            }
+          ],
+          "creation": "existing"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/check-edge.mjs",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-04-0",
+              "plan": "02-04",
+              "wave": 3
+            },
+            {
+              "task": "02-05-1",
+              "plan": "02-05",
+              "wave": 4
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "test_files": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/payment-operations-unit.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-05-1",
+              "plan": "02-05",
+              "wave": 4
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "config_files": []
+    },
+    {
+      "task_id": "02-05-2",
+      "plan": "02-05-PLAN.md",
+      "wave": 4,
+      "requirements": [
+        "PAYREC-02",
+        "OPS-02"
+      ],
+      "threat_refs": [
+        "T-02-05-01",
+        "T-02-05-02"
+      ],
+      "secure_behavior": "- Dashboard owner can inspect assigned pending/paid/unknown cases and request current reconciliation.\n    - Clicking twice or losing the response never clears inventory client-side; generic safe errors remain.\n    - Unauthorized tenant/operator view is denied by server even if route is forced.",
+      "task_type": "auto",
+      "commands": [
+        "cd '<BACKEND_CHECKOUT>' && npx --no-install vitest run src/pages/PaymentCases.test.tsx && npx --no-install tsc -p tsconfig.app.json"
+      ],
+      "files": [
+        "<BACKEND_CHECKOUT>/src/pages/PaymentCases.tsx",
+        "<BACKEND_CHECKOUT>/src/pages/PaymentCases.test.tsx",
+        "<BACKEND_CHECKOUT>/src/lib/paymentCases.ts",
+        "<BACKEND_CHECKOUT>/src/App.tsx",
+        "<BACKEND_CHECKOUT>/src/pages/Dashboard.tsx"
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<BACKEND_CHECKOUT>/src/pages/PaymentCases.test.tsx",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-05-2",
+              "plan": "02-05",
+              "wave": 4
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/tsconfig.app.json",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [],
+          "creation": "existing"
+        }
+      ],
+      "test_files": [
+        {
+          "path": "<BACKEND_CHECKOUT>/src/pages/PaymentCases.test.tsx",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-05-2",
+              "plan": "02-05",
+              "wave": 4
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "config_files": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tsconfig.app.json",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [],
+          "creation": "existing"
+        }
+      ]
+    },
+    {
+      "task_id": "02-06-1",
+      "plan": "02-06-PLAN.md",
+      "wave": 1,
+      "requirements": [
+        "DISC-02",
+        "TENANT-02"
+      ],
+      "threat_refs": [
+        "T-02-06-01",
+        "T-02-06-02"
+      ],
+      "secure_behavior": "- exotiq.rent serves marketplace identity; eligible booking tenants canonicalize to book.exotiq.rent.\n    - Untrusted forwarded Host/provider/local origin cannot choose production canonical.\n    - Synthetic/mock/staging and hidden/not-opted-in entities never become indexable public offers.",
+      "task_type": "auto",
+      "commands": [
+        "cd '<FRONTEND_CHECKOUT>' && npx --no-install vitest run domain/booking/discovery.test.ts domain/booking/seo.test.ts"
+      ],
+      "files": [
+        "<FRONTEND_CHECKOUT>/domain/booking/discovery.ts",
+        "<FRONTEND_CHECKOUT>/domain/booking/discovery.test.ts",
+        "<FRONTEND_CHECKOUT>/domain/booking/config.ts"
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<FRONTEND_CHECKOUT>/domain/booking/discovery.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-06-1",
+              "plan": "02-06",
+              "wave": 1
+            },
+            {
+              "task": "02-06-2",
+              "plan": "02-06",
+              "wave": 1
+            },
+            {
+              "task": "02-19-2",
+              "plan": "02-19",
+              "wave": 3
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<FRONTEND_CHECKOUT>/domain/booking/seo.test.ts",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [],
+          "creation": "existing"
+        }
+      ],
+      "test_files": [
+        {
+          "path": "<FRONTEND_CHECKOUT>/domain/booking/discovery.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-06-1",
+              "plan": "02-06",
+              "wave": 1
+            },
+            {
+              "task": "02-06-2",
+              "plan": "02-06",
+              "wave": 1
+            },
+            {
+              "task": "02-19-2",
+              "plan": "02-19",
+              "wave": 3
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<FRONTEND_CHECKOUT>/domain/booking/seo.test.ts",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [],
+          "creation": "existing"
+        }
+      ],
+      "config_files": []
+    },
+    {
+      "task_id": "02-06-2",
+      "plan": "02-06-PLAN.md",
+      "wave": 1,
+      "requirements": [
+        "DISC-02",
+        "TENANT-02"
+      ],
+      "threat_refs": [
+        "T-02-06-01",
+        "T-02-06-02"
+      ],
+      "secure_behavior": "- Real opt-in, geography, visible vehicle and source price/terms control publication.\n    - Actual demo in supabase mode remains excluded; missing source metadata is UNKNOWN/excluded, not synthetic=false by default.\n    - Public DTO drops Stripe/customer/admin/booking fields and hostile markup remains plain text.",
+      "task_type": "auto",
+      "commands": [
+        "cd '<FRONTEND_CHECKOUT>' && npx --no-install vitest run domain/booking/discovery.test.ts domain/booking/marketplaceService.test.ts domain/booking/provenance.test.ts"
+      ],
+      "files": [
+        "<FRONTEND_CHECKOUT>/domain/booking/publicContracts.ts",
+        "<FRONTEND_CHECKOUT>/domain/booking/marketplaceService.ts",
+        "<FRONTEND_CHECKOUT>/domain/booking/supabaseService.ts",
+        "<FRONTEND_CHECKOUT>/domain/booking/discovery.test.ts"
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<FRONTEND_CHECKOUT>/domain/booking/discovery.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-06-1",
+              "plan": "02-06",
+              "wave": 1
+            },
+            {
+              "task": "02-06-2",
+              "plan": "02-06",
+              "wave": 1
+            },
+            {
+              "task": "02-19-2",
+              "plan": "02-19",
+              "wave": 3
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<FRONTEND_CHECKOUT>/domain/booking/marketplaceService.test.ts",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [],
+          "creation": "existing"
+        },
+        {
+          "path": "<FRONTEND_CHECKOUT>/domain/booking/provenance.test.ts",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [],
+          "creation": "existing"
+        }
+      ],
+      "test_files": [
+        {
+          "path": "<FRONTEND_CHECKOUT>/domain/booking/discovery.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-06-1",
+              "plan": "02-06",
+              "wave": 1
+            },
+            {
+              "task": "02-06-2",
+              "plan": "02-06",
+              "wave": 1
+            },
+            {
+              "task": "02-19-2",
+              "plan": "02-19",
+              "wave": 3
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<FRONTEND_CHECKOUT>/domain/booking/marketplaceService.test.ts",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [],
+          "creation": "existing"
+        },
+        {
+          "path": "<FRONTEND_CHECKOUT>/domain/booking/provenance.test.ts",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [],
+          "creation": "existing"
+        }
+      ],
+      "config_files": []
+    },
+    {
+      "task_id": "02-07-1",
+      "plan": "02-07-PLAN.md",
+      "wave": 2,
+      "requirements": [
+        "DISC-02",
+        "TENANT-02",
+        "SCHEMA-02"
+      ],
+      "threat_refs": [
+        "T-02-07-01",
+        "T-02-07-02"
+      ],
+      "secure_behavior": "- Anon projection exposes only eligible real operator/vehicle metadata, never customers/bookings/Stripe/internal flags.\n    - Synthetic cohort is excluded on production, and stage preview remains noindex.\n    - Same source eligibility/opt-in/geography controls source catalog, frontend guides and sitemap.",
+      "task_type": "auto",
+      "commands": [
+        "cd '<BACKEND_CHECKOUT>' && node scripts/agent-booking/run-tests.mjs unit tests/agent-booking/public-discovery-source-unit.test.ts && cd '<FRONTEND_CHECKOUT>' && npx --no-install vitest run domain/booking/discovery.test.ts domain/booking/marketplaceService.test.ts"
+      ],
+      "files": [
+        "<BACKEND_CHECKOUT>/supabase/migrations/20261008090020_public_discovery_projection.sql",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/public-discovery-source-unit.test.ts",
+        "<FRONTEND_CHECKOUT>/domain/booking/marketplaceService.ts",
+        "<FRONTEND_CHECKOUT>/domain/booking/supabaseService.ts"
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/public-discovery-source-unit.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-07-1",
+              "plan": "02-07",
+              "wave": 2
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/run-tests.mjs",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-14-2",
+              "plan": "02-14",
+              "wave": 12
+            }
+          ],
+          "creation": "existing"
+        },
+        {
+          "path": "<FRONTEND_CHECKOUT>/domain/booking/discovery.test.ts",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-06-1",
+              "plan": "02-06",
+              "wave": 1
+            },
+            {
+              "task": "02-06-2",
+              "plan": "02-06",
+              "wave": 1
+            },
+            {
+              "task": "02-19-2",
+              "plan": "02-19",
+              "wave": 3
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<FRONTEND_CHECKOUT>/domain/booking/marketplaceService.test.ts",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [],
+          "creation": "existing"
+        }
+      ],
+      "test_files": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/public-discovery-source-unit.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-07-1",
+              "plan": "02-07",
+              "wave": 2
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<FRONTEND_CHECKOUT>/domain/booking/discovery.test.ts",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-06-1",
+              "plan": "02-06",
+              "wave": 1
+            },
+            {
+              "task": "02-06-2",
+              "plan": "02-06",
+              "wave": 1
+            },
+            {
+              "task": "02-19-2",
+              "plan": "02-19",
+              "wave": 3
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<FRONTEND_CHECKOUT>/domain/booking/marketplaceService.test.ts",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [],
+          "creation": "existing"
+        }
+      ],
+      "config_files": []
+    },
+    {
+      "task_id": "02-08-1",
+      "plan": "02-08-PLAN.md",
+      "wave": 4,
+      "requirements": [
+        "SCHEMA-02",
+        "DISC-02",
+        "TENANT-02"
+      ],
+      "threat_refs": [
+        "T-02-08-01",
+        "T-02-08-02"
+      ],
+      "secure_behavior": "- Organization/WebSite/AutoRental/Car graph uses stable canonical @ids and visible real facts.\n    - Rental Offer uses LeaseOut and daily base unit; no InStock/final total/ratings fabricated.\n    - Hostile '</script>' and instruction text cannot become executable content or action authority.",
+      "task_type": "auto",
+      "commands": [
+        "cd '<FRONTEND_CHECKOUT>' && npx --no-install vitest run domain/booking/structuredData.test.ts domain/booking/discovery.test.ts && npx --no-install tsc --noEmit"
+      ],
+      "files": [
+        "<FRONTEND_CHECKOUT>/domain/booking/structuredData.ts",
+        "<FRONTEND_CHECKOUT>/domain/booking/structuredData.test.ts",
+        "<FRONTEND_CHECKOUT>/app/layout.tsx",
+        "<FRONTEND_CHECKOUT>/app/[operatorSlug]/page.tsx",
+        "<FRONTEND_CHECKOUT>/app/[operatorSlug]/[vehicleSlug]/page.tsx"
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<FRONTEND_CHECKOUT>/domain/booking/structuredData.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-08-1",
+              "plan": "02-08",
+              "wave": 4
+            },
+            {
+              "task": "02-08-2",
+              "plan": "02-08",
+              "wave": 4
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<FRONTEND_CHECKOUT>/domain/booking/discovery.test.ts",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-06-1",
+              "plan": "02-06",
+              "wave": 1
+            },
+            {
+              "task": "02-06-2",
+              "plan": "02-06",
+              "wave": 1
+            },
+            {
+              "task": "02-19-2",
+              "plan": "02-19",
+              "wave": 3
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "test_files": [
+        {
+          "path": "<FRONTEND_CHECKOUT>/domain/booking/structuredData.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-08-1",
+              "plan": "02-08",
+              "wave": 4
+            },
+            {
+              "task": "02-08-2",
+              "plan": "02-08",
+              "wave": 4
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<FRONTEND_CHECKOUT>/domain/booking/discovery.test.ts",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-06-1",
+              "plan": "02-06",
+              "wave": 1
+            },
+            {
+              "task": "02-06-2",
+              "plan": "02-06",
+              "wave": 1
+            },
+            {
+              "task": "02-19-2",
+              "plan": "02-19",
+              "wave": 3
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "config_files": []
+    },
+    {
+      "task_id": "02-08-2",
+      "plan": "02-08-PLAN.md",
+      "wave": 4,
+      "requirements": [
+        "SCHEMA-02",
+        "DISC-02",
+        "TENANT-02"
+      ],
+      "threat_refs": [
+        "T-02-08-01",
+        "T-02-08-02"
+      ],
+      "secure_behavior": "- Actual HTML before JS includes canonical/SSR facts/escaped graph and synthetic noindex.\n    - robots/sitemap content types/URLs/pagination match host; hostile query/token never leaks.\n    - Customer/agent/auth/booking/identity/provider-return routes retain auth/noindex/no-store/noreferrer.",
+      "task_type": "auto",
+      "commands": [
+        "cd '<FRONTEND_CHECKOUT>' && npx --no-install playwright test --config=playwright.agent-discovery.config.ts"
+      ],
+      "files": [
+        "<FRONTEND_CHECKOUT>/playwright.agent-discovery.config.ts",
+        "<FRONTEND_CHECKOUT>/tests/agent/discovery-browser.spec.ts",
+        "<FRONTEND_CHECKOUT>/tests/agent/discovery-fixture.ts",
+        "<FRONTEND_CHECKOUT>/domain/booking/structuredData.test.ts"
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<FRONTEND_CHECKOUT>/playwright.agent-discovery.config.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-08-2",
+              "plan": "02-08",
+              "wave": 4
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<FRONTEND_CHECKOUT>/tests/agent/discovery-browser.spec.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-08-2",
+              "plan": "02-08",
+              "wave": 4
+            },
+            {
+              "task": "02-20-2",
+              "plan": "02-20",
+              "wave": 5
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<FRONTEND_CHECKOUT>/domain/booking/structuredData.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-08-1",
+              "plan": "02-08",
+              "wave": 4
+            },
+            {
+              "task": "02-08-2",
+              "plan": "02-08",
+              "wave": 4
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "test_files": [
+        {
+          "path": "<FRONTEND_CHECKOUT>/tests/agent/discovery-browser.spec.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-08-2",
+              "plan": "02-08",
+              "wave": 4
+            },
+            {
+              "task": "02-20-2",
+              "plan": "02-20",
+              "wave": 5
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<FRONTEND_CHECKOUT>/domain/booking/structuredData.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-08-1",
+              "plan": "02-08",
+              "wave": 4
+            },
+            {
+              "task": "02-08-2",
+              "plan": "02-08",
+              "wave": 4
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "config_files": [
+        {
+          "path": "<FRONTEND_CHECKOUT>/playwright.agent-discovery.config.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-08-2",
+              "plan": "02-08",
+              "wave": 4
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ]
+    },
+    {
+      "task_id": "02-09-1",
+      "plan": "02-09-PLAN.md",
+      "wave": 3,
+      "requirements": [
+        "DOCS-02",
+        "AGENT-02",
+        "DISC-02"
+      ],
+      "threat_refs": [
+        "T-02-09-01",
+        "T-02-09-02"
+      ],
+      "secure_behavior": "- Exact configured resource/issuer/profile/tool/scopes match canonical contracts.\n    - Unaccepted profile, hidden/demo tenant, provider URL/receipt/secret cannot appear.\n    - llms.txt/site guide labels are optional proposals, never mandatory discoverability/ranking assertions.",
+      "task_type": "auto",
+      "commands": [
+        "cd '<BACKEND_CHECKOUT>' && node scripts/agent-booking/run-tests.mjs unit tests/agent-booking/discovery-docs-unit.test.ts && node scripts/agent-booking/generate-discovery.mjs --check --frontend-root '<FRONTEND_CHECKOUT>'"
+      ],
+      "files": [
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/generate-discovery.mjs",
+        "<BACKEND_CHECKOUT>/docs/external-booking/public-discovery.json",
+        "<BACKEND_CHECKOUT>/docs/external-booking/agent-connection.md",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/discovery-docs-unit.test.ts",
+        "<FRONTEND_CHECKOUT>/domain/booking/publicDiscovery.generated.json"
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/discovery-docs-unit.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-09-1",
+              "plan": "02-09",
+              "wave": 3
+            },
+            {
+              "task": "02-20-2",
+              "plan": "02-20",
+              "wave": 5
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/run-tests.mjs",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-14-2",
+              "plan": "02-14",
+              "wave": 12
+            }
+          ],
+          "creation": "existing"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/generate-discovery.mjs",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-09-1",
+              "plan": "02-09",
+              "wave": 3
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "test_files": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/discovery-docs-unit.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-09-1",
+              "plan": "02-09",
+              "wave": 3
+            },
+            {
+              "task": "02-20-2",
+              "plan": "02-20",
+              "wave": 5
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "config_files": []
+    },
+    {
+      "task_id": "02-10-1",
+      "plan": "02-10-PLAN.md",
+      "wave": 8,
+      "requirements": [
+        "STAGE-02",
+        "OPS-02",
+        "AGENT-02"
+      ],
+      "threat_refs": [
+        "T-02-10-01",
+        "T-02-10-02"
+      ],
+      "secure_behavior": "Selected resources/budget/TLS/account topology and human ownership are explicit; unresolved items remain blocking hosted execution.",
+      "task_type": "checkpoint:decision",
+      "commands": [
+        "test -s '<HANDOFF_ROOT>/OPERATIONS-PILOT-ASSESSMENT-2026-10-08.md' && test -s '<HANDOFF_ROOT>/testing/2026-10-08/staging-resource-candidates.json'"
+      ],
+      "files": [
+        "No source mutation; record checkpoint outcome in the plan SUMMARY."
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<HANDOFF_ROOT>/testing/2026-10-08/staging-resource-candidates.json",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [],
+          "creation": "existing"
+        }
+      ],
+      "test_files": [],
+      "config_files": []
+    },
+    {
+      "task_id": "02-11-1",
+      "plan": "02-11-PLAN.md",
+      "wave": 9,
+      "requirements": [
+        "STAGE-02",
+        "PILOT-02"
+      ],
+      "threat_refs": [
+        "T-02-11-01",
+        "T-02-11-02"
+      ],
+      "secure_behavior": "- Wrong org/budget/mode/project or production redirect refuses before writes.\n    - Provider connected destination must belong to selected platform sandbox; unrelated sandbox fails.\n    - Actions are exact resource scoped/idempotent; unknown create outcome is inspected, not duplicated.",
+      "task_type": "auto",
+      "commands": [
+        "cd '<BACKEND_CHECKOUT>' && node scripts/agent-booking/run-tests.mjs unit tests/agent-booking/stage-provision-unit.test.ts"
+      ],
+      "files": [
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/provision-staging.mjs",
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/stage-attestation.mjs",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/stage-provision-unit.test.ts",
+        "<BACKEND_CHECKOUT>/docs/external-booking/staging-resources.md"
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/stage-provision-unit.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-11-1",
+              "plan": "02-11",
+              "wave": 9
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/run-tests.mjs",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-14-2",
+              "plan": "02-14",
+              "wave": 12
+            }
+          ],
+          "creation": "existing"
+        }
+      ],
+      "test_files": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/stage-provision-unit.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-11-1",
+              "plan": "02-11",
+              "wave": 9
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "config_files": []
+    },
+    {
+      "task_id": "02-11-2",
+      "plan": "02-11-PLAN.md",
+      "wave": 9,
+      "requirements": [
+        "STAGE-02",
+        "PILOT-02"
+      ],
+      "threat_refs": [
+        "T-02-11-01",
+        "T-02-11-02"
+      ],
+      "secure_behavior": "- Separate nominated demo counterpart plus fresh Miami/Tampa source-eligible fixtures use unique IDs/windows.\n    - Auth/location/operator/connect/customer creation happens only within owned run/project and no overwrite.\n    - Held/paid/unknown rows cannot be blindly deleted; provider-terminal resolution precedes allowed cleanup.",
+      "task_type": "auto",
+      "commands": [
+        "cd '<BACKEND_CHECKOUT>' && node scripts/agent-booking/run-tests.mjs unit tests/agent-booking/fixtures.test.ts tests/agent-booking/environment.test.ts tests/agent-booking/stage-provision-unit.test.ts"
+      ],
+      "files": [
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/seed-staging.mjs",
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/guard-environment.mjs",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/fixtures.test.ts",
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/synthetic-cohort.mjs"
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/fixtures.test.ts",
+          "exists": true,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-11-2",
+              "plan": "02-11",
+              "wave": 9
+            }
+          ],
+          "creation": "existing"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/run-tests.mjs",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-14-2",
+              "plan": "02-14",
+              "wave": 12
+            }
+          ],
+          "creation": "existing"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/environment.test.ts",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-01-2",
+              "plan": "02-01",
+              "wave": 1
+            }
+          ],
+          "creation": "existing"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/stage-provision-unit.test.ts",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-11-1",
+              "plan": "02-11",
+              "wave": 9
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "test_files": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/fixtures.test.ts",
+          "exists": true,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-11-2",
+              "plan": "02-11",
+              "wave": 9
+            }
+          ],
+          "creation": "existing"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/environment.test.ts",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-01-2",
+              "plan": "02-01",
+              "wave": 1
+            }
+          ],
+          "creation": "existing"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/stage-provision-unit.test.ts",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-11-1",
+              "plan": "02-11",
+              "wave": 9
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "config_files": []
+    },
+    {
+      "task_id": "02-11-3",
+      "plan": "02-11-PLAN.md",
+      "wave": 9,
+      "requirements": [
+        "STAGE-02",
+        "PILOT-02"
+      ],
+      "threat_refs": [
+        "T-02-11-01",
+        "T-02-11-02"
+      ],
+      "secure_behavior": "- Provision preflight compares selected exact IDs/modes; unknown or changed binding refuses.\n    - No schema/seed/provider journey starts before full managed apply plan12.",
+      "task_type": "auto",
+      "commands": [
+        "cd '<BACKEND_CHECKOUT>' && node scripts/agent-booking/provision-staging.mjs --verify --selection \"$AGENT_STAGING_SELECTION\""
+      ],
+      "files": [
+        "<BACKEND_CHECKOUT>/docs/external-booking/staging-resources.md"
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/provision-staging.mjs",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-11-1",
+              "plan": "02-11",
+              "wave": 9
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "test_files": [],
+      "config_files": []
+    },
+    {
+      "task_id": "02-12-1",
+      "plan": "02-12-PLAN.md",
+      "wave": 10,
+      "requirements": [
+        "STAGE-02",
+        "SCHEMA-02",
+        "PILOT-02"
+      ],
+      "threat_refs": [
+        "T-02-12-01",
+        "T-02-12-02"
+      ],
+      "secure_behavior": "- Unresolved writer/dynamic grant/signature/trigger or missing auth/location dependency rejects bundle.\n    - Existing migrate-stage label never authorizes blind historic corpus replay.\n    - Bundle records whole baseline and every reviewed new migration exact bytes/order/hash.",
+      "task_type": "auto",
+      "commands": [
+        "cd '<BACKEND_CHECKOUT>' && node scripts/agent-booking/run-tests.mjs unit tests/agent-booking/schema-bundle-unit.test.ts && node scripts/agent-booking/prepare-staging-schema.mjs --check"
+      ],
+      "files": [
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/prepare-staging-schema.mjs",
+        "<BACKEND_CHECKOUT>/supabase/staging/phase02-baseline.sql",
+        "<BACKEND_CHECKOUT>/supabase/staging/phase02-bundle.json",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/schema-bundle-unit.test.ts"
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/schema-bundle-unit.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-12-1",
+              "plan": "02-12",
+              "wave": 10
+            },
+            {
+              "task": "02-12-3",
+              "plan": "02-12",
+              "wave": 10
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/run-tests.mjs",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-14-2",
+              "plan": "02-14",
+              "wave": 12
+            }
+          ],
+          "creation": "existing"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/prepare-staging-schema.mjs",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-12-1",
+              "plan": "02-12",
+              "wave": 10
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "test_files": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/schema-bundle-unit.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-12-1",
+              "plan": "02-12",
+              "wave": 10
+            },
+            {
+              "task": "02-12-3",
+              "plan": "02-12",
+              "wave": 10
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "config_files": []
+    },
+    {
+      "task_id": "02-12-2",
+      "plan": "02-12-PLAN.md",
+      "wave": 10,
+      "requirements": [
+        "STAGE-02",
+        "SCHEMA-02",
+        "PILOT-02"
+      ],
+      "threat_refs": [
+        "T-02-12-01",
+        "T-02-12-02"
+      ],
+      "secure_behavior": "- Target independently rechecked immediately before DDL/seed/deploy; drift/no prior selection refuses.\n    - New reconciliation/operator/public migrations are applied BEFORE acceptance.\n    - Global/peroperator flags default off and completion/recovery remain functional.",
+      "task_type": "auto",
+      "commands": [
+        "cd '<BACKEND_CHECKOUT>' && node scripts/agent-booking/apply-staging-schema.mjs --verify --config \"$AGENT_STAGING_CONFIG\" --bundle supabase/staging/phase02-bundle.json && node scripts/agent-booking/deploy-staging.mjs --verify --config \"$AGENT_STAGING_CONFIG\""
+      ],
+      "files": [
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/apply-staging-schema.mjs",
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/deploy-staging.mjs",
+        "<BACKEND_CHECKOUT>/docs/external-booking/staging-runbook.md"
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/apply-staging-schema.mjs",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-12-2",
+              "plan": "02-12",
+              "wave": 10
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/supabase/staging/phase02-bundle.json",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-12-1",
+              "plan": "02-12",
+              "wave": 10
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/deploy-staging.mjs",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-12-2",
+              "plan": "02-12",
+              "wave": 10
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "test_files": [],
+      "config_files": []
+    },
+    {
+      "task_id": "02-12-3",
+      "plan": "02-12-PLAN.md",
+      "wave": 10,
+      "requirements": [
+        "STAGE-02",
+        "SCHEMA-02",
+        "PILOT-02"
+      ],
+      "threat_refs": [
+        "T-02-12-01",
+        "T-02-12-02"
+      ],
+      "secure_behavior": "- Real pg_proc overload/defaults/search_path/GUC/grants and RLS/triggers match reviewed bundle.\n    - Anon/authenticated/service and cross-tenant calls cannot mutate private ledger/flags/resolution.\n    - Actual PostgREST12.2+ timeout/cancellation/pool hoisting and writer retries work.",
+      "task_type": "auto",
+      "commands": [
+        "cd '<BACKEND_CHECKOUT>' && node scripts/agent-booking/run-tests.mjs staging tests/agent-booking/managed-schema.test.ts"
+      ],
+      "files": [
+        "<BACKEND_CHECKOUT>/tests/agent-booking/managed-schema.test.ts",
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/snapshot-staging-authority.mjs",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/schema-bundle-unit.test.ts"
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/managed-schema.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-12-3",
+              "plan": "02-12",
+              "wave": 10
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/schema-bundle-unit.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-12-1",
+              "plan": "02-12",
+              "wave": 10
+            },
+            {
+              "task": "02-12-3",
+              "plan": "02-12",
+              "wave": 10
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/run-tests.mjs",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-14-2",
+              "plan": "02-14",
+              "wave": 12
+            }
+          ],
+          "creation": "existing"
+        }
+      ],
+      "test_files": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/managed-schema.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-12-3",
+              "plan": "02-12",
+              "wave": 10
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/schema-bundle-unit.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-12-1",
+              "plan": "02-12",
+              "wave": 10
+            },
+            {
+              "task": "02-12-3",
+              "plan": "02-12",
+              "wave": 10
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "config_files": []
+    },
+    {
+      "task_id": "02-13-1",
+      "plan": "02-13-PLAN.md",
+      "wave": 11,
+      "requirements": [
+        "STAGE-02",
+        "PAYREC-02",
+        "PILOT-02",
+        "OPS-02"
+      ],
+      "threat_refs": [
+        "T-02-13-01",
+        "T-02-13-02",
+        "T-02-13-03"
+      ],
+      "secure_behavior": "- Two genuine supported client profiles exchange distinct MCP/API resources and retain original-client bindings.\n    - Next protected call after revoke fails; expired25h/71h cases require explicit human review unchanged scopes/client.\n    - Owned customer continuation survives agent revocation without resurrecting grant.",
+      "task_type": "auto",
+      "commands": [
+        "cd '<BACKEND_CHECKOUT>' && node scripts/agent-booking/run-tests.mjs staging tests/agent-booking/managed-auth.test.ts tests/agent-booking/handoff-continuity.test.ts"
+      ],
+      "files": [
+        "<BACKEND_CHECKOUT>/tests/agent-booking/managed-auth.test.ts",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/fixtures/managed-clients.ts",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/handoff-continuity.test.ts"
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/managed-auth.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-13-1",
+              "plan": "02-13",
+              "wave": 11
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/handoff-continuity.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-13-1",
+              "plan": "02-13",
+              "wave": 11
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/run-tests.mjs",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-14-2",
+              "plan": "02-14",
+              "wave": 12
+            }
+          ],
+          "creation": "existing"
+        }
+      ],
+      "test_files": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/managed-auth.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-13-1",
+              "plan": "02-13",
+              "wave": 11
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/handoff-continuity.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-13-1",
+              "plan": "02-13",
+              "wave": 11
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "config_files": []
+    },
+    {
+      "task_id": "02-13-2",
+      "plan": "02-13-PLAN.md",
+      "wave": 11,
+      "requirements": [
+        "STAGE-02",
+        "PAYREC-02",
+        "PILOT-02",
+        "OPS-02"
+      ],
+      "threat_refs": [
+        "T-02-13-01",
+        "T-02-13-02",
+        "T-02-13-03"
+      ],
+      "secure_behavior": "- Actual Stripe sandbox objects/account/mode/customer/amount/intent/signature bind independently per required leg.\n    - Signed duplicate/out-of-order/lost/late events never false-confirm/release or double charge.\n    - Provider terminal-unpaid clears safely; processing/paid/partial/missing remains occupied; legacy untracked cases drain or stay excluded.",
+      "task_type": "auto",
+      "commands": [
+        "cd '<BACKEND_CHECKOUT>' && node scripts/agent-booking/run-tests.mjs staging tests/agent-booking/managed-providers.test.ts tests/agent-booking/payment-reconciliation.test.ts"
+      ],
+      "files": [
+        "<BACKEND_CHECKOUT>/tests/agent-booking/managed-providers.test.ts",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/payment-reconciliation.test.ts",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/fixtures/managed-payments.ts"
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/managed-providers.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-13-2",
+              "plan": "02-13",
+              "wave": 11
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/payment-reconciliation.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-13-2",
+              "plan": "02-13",
+              "wave": 11
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/run-tests.mjs",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-14-2",
+              "plan": "02-14",
+              "wave": 12
+            }
+          ],
+          "creation": "existing"
+        }
+      ],
+      "test_files": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/managed-providers.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-13-2",
+              "plan": "02-13",
+              "wave": 11
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/payment-reconciliation.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-13-2",
+              "plan": "02-13",
+              "wave": 11
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "config_files": []
+    },
+    {
+      "task_id": "02-13-3",
+      "plan": "02-13-PLAN.md",
+      "wave": 11,
+      "requirements": [
+        "STAGE-02",
+        "PAYREC-02",
+        "PILOT-02",
+        "OPS-02"
+      ],
+      "threat_refs": [
+        "T-02-13-01",
+        "T-02-13-02",
+        "T-02-13-03"
+      ],
+      "secure_behavior": "- Global/operator pause each reject new quote/receipt/request but existing replay/status/renewal/customer identity/payment recover.\n    - AS/RPC/JWKS/provider outages/disconnects have bounded safe UNKNOWN/denial, no unintended side effects.\n    - Webhook/reconciliation/scheduler recovery works while admission stays off; metrics record lag without secrets.",
+      "task_type": "auto",
+      "commands": [
+        "cd '<BACKEND_CHECKOUT>' && node scripts/agent-booking/run-tests.mjs staging tests/agent-booking/managed-rollback.test.ts tests/agent-booking/handoff-resolver.test.ts tests/agent-booking/rollback.test.ts"
+      ],
+      "files": [
+        "<BACKEND_CHECKOUT>/tests/agent-booking/managed-rollback.test.ts",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/handoff-resolver.test.ts",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/rollback.test.ts"
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/managed-rollback.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-13-3",
+              "plan": "02-13",
+              "wave": 11
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/handoff-resolver.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-13-3",
+              "plan": "02-13",
+              "wave": 11
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/rollback.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-13-3",
+              "plan": "02-13",
+              "wave": 11
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/run-tests.mjs",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-14-2",
+              "plan": "02-14",
+              "wave": 12
+            }
+          ],
+          "creation": "existing"
+        }
+      ],
+      "test_files": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/managed-rollback.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-13-3",
+              "plan": "02-13",
+              "wave": 11
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/handoff-resolver.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-13-3",
+              "plan": "02-13",
+              "wave": 11
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/rollback.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-13-3",
+              "plan": "02-13",
+              "wave": 11
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "config_files": []
+    },
+    {
+      "task_id": "02-14-1",
+      "plan": "02-14-PLAN.md",
+      "wave": 12,
+      "requirements": [
+        "PILOT-02",
+        "AGENT-02",
+        "STAGE-02"
+      ],
+      "threat_refs": [
+        "T-02-14-01",
+        "T-02-14-02",
+        "T-02-14-03"
+      ],
+      "secure_behavior": "- Guard runs before Playwright import/spawn/network; absent or wrong stage config yields refusal.\n    - --config/arbitraryproject/baseURL/env overrides cannot bypass approved synthetic project.\n    - No local fixture proof is accepted as complete managed/provider evidence.",
+      "task_type": "auto",
+      "commands": [
+        "cd '<BACKEND_CHECKOUT>' && node scripts/agent-booking/run-tests.mjs unit tests/agent-booking/pilot-runner-unit.test.ts"
+      ],
+      "files": [
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/run-pilot.mjs",
+        "<BACKEND_CHECKOUT>/playwright.agent.config.ts",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/pilot-runner-unit.test.ts",
+        "<BACKEND_CHECKOUT>/package.json",
+        "<BACKEND_CHECKOUT>/package-lock.json"
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<BACKEND_CHECKOUT>/playwright.agent.config.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-14-1",
+              "plan": "02-14",
+              "wave": 12
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/pilot-runner-unit.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-14-1",
+              "plan": "02-14",
+              "wave": 12
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/run-tests.mjs",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-14-2",
+              "plan": "02-14",
+              "wave": 12
+            }
+          ],
+          "creation": "existing"
+        }
+      ],
+      "test_files": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/pilot-runner-unit.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-14-1",
+              "plan": "02-14",
+              "wave": 12
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "config_files": [
+        {
+          "path": "<BACKEND_CHECKOUT>/playwright.agent.config.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-14-1",
+              "plan": "02-14",
+              "wave": 12
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ]
+    },
+    {
+      "task_id": "02-14-2",
+      "plan": "02-14-PLAN.md",
+      "wave": 12,
+      "requirements": [
+        "PILOT-02",
+        "AGENT-02",
+        "STAGE-02"
+      ],
+      "threat_refs": [
+        "T-02-14-01",
+        "T-02-14-02",
+        "T-02-14-03"
+      ],
+      "secure_behavior": "- Four real confirmed Miami/Tampa\u00d7API/MCP journeys plus nominated synthetic demo through each supported transport.\n    - Actual human consent/operator approval/current owned Identity/both leg evidence precede confirmed.\n    - Interrupted/repeated clicks/UNKNOWN/expired permission/delayed provider event never invent confirmation.",
+      "task_type": "auto",
+      "commands": [
+        "cd '<BACKEND_CHECKOUT>' && node scripts/agent-booking/run-tests.mjs unit tests/agent-booking/pilot-runner-unit.test.ts && node scripts/agent-booking/run-pilot.mjs --project=synthetic"
+      ],
+      "files": [
+        "<BACKEND_CHECKOUT>/tests/agent-booking/pilot.spec.ts",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/fixtures/pilot-fixture.ts",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/fixtures/pilot-evidence.ts",
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/run-tests.mjs"
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/pilot.spec.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-14-2",
+              "plan": "02-14",
+              "wave": 12
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/run-tests.mjs",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-14-2",
+              "plan": "02-14",
+              "wave": 12
+            }
+          ],
+          "creation": "existing"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/pilot-runner-unit.test.ts",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-14-1",
+              "plan": "02-14",
+              "wave": 12
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/run-pilot.mjs",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-14-1",
+              "plan": "02-14",
+              "wave": 12
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "test_files": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/pilot.spec.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-14-2",
+              "plan": "02-14",
+              "wave": 12
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/pilot-runner-unit.test.ts",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-14-1",
+              "plan": "02-14",
+              "wave": 12
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "config_files": []
+    },
+    {
+      "task_id": "02-15-1",
+      "plan": "02-15-PLAN.md",
+      "wave": 14,
+      "requirements": [
+        "OPS-02",
+        "AGENT-02"
+      ],
+      "threat_refs": [
+        "T-02-15-01",
+        "T-02-15-02"
+      ],
+      "secure_behavior": "- Any unauthorized action/duplicate charge/overlap/false confirmation/secret leak blocks admission immediately.\n    - Queue owner/backup/oldest age/scheduler lag are actual observed fields, not a prose sign-off.\n    - Pausing new admission preserves status/replay/customer payments/webhooks/reconciliation.",
+      "task_type": "auto",
+      "commands": [
+        "cd '<BACKEND_CHECKOUT>' && node scripts/agent-booking/run-tests.mjs unit tests/agent-booking/pilot-operations-unit.test.ts"
+      ],
+      "files": [
+        "<BACKEND_CHECKOUT>/docs/external-booking/payment-operations.md",
+        "<BACKEND_CHECKOUT>/docs/external-booking/rollout.md",
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/validate-pilot-operations.mjs",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/pilot-operations-unit.test.ts",
+        "<BACKEND_CHECKOUT>/docs/external-booking/phase02-feedback.json"
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/pilot-operations-unit.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-15-1",
+              "plan": "02-15",
+              "wave": 14
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/run-tests.mjs",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-14-2",
+              "plan": "02-14",
+              "wave": 12
+            }
+          ],
+          "creation": "existing"
+        }
+      ],
+      "test_files": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/pilot-operations-unit.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-15-1",
+              "plan": "02-15",
+              "wave": 14
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "config_files": []
+    },
+    {
+      "task_id": "02-15-2",
+      "plan": "02-15-PLAN.md",
+      "wave": 14,
+      "requirements": [
+        "OPS-02",
+        "AGENT-02"
+      ],
+      "threat_refs": [
+        "T-02-15-01",
+        "T-02-15-02"
+      ],
+      "secure_behavior": "- Brand/URL/MCP seeded trial can never count as cold discovery.\n    - Actual vendor/product/version/account/browser/MCP/OAuth profile required; unsupported remains explicit.\n    - Agent prose/redirect can't satisfy confirmed, and redacted provider/backend proof must bind real owned case.",
+      "task_type": "auto",
+      "commands": [
+        "cd '<BACKEND_CHECKOUT>' && node scripts/agent-booking/run-tests.mjs unit tests/agent-booking/agent-pilot-unit.test.ts tests/agent-booking/pilot-operations-unit.test.ts"
+      ],
+      "files": [
+        "<BACKEND_CHECKOUT>/docs/external-booking/agent-pilot.md",
+        "<BACKEND_CHECKOUT>/docs/external-booking/agent-client-matrix.json",
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/validate-agent-pilot.mjs",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/agent-pilot-unit.test.ts"
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/agent-pilot-unit.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-15-2",
+              "plan": "02-15",
+              "wave": 14
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/run-tests.mjs",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-14-2",
+              "plan": "02-14",
+              "wave": 12
+            }
+          ],
+          "creation": "existing"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/pilot-operations-unit.test.ts",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-15-1",
+              "plan": "02-15",
+              "wave": 14
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "test_files": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/agent-pilot-unit.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-15-2",
+              "plan": "02-15",
+              "wave": 14
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/pilot-operations-unit.test.ts",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-15-1",
+              "plan": "02-15",
+              "wave": 14
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "config_files": []
+    },
+    {
+      "task_id": "02-16-1",
+      "plan": "02-16-PLAN.md",
+      "wave": 15,
+      "requirements": [
+        "AGENT-02",
+        "OPS-02",
+        "PILOT-02"
+      ],
+      "threat_refs": [
+        "T-02-16-01",
+        "T-02-16-02"
+      ],
+      "secure_behavior": "At least one genuine named-agent staged journey has observed human-authorized evidence; cold discovery outcome is separately measured and any incompatibility/miss is recorded.",
+      "task_type": "checkpoint:human-verify",
+      "commands": [
+        "cd '<BACKEND_CHECKOUT>' && node scripts/agent-booking/validate-agent-pilot.mjs --evidence \"$AGENT_REAL_CLIENT_EVIDENCE\" && node scripts/agent-booking/validate-pilot-operations.mjs --evidence \"$AGENT_OPERATIONS_EVIDENCE\" && node scripts/agent-booking/validate-phase-feedback.mjs --file docs/external-booking/phase02-feedback.json --ingest \"$AGENT_REAL_CLIENT_EVIDENCE\""
+      ],
+      "files": [
+        "<BACKEND_CHECKOUT>/docs/external-booking/phase02-feedback.json"
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/validate-agent-pilot.mjs",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-15-2",
+              "plan": "02-15",
+              "wave": 14
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/validate-pilot-operations.mjs",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-15-1",
+              "plan": "02-15",
+              "wave": 14
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/validate-phase-feedback.mjs",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-22-1",
+              "plan": "02-22",
+              "wave": 7
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/docs/external-booking/phase02-feedback.json",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-15-1",
+              "plan": "02-15",
+              "wave": 14
+            },
+            {
+              "task": "02-16-1",
+              "plan": "02-16",
+              "wave": 15
+            },
+            {
+              "task": "02-22-1",
+              "plan": "02-22",
+              "wave": 7
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "test_files": [],
+      "config_files": []
+    },
+    {
+      "task_id": "02-17-1",
+      "plan": "02-17-PLAN.md",
+      "wave": 6,
+      "requirements": [
+        "EVOL-02",
+        "DISC-02",
+        "DOCS-02",
+        "OPS-02"
+      ],
+      "threat_refs": [
+        "T-02-17-01",
+        "T-02-17-02"
+      ],
+      "secure_behavior": "- Reproducible locked clean dependency install+version report detects drift without broad filesystem cleanup.\n    - Verified-empty duplicate @types directories are diagnosed only inside selected node_modules; nonempty/symlink untouched.\n    - Stable captured fixture clocks reproduce boundary denial, with production deadlines unchanged.",
+      "task_type": "auto",
+      "commands": [
+        "cd '<BACKEND_CHECKOUT>' && node scripts/agent-booking/run-tests.mjs unit tests/agent-booking/dependency-preflight-unit.test.ts tests/agent-booking/handoff-source-unit.test.ts && node scripts/agent-booking/generate-discovery.mjs --check --frontend-root '<FRONTEND_CHECKOUT>' && cd '<FRONTEND_CHECKOUT>' && npx --no-install vitest run domain/booking/frameworkDependencies.test.ts"
+      ],
+      "files": [
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/dependency-preflight.mjs",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/dependency-preflight-unit.test.ts",
+        "<BACKEND_CHECKOUT>/.github/workflows/ci.yml",
+        "<FRONTEND_CHECKOUT>/domain/booking/frameworkDependencies.test.ts"
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/dependency-preflight-unit.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-17-1",
+              "plan": "02-17",
+              "wave": 6
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<FRONTEND_CHECKOUT>/domain/booking/frameworkDependencies.test.ts",
+          "exists": true,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-17-1",
+              "plan": "02-17",
+              "wave": 6
+            }
+          ],
+          "creation": "existing"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/run-tests.mjs",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-14-2",
+              "plan": "02-14",
+              "wave": 12
+            }
+          ],
+          "creation": "existing"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/handoff-source-unit.test.ts",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [],
+          "creation": "existing"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/generate-discovery.mjs",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-09-1",
+              "plan": "02-09",
+              "wave": 3
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "test_files": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/dependency-preflight-unit.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-17-1",
+              "plan": "02-17",
+              "wave": 6
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<FRONTEND_CHECKOUT>/domain/booking/frameworkDependencies.test.ts",
+          "exists": true,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-17-1",
+              "plan": "02-17",
+              "wave": 6
+            }
+          ],
+          "creation": "existing"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/handoff-source-unit.test.ts",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [],
+          "creation": "existing"
+        }
+      ],
+      "config_files": []
+    },
+    {
+      "task_id": "02-17-2",
+      "plan": "02-17-PLAN.md",
+      "wave": 6,
+      "requirements": [
+        "EVOL-02",
+        "DISC-02",
+        "DOCS-02",
+        "OPS-02"
+      ],
+      "threat_refs": [
+        "T-02-17-01",
+        "T-02-17-02"
+      ],
+      "secure_behavior": "- Read-only audit exact public hosts bounded redirects/content-types/canonicals/SSR/schema/sitemap without private writes.\n    - Current schema/provider/ops/real-agent evidence gates cannot be satisfied by fixture booleans/missing cases.\n    - Cold misses and optional-file absence aren't conflated with transaction safety or universal incompatibility.",
+      "task_type": "auto",
+      "commands": [
+        "cd '<BACKEND_CHECKOUT>' && node scripts/agent-booking/run-tests.mjs unit tests/agent-booking/discovery-measurement-unit.test.ts && node scripts/agent-booking/run-tests.mjs contract tests/agent-booking/release-gates.test.ts"
+      ],
+      "files": [
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/audit-public-discovery.mjs",
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/release-gates.mjs",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/release-gates.test.ts",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/discovery-measurement-unit.test.ts"
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/release-gates.test.ts",
+          "exists": true,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-17-2",
+              "plan": "02-17",
+              "wave": 6
+            }
+          ],
+          "creation": "existing"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/discovery-measurement-unit.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-17-2",
+              "plan": "02-17",
+              "wave": 6
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/run-tests.mjs",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-14-2",
+              "plan": "02-14",
+              "wave": 12
+            }
+          ],
+          "creation": "existing"
+        }
+      ],
+      "test_files": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/release-gates.test.ts",
+          "exists": true,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-17-2",
+              "plan": "02-17",
+              "wave": 6
+            }
+          ],
+          "creation": "existing"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/discovery-measurement-unit.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-17-2",
+              "plan": "02-17",
+              "wave": 6
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "config_files": []
+    },
+    {
+      "task_id": "02-18-1",
+      "plan": "02-18-PLAN.md",
+      "wave": 16,
+      "requirements": [
+        "OPS-02",
+        "AGENT-02",
+        "PILOT-02",
+        "EVOL-02"
+      ],
+      "threat_refs": [
+        "T-02-18-01",
+        "T-02-18-02"
+      ],
+      "secure_behavior": "Human technical/operations review records actual readiness or specific gaps with a limited staffed cohort; no production activation occurs in this plan.",
+      "task_type": "checkpoint:human-verify",
+      "commands": [
+        "cd '<BACKEND_CHECKOUT>' && node scripts/agent-booking/release-gates.mjs --evidence \"$AGENT_PILOT_EVIDENCE\" --source-fingerprint \"$AGENT_SOURCE_FINGERPRINT\" && node scripts/agent-booking/validate-agent-pilot.mjs --evidence \"$AGENT_REAL_CLIENT_EVIDENCE\" && node scripts/agent-booking/validate-pilot-operations.mjs --evidence \"$AGENT_OPERATIONS_EVIDENCE\" && node scripts/agent-booking/validate-phase-feedback.mjs --file docs/external-booking/phase02-feedback.json"
+      ],
+      "files": [
+        "No source mutation; record checkpoint outcome in the plan SUMMARY."
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/release-gates.mjs",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-17-2",
+              "plan": "02-17",
+              "wave": 6
+            }
+          ],
+          "creation": "existing"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/validate-agent-pilot.mjs",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-15-2",
+              "plan": "02-15",
+              "wave": 14
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/validate-pilot-operations.mjs",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-15-1",
+              "plan": "02-15",
+              "wave": 14
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/validate-phase-feedback.mjs",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-22-1",
+              "plan": "02-22",
+              "wave": 7
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/docs/external-booking/phase02-feedback.json",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-15-1",
+              "plan": "02-15",
+              "wave": 14
+            },
+            {
+              "task": "02-16-1",
+              "plan": "02-16",
+              "wave": 15
+            },
+            {
+              "task": "02-22-1",
+              "plan": "02-22",
+              "wave": 7
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "test_files": [],
+      "config_files": []
+    },
+    {
+      "task_id": "02-19-1",
+      "plan": "02-19-PLAN.md",
+      "wave": 3,
+      "requirements": [
+        "DISC-02",
+        "TENANT-02",
+        "SCHEMA-02"
+      ],
+      "threat_refs": [
+        "T-02-19-01",
+        "T-02-19-02"
+      ],
+      "secure_behavior": "- Marketplace root is actual SSR brand/marketplace content; tenant/detail self-canonicals use the booking host.\n    - Source-real pages omit unsupported cities/prices/availability/ratings; synthetic demo noindex is explicit.\n    - Wrong host modes don't advertise unroutable URLs and private roots cannot inherit public schema.",
+      "task_type": "auto",
+      "commands": [
+        "cd '<FRONTEND_CHECKOUT>' && npx --no-install vitest run domain/booking/discovery.test.ts domain/booking/seo.test.ts && npx --no-install tsc --noEmit"
+      ],
+      "files": [
+        "<FRONTEND_CHECKOUT>/app/page.tsx",
+        "<FRONTEND_CHECKOUT>/app/layout.tsx",
+        "<FRONTEND_CHECKOUT>/app/[operatorSlug]/page.tsx",
+        "<FRONTEND_CHECKOUT>/app/[operatorSlug]/[vehicleSlug]/page.tsx",
+        "<FRONTEND_CHECKOUT>/domain/booking/seo.ts"
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<FRONTEND_CHECKOUT>/domain/booking/discovery.test.ts",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-06-1",
+              "plan": "02-06",
+              "wave": 1
+            },
+            {
+              "task": "02-06-2",
+              "plan": "02-06",
+              "wave": 1
+            },
+            {
+              "task": "02-19-2",
+              "plan": "02-19",
+              "wave": 3
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<FRONTEND_CHECKOUT>/domain/booking/seo.test.ts",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [],
+          "creation": "existing"
+        }
+      ],
+      "test_files": [
+        {
+          "path": "<FRONTEND_CHECKOUT>/domain/booking/discovery.test.ts",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-06-1",
+              "plan": "02-06",
+              "wave": 1
+            },
+            {
+              "task": "02-06-2",
+              "plan": "02-06",
+              "wave": 1
+            },
+            {
+              "task": "02-19-2",
+              "plan": "02-19",
+              "wave": 3
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<FRONTEND_CHECKOUT>/domain/booking/seo.test.ts",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [],
+          "creation": "existing"
+        }
+      ],
+      "config_files": []
+    },
+    {
+      "task_id": "02-19-2",
+      "plan": "02-19-PLAN.md",
+      "wave": 3,
+      "requirements": [
+        "DISC-02",
+        "TENANT-02",
+        "SCHEMA-02"
+      ],
+      "threat_refs": [
+        "T-02-19-01",
+        "T-02-19-02"
+      ],
+      "secure_behavior": "- Every sitemap URL belongs to the host and a routable eligible page; pagination is bounded and complete.\n    - lastmod is actual content timestamp or omitted; synthetic/private URLs absent.\n    - Staging/demo visible noindex and private no-store/referrer policy hold regardless of robots allowance.",
+      "task_type": "auto",
+      "commands": [
+        "cd '<FRONTEND_CHECKOUT>' && npx --no-install vitest run domain/booking/discovery.test.ts domain/booking/seo.test.ts && npx --no-install tsc --noEmit"
+      ],
+      "files": [
+        "<FRONTEND_CHECKOUT>/app/robots.ts",
+        "<FRONTEND_CHECKOUT>/app/sitemap.ts",
+        "<FRONTEND_CHECKOUT>/domain/booking/discovery.test.ts",
+        "<FRONTEND_CHECKOUT>/netlify.toml"
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<FRONTEND_CHECKOUT>/domain/booking/discovery.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-06-1",
+              "plan": "02-06",
+              "wave": 1
+            },
+            {
+              "task": "02-06-2",
+              "plan": "02-06",
+              "wave": 1
+            },
+            {
+              "task": "02-19-2",
+              "plan": "02-19",
+              "wave": 3
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<FRONTEND_CHECKOUT>/domain/booking/seo.test.ts",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [],
+          "creation": "existing"
+        }
+      ],
+      "test_files": [
+        {
+          "path": "<FRONTEND_CHECKOUT>/domain/booking/discovery.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-06-1",
+              "plan": "02-06",
+              "wave": 1
+            },
+            {
+              "task": "02-06-2",
+              "plan": "02-06",
+              "wave": 1
+            },
+            {
+              "task": "02-19-2",
+              "plan": "02-19",
+              "wave": 3
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<FRONTEND_CHECKOUT>/domain/booking/seo.test.ts",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [],
+          "creation": "existing"
+        }
+      ],
+      "config_files": []
+    },
+    {
+      "task_id": "02-20-1",
+      "plan": "02-20-PLAN.md",
+      "wave": 5,
+      "requirements": [
+        "DOCS-02",
+        "AGENT-02",
+        "DISC-02"
+      ],
+      "threat_refs": [
+        "T-02-20-01",
+        "T-02-20-02"
+      ],
+      "secure_behavior": "- Text/Markdown proper content types, valid approved links and no hidden/synthetic/private entity.\n    - Tenant guide uses actual source eligibility and disappears when opt-out changes.\n    - Connection page explains actual safe tools/OAuth/human takeover and unverified named clients.",
+      "task_type": "auto",
+      "commands": [
+        "cd '<FRONTEND_CHECKOUT>' && npx --no-install vitest run domain/booking/discoveryArtifacts.test.ts domain/booking/discovery.test.ts && npx --no-install tsc --noEmit"
+      ],
+      "files": [
+        "<FRONTEND_CHECKOUT>/app/agents/page.tsx",
+        "<FRONTEND_CHECKOUT>/app/llms.txt/route.ts",
+        "<FRONTEND_CHECKOUT>/app/[operatorSlug]/llms.txt/route.ts",
+        "<FRONTEND_CHECKOUT>/domain/booking/discoveryArtifacts.ts",
+        "<FRONTEND_CHECKOUT>/domain/booking/discoveryArtifacts.test.ts"
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<FRONTEND_CHECKOUT>/domain/booking/discoveryArtifacts.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-20-1",
+              "plan": "02-20",
+              "wave": 5
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<FRONTEND_CHECKOUT>/domain/booking/discovery.test.ts",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-06-1",
+              "plan": "02-06",
+              "wave": 1
+            },
+            {
+              "task": "02-06-2",
+              "plan": "02-06",
+              "wave": 1
+            },
+            {
+              "task": "02-19-2",
+              "plan": "02-19",
+              "wave": 3
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "test_files": [
+        {
+          "path": "<FRONTEND_CHECKOUT>/domain/booking/discoveryArtifacts.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-20-1",
+              "plan": "02-20",
+              "wave": 5
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<FRONTEND_CHECKOUT>/domain/booking/discovery.test.ts",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-06-1",
+              "plan": "02-06",
+              "wave": 1
+            },
+            {
+              "task": "02-06-2",
+              "plan": "02-06",
+              "wave": 1
+            },
+            {
+              "task": "02-19-2",
+              "plan": "02-19",
+              "wave": 3
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "config_files": []
+    },
+    {
+      "task_id": "02-20-2",
+      "plan": "02-20-PLAN.md",
+      "wave": 5,
+      "requirements": [
+        "DOCS-02",
+        "AGENT-02",
+        "DISC-02"
+      ],
+      "threat_refs": [
+        "T-02-20-01",
+        "T-02-20-02"
+      ],
+      "secure_behavior": "- Remote resource401 challenge resolves exact safe protected-resource and issuer metadata.\n    - Browser guide text matches six tools and tested profiles, never arbitrary API bearer passthrough.\n    - Guide links survive opt-out and host mode without exposing private paths.",
+      "task_type": "auto",
+      "commands": [
+        "cd '<FRONTEND_CHECKOUT>' && npx --no-install playwright test --config=playwright.agent-discovery.config.ts && cd '<BACKEND_CHECKOUT>' && node scripts/agent-booking/run-tests.mjs unit tests/agent-booking/discovery-docs-unit.test.ts"
+      ],
+      "files": [
+        "<FRONTEND_CHECKOUT>/tests/agent/discovery-browser.spec.ts",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/discovery-docs-unit.test.ts",
+        "<BACKEND_CHECKOUT>/docs/external-booking/oauth-compatibility.md",
+        "<FRONTEND_CHECKOUT>/app/agents.md/route.ts"
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<FRONTEND_CHECKOUT>/tests/agent/discovery-browser.spec.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-08-2",
+              "plan": "02-08",
+              "wave": 4
+            },
+            {
+              "task": "02-20-2",
+              "plan": "02-20",
+              "wave": 5
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/discovery-docs-unit.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-09-1",
+              "plan": "02-09",
+              "wave": 3
+            },
+            {
+              "task": "02-20-2",
+              "plan": "02-20",
+              "wave": 5
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<FRONTEND_CHECKOUT>/playwright.agent-discovery.config.ts",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-08-2",
+              "plan": "02-08",
+              "wave": 4
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/run-tests.mjs",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-14-2",
+              "plan": "02-14",
+              "wave": 12
+            }
+          ],
+          "creation": "existing"
+        }
+      ],
+      "test_files": [
+        {
+          "path": "<FRONTEND_CHECKOUT>/tests/agent/discovery-browser.spec.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-08-2",
+              "plan": "02-08",
+              "wave": 4
+            },
+            {
+              "task": "02-20-2",
+              "plan": "02-20",
+              "wave": 5
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/discovery-docs-unit.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-09-1",
+              "plan": "02-09",
+              "wave": 3
+            },
+            {
+              "task": "02-20-2",
+              "plan": "02-20",
+              "wave": 5
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "config_files": [
+        {
+          "path": "<FRONTEND_CHECKOUT>/playwright.agent-discovery.config.ts",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-08-2",
+              "plan": "02-08",
+              "wave": 4
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ]
+    },
+    {
+      "task_id": "02-21-1",
+      "plan": "02-21-PLAN.md",
+      "wave": 13,
+      "requirements": [
+        "PILOT-02",
+        "AGENT-02",
+        "STAGE-02"
+      ],
+      "threat_refs": [
+        "T-02-21-01",
+        "T-02-21-02",
+        "T-02-21-03"
+      ],
+      "secure_behavior": "- Exact case counts/resources/client profiles and source hashes accompany each actual confirmed result.\n    - Four inherited plus demo journeys remain unexecuted if resources/access are missing; skip is no pass.\n    - No secrets in evidence and failed adverse safety gate blocks review.",
+      "task_type": "auto",
+      "commands": [
+        "cd '<BACKEND_CHECKOUT>' && node scripts/agent-booking/run-pilot.mjs --project=synthetic && node scripts/agent-booking/generate-discovery.mjs --frontend-root '<FRONTEND_CHECKOUT>' && node scripts/agent-booking/generate-discovery.mjs --check --frontend-root '<FRONTEND_CHECKOUT>' && node scripts/agent-booking/deploy-staging.mjs --refresh-public-docs --config \"$AGENT_STAGING_CONFIG\" && node scripts/agent-booking/run-tests.mjs contract tests/agent-booking/docs.test.ts"
+      ],
+      "files": [
+        "<BACKEND_CHECKOUT>/docs/external-booking/pilot-evidence.md",
+        "<BACKEND_CHECKOUT>/docs/external-booking/mcp-compatibility.md",
+        "<BACKEND_CHECKOUT>/docs/external-booking/public-discovery.json",
+        "<BACKEND_CHECKOUT>/docs/external-booking/agent-connection.md",
+        "<FRONTEND_CHECKOUT>/domain/booking/publicDiscovery.generated.json"
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/run-pilot.mjs",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-14-1",
+              "plan": "02-14",
+              "wave": 12
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/generate-discovery.mjs",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-09-1",
+              "plan": "02-09",
+              "wave": 3
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/deploy-staging.mjs",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-12-2",
+              "plan": "02-12",
+              "wave": 10
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/run-tests.mjs",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-14-2",
+              "plan": "02-14",
+              "wave": 12
+            }
+          ],
+          "creation": "existing"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/docs.test.ts",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [],
+          "creation": "existing"
+        }
+      ],
+      "test_files": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/docs.test.ts",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [],
+          "creation": "existing"
+        }
+      ],
+      "config_files": []
+    },
+    {
+      "task_id": "02-22-1",
+      "plan": "02-22-PLAN.md",
+      "wave": 7,
+      "requirements": [
+        "EVOL-02",
+        "OPS-02",
+        "AGENT-02"
+      ],
+      "threat_refs": [
+        "T-02-22-01",
+        "T-02-22-02"
+      ],
+      "secure_behavior": "- Every observed defect/miss/client limit/latency case links actual evidence, reproducible trigger, severity, owner, regression and acceptance.\n    - Expected successes and speculative protocol ideas cannot become executed results.\n    - Next phase consumes pending payment/discovery/client/maintenance findings without rewriting Phase01/02 acceptance.",
+      "task_type": "auto",
+      "commands": [
+        "cd '<BACKEND_CHECKOUT>' && node scripts/agent-booking/run-tests.mjs unit tests/agent-booking/phase-feedback-unit.test.ts && node scripts/agent-booking/validate-phase-feedback.mjs --file docs/external-booking/phase02-feedback.json"
+      ],
+      "files": [
+        "<BACKEND_CHECKOUT>/docs/external-booking/evolution.md",
+        "<BACKEND_CHECKOUT>/docs/external-booking/phase02-feedback.json",
+        "<BACKEND_CHECKOUT>/scripts/agent-booking/validate-phase-feedback.mjs",
+        "<BACKEND_CHECKOUT>/tests/agent-booking/phase-feedback-unit.test.ts"
+      ],
+      "read_first_present": true,
+      "acceptance_criteria_present": true,
+      "status": "pending \u2014 phase02 work not executed",
+      "test_config_and_command_references": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/phase-feedback-unit.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-22-1",
+              "plan": "02-22",
+              "wave": 7
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/run-tests.mjs",
+          "exists": true,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-14-2",
+              "plan": "02-14",
+              "wave": 12
+            }
+          ],
+          "creation": "existing"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/scripts/agent-booking/validate-phase-feedback.mjs",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-22-1",
+              "plan": "02-22",
+              "wave": 7
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        },
+        {
+          "path": "<BACKEND_CHECKOUT>/docs/external-booking/phase02-feedback.json",
+          "exists": false,
+          "source": "automated command",
+          "owner_tasks": [
+            {
+              "task": "02-15-1",
+              "plan": "02-15",
+              "wave": 14
+            },
+            {
+              "task": "02-16-1",
+              "plan": "02-16",
+              "wave": 15
+            },
+            {
+              "task": "02-22-1",
+              "plan": "02-22",
+              "wave": 7
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "test_files": [
+        {
+          "path": "<BACKEND_CHECKOUT>/tests/agent-booking/phase-feedback-unit.test.ts",
+          "exists": false,
+          "source": "owned task test/config",
+          "owner_tasks": [
+            {
+              "task": "02-22-1",
+              "plan": "02-22",
+              "wave": 7
+            }
+          ],
+          "creation": "meaningful RED/owned scaffold before implementation, or named dependency"
+        }
+      ],
+      "config_files": []
+    }
+  ]
+}
