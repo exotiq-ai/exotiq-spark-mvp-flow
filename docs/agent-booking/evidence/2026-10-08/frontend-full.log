@@ -1,0 +1,12 @@
+
+> exotiq-rent@0.1.0 test
+> vitest run
+
+
+ RUN  v4.1.6 <FRONTEND_CHECKOUT>
+
+
+ Test Files  92 passed | 3 skipped (95)
+      Tests  673 passed | 20 skipped (693)
+   Start at  11:17:35
+   Duration  7.71s (transform 18.12s, setup 0ms, import 35.79s, tests 31.01s, environment 4.25s)

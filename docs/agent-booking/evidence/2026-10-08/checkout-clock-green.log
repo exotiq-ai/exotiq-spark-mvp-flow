@@ -1,0 +1,23 @@
+
+> vite_react_shadcn_ts@0.0.0 test:agent:unit
+> node scripts/agent-booking/run-tests.mjs unit --run tests/agent-booking/handoff-source-unit.test.ts
+
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+
+ RUN  v3.2.6 <BACKEND_CHECKOUT>
+
+stdout | tests/agent-booking/handoff-source-unit.test.ts > actual signed source checkout returns to the exact authenticated generic account selector
+[RENT-CHECKOUT] Checkout session ready - {"mode":"test"}
+
+stdout | tests/agent-booking/handoff-source-unit.test.ts > actual public source checkout retains its token-gated return and ignores caller totals
+[RENT-CHECKOUT] Checkout session ready - {"mode":"test"}
+
+stdout | tests/agent-booking/handoff-source-unit.test.ts > simulated reservation uses the original booking deadline when the fixture clock advances
+[RENT-CHECKOUT] Checkout session ready - {"mode":"test"}
+
+ ✓ |unit| tests/agent-booking/handoff-source-unit.test.ts (7 tests) 150ms
+
+ Test Files  1 passed (1)
+      Tests  7 passed (7)
+   Start at  11:22:25
+   Duration  871ms (transform 97ms, setup 19ms, collect 453ms, tests 150ms, environment 0ms, prepare 41ms)

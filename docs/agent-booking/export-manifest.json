@@ -1,6 +1,6 @@
 {
   "date": "2026-10-08",
-  "scope": "Portable review copies; local paths and selected environment identifiers redacted. Original local evidence retained. No credentials, provider accounts, customer exports or database volumes included.",
+  "scope": "Portable review copies; local paths and selected environment identifiers redacted. Original local evidence retained. No credentials, provider accounts, customer exports or database volumes included. Markdown/log trailing whitespace normalized; selected redacted evidence logs explicitly tracked despite repository-wide log ignore.",
   "files": [
     {
       "file": "handoff.md",
@@ -30,7 +30,7 @@
     {
       "file": "reports/OPERATIONS-PILOT-ASSESSMENT-2026-10-08.md",
       "source": "OPERATIONS-PILOT-ASSESSMENT-2026-10-08.md",
-      "sha256": "327564464c66f9c24a1b4ce47e94ecf939d0acc22d48b7cc63d1b3d7032fbf44"
+      "sha256": "bb54a021ac12ff64881f95b9e6a3ab719288a5a01eb8d5511a70c1e58b1969a8"
     },
     {
       "file": "reports/OPERATIONS-REVIEW.md",
@@ -275,7 +275,7 @@
     {
       "file": "planning/phases/01-api-docs-mcp-foundation/01-16-PLAN.md",
       "source": ".planning/phases/01-api-docs-mcp-foundation/01-16-PLAN.md",
-      "sha256": "f232b3ba8c718aef9b224b1a0f7cb2d86419f589b54beb3365f64f2aa3613502"
+      "sha256": "e766ca163c8de335db1137de69d8137b2fce7e1b5039220332c73e133361caed"
     },
     {
       "file": "planning/phases/01-api-docs-mcp-foundation/01-16-SUMMARY.md",
@@ -410,12 +410,12 @@
     {
       "file": "planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-19-PLAN.md",
       "source": ".planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-19-PLAN.md",
-      "sha256": "92475582837d5fd7d9732836b60af10e95faaa330b643a0c6d17d25549b420f1"
+      "sha256": "e66c6a225c44aa30c10a5068da35f8cc6cda2c94b15acf61116b5f75b7a91db7"
     },
     {
       "file": "planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-20-PLAN.md",
       "source": ".planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-20-PLAN.md",
-      "sha256": "1d031b3f32b052bc13f8a92cd5aa59175ae4e222c02039b26ba959032deb55f2"
+      "sha256": "35766261e4fd0b00646f2bb18ac59674b53d20c7dc23a0644afdd8f5bdf2b69e"
     },
     {
       "file": "planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-21-PLAN.md",
@@ -435,12 +435,12 @@
     {
       "file": "planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-PLAN-CHECK.md",
       "source": ".planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-PLAN-CHECK.md",
-      "sha256": "3057c09683ae33b78164a79d8926dc6a5de9cfbf126a235be55c3bdf2171f0d2"
+      "sha256": "99d0d8b9a3539f55c770c48db15da4ef6c47e14432f8a491fb464bc5b6c678a2"
     },
     {
       "file": "planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-RESEARCH.md",
       "source": ".planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-RESEARCH.md",
-      "sha256": "4520ec011ef4ff292176c939853763b2f8f9b19e681f456c4289ec5e80169edd"
+      "sha256": "e90a01676a22d21c07f6a1d979d7be8b6c24c93c78f18b39008860e64691b6e0"
     },
     {
       "file": "planning/phases/02-agent-discovery-and-isolated-demo-fleet-pilot/02-VALIDATION-MAP.json",
@@ -455,12 +455,12 @@
     {
       "file": "evidence/2026-10-08/api-unit-final.log",
       "source": "testing/2026-10-08/api-unit-final.log",
-      "sha256": "cae56cacd96fb74e0ea541630151ce09bdda619cdd9fea2b7fca107ab53c33aa"
+      "sha256": "3b964dd8d51cacc0c145cf2b37d1721b9f76f1584e80297c7fcedde50ef2f66f"
     },
     {
       "file": "evidence/2026-10-08/api-contract-final.log",
       "source": "testing/2026-10-08/api-contract-final.log",
-      "sha256": "b90914a0d65a3ce3a403b95eb5869050b727d9ff9e9c072b4c3ab7560f0cf9f0"
+      "sha256": "0ce7bad17cdd0b1baf70e5c0d28970a5babb6bac78b3917e0ada48f96bab3a47"
     },
     {
       "file": "evidence/2026-10-08/api-final-results.json",
@@ -470,7 +470,7 @@
     {
       "file": "evidence/2026-10-08/mcp-default.log",
       "source": "testing/2026-10-08/mcp-default.log",
-      "sha256": "007312d33ded6bf2038c89e974da628dff320ee470e387d8e191fd3607166cca"
+      "sha256": "5568939387040744299affe7bda54b3e9426e613a96b3ff2fad5fd49a3920a47"
     },
     {
       "file": "evidence/2026-10-08/mcp-results.json",
@@ -480,7 +480,7 @@
     {
       "file": "evidence/2026-10-08/frontend-full.log",
       "source": "testing/2026-10-08/frontend-full.log",
-      "sha256": "81f37301f23a21b06e4bb1ff56e18301b2798456e11e2ab83d9f72917349eb95"
+      "sha256": "cac6e3858fdb178b485adc4c37c761da23d874d8b5780c6e020a65cb71bd9fa9"
     },
     {
       "file": "evidence/2026-10-08/frontend-results.json",
@@ -515,7 +515,7 @@
     {
       "file": "evidence/2026-10-08/mcp-typecheck.log",
       "source": "testing/2026-10-08/mcp-typecheck.log",
-      "sha256": "0f19bd1433ff6aef2c6aa11d690ef48d4a07ca5efb2c400abf285879c1885cc4"
+      "sha256": "e3ade2a75e681213df07917f39512133023eec4606b0baca6364b76fc832abe5"
     },
     {
       "file": "evidence/2026-10-08/frontend-typecheck-remedied.log",
@@ -525,12 +525,12 @@
     {
       "file": "evidence/2026-10-08/checkout-clock-red.log",
       "source": "testing/2026-10-08/checkout-clock-red.log",
-      "sha256": "883183ff0a4c45b7988b3ea0d01f6e13f05875bf74a155f8098971c9aee873c1"
+      "sha256": "44af1be65bf057a0597f57aa740b5593878445c03e04a9a6ccefe8cfbc0bbb40"
     },
     {
       "file": "evidence/2026-10-08/checkout-clock-green.log",
       "source": "testing/2026-10-08/checkout-clock-green.log",
-      "sha256": "e37fef9c65fc9ba74ea67091b3fc32bf5dfbc8efea917869ace41ec7310bf332"
+      "sha256": "f967461dd658502593a3944f22bcf2fe8b1f6d41563d5a5afb1366a6c7f37f28"
     },
     {
       "file": "evidence/2026-10-08/dependency-empty-directory-remedy.json",
@@ -540,12 +540,12 @@
     {
       "file": "evidence/2026-10-08/phase02-plan-check-iteration1.md",
       "source": "testing/2026-10-08/phase02-plan-check-iteration1.md",
-      "sha256": "1edf1bf015693b97b2bf3d0e7bd495fa808ced231370454cf89c8b1bb07df0a9"
+      "sha256": "1396e650c1615eeffd43ef6743abf2aa92e70a38729d790c6da3ca1d5b42f8e1"
     },
     {
       "file": "evidence/2026-10-08/phase02-plan-check-iteration2.md",
       "source": "testing/2026-10-08/phase02-plan-check-iteration2.md",
-      "sha256": "6d1ab04b93dbf3c20062439844db872ab1373e8976bb812b93c17f4c9f4fa19f"
+      "sha256": "c670f4730939e661585eba99623b1730bce8fe5a1ced53f62f08bcb20d0d195c"
     },
     {
       "file": "evidence/2026-10-08/public-discovery-evidence.json",

@@ -1,0 +1,12 @@
+
+> @exotiq/renter-mcp@0.1.0 test
+> vitest run
+
+
+ RUN  v4.1.11 <BACKEND_CHECKOUT>/packages/renter-mcp
+
+
+ Test Files  7 passed (7)
+      Tests  50 passed | 5 skipped (55)
+   Start at  11:17:35
+   Duration  11.00s (transform 1.50s, setup 0ms, import 5.02s, tests 13.42s, environment 0ms)

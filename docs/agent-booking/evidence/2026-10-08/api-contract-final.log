@@ -1,0 +1,19 @@
+
+> vite_react_shadcn_ts@0.0.0 test:agent:contract
+> node scripts/agent-booking/run-tests.mjs contract
+
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+
+ RUN  v3.2.6 <BACKEND_CHECKOUT>
+
+ ✓ |contract| tests/agent-booking/release-gates.test.ts (4 tests) 4ms
+ ✓ |contract| tests/agent-booking/docs.test.ts (5 tests) 41ms
+ ✓ |contract| tests/agent-booking/contracts.test.ts (14 tests) 43ms
+ ✓ |contract| tests/agent-booking/security.test.ts (4 tests) 29ms
+ ✓ |contract| tests/agent-booking/visibility.test.ts (5 tests) 30ms
+ ✓ |contract| tests/agent-booking/capabilities.test.ts (4 tests) 539ms
+
+ Test Files  6 passed (6)
+      Tests  36 passed (36)
+   Start at  11:23:20
+   Duration  860ms (transform 251ms, setup 112ms, collect 552ms, tests 685ms, environment 1ms, prepare 389ms)

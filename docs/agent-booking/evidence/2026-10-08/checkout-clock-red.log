@@ -1,0 +1,45 @@
+
+> vite_react_shadcn_ts@0.0.0 test:agent:unit
+> node scripts/agent-booking/run-tests.mjs unit --run tests/agent-booking/handoff-source-unit.test.ts
+
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+
+ RUN  v3.2.6 <BACKEND_CHECKOUT>
+
+stdout | tests/agent-booking/handoff-source-unit.test.ts > actual signed source checkout returns to the exact authenticated generic account selector
+[RENT-CHECKOUT] Checkout session ready - {"mode":"test"}
+
+stdout | tests/agent-booking/handoff-source-unit.test.ts > actual public source checkout retains its token-gated return and ignores caller totals
+[RENT-CHECKOUT] Checkout session ready - {"mode":"test"}
+
+ ❯ |unit| tests/agent-booking/handoff-source-unit.test.ts (7 tests | 1 failed) 162ms
+   ✓ actual rent-checkout rejects unsigned external marker before source authority/provider access 67ms
+   ✓ actual identity-create-session rejects unsigned external marker before source authority/provider access 17ms
+   ✓ actual signed source checkout returns to the exact authenticated generic account selector 24ms
+   ✓ actual public source checkout retains its token-gated return and ignores caller totals 12ms
+   ✓ actual rent-checkout stops an aborted unfinished body before source/provider work 16ms
+   ✓ actual identity-create-session stops an aborted unfinished body before source/provider work 9ms
+   × simulated reservation uses the original booking deadline when the fixture clock advances 15ms
+     → expected 410 to be 200 // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |unit| tests/agent-booking/handoff-source-unit.test.ts > simulated reservation uses the original booking deadline when the fixture clock advances
+AssertionError: expected 410 to be 200 // Object.is equality
+
+- Expected
++ Received
+
+- 200
++ 410
+
+ ❯ tests/agent-booking/handoff-source-unit.test.ts:60:24
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 6 passed (7)
+   Start at  11:21:18
+   Duration  953ms (transform 105ms, setup 17ms, collect 488ms, tests 162ms, environment 0ms, prepare 44ms)

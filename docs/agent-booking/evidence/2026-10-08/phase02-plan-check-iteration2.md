@@ -1,8 +1,8 @@
 ## ISSUES FOUND
 
-**Phase:** 02 — Agent discovery and isolated demo-fleet pilot  
-**Revision:** iteration 2  
-**Plans checked:** 22; 41 tasks; 12 declared waves  
+**Phase:** 02 — Agent discovery and isolated demo-fleet pilot
+**Revision:** iteration 2
+**Plans checked:** 22; 41 tasks; 12 declared waves
 **Issues:** 1 blocker; 0 unresolved warnings from iteration 1; 1 informational label correction
 
 All ten requirement IDs remain substantively covered. All22 plans pass the actual GSD plan-structure validator. Every task has read-first paths, acceptance criteria and automated commands. Dependencies are acyclic, declared waves match the dependency formula and same-wave declared source ownership is disjoint. The previous research, preserved-lab, Edge typechecking, command-map and excessive-file-scope findings have been resolved.

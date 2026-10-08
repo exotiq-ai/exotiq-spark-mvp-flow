@@ -1,7 +1,7 @@
 ## ISSUES FOUND
 
-**Phase:** 02 — Agent discovery and isolated demo-fleet pilot  
-**Plans checked:** 18; 40 tasks; 10 waves  
+**Phase:** 02 — Agent discovery and isolated demo-fleet pilot
+**Plans checked:** 18; 40 tasks; 10 waves
 **Issues:** 1 blocker, 7 warnings
 
 This is static plan verification, not execution acceptance. All ten phase requirement IDs have substantive tasks. All 18 plans pass the actual GSD structure validator; every task has read-first paths, acceptance criteria and automated verification. The dependency graph is acyclic, waves match dependencies, and same-wave declared source ownership does not overlap. No Phase01 or Phase02 full acceptance is established.

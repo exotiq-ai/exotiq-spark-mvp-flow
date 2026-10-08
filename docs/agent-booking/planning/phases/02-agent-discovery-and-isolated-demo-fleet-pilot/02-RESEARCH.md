@@ -1,8 +1,8 @@
 # Phase02: Agent discovery and isolated demo-fleet pilot — Research
 
-**Researched:** 2026-10-08, America/Denver  
-**Domain:** Public agent discovery, authenticated API/MCP, synthetic full-provider rental pilot, authoritative payment reconciliation  
-**Confidence:** HIGH for inspected code and primary standards; MEDIUM for unperformed hosted/client acceptance.  
+**Researched:** 2026-10-08, America/Denver
+**Domain:** Public agent discovery, authenticated API/MCP, synthetic full-provider rental pilot, authoritative payment reconciliation
+**Confidence:** HIGH for inspected code and primary standards; MEDIUM for unperformed hosted/client acceptance.
 **Evidence vocabulary:** `[VERIFIED: ...]` means inspected source, tool result or dated local evidence in this session. `[CITED: URL]` identifies primary documentation. `[RECOMMENDATION]` identifies a proposed design, not an existing capability or a locked business policy. No unverified product capability is asserted.
 
 <user_constraints>
