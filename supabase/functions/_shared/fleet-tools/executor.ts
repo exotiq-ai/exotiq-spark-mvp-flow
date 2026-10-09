@@ -6,6 +6,10 @@
 // Every handler is team-scoped through the `teamId` argument. Handlers must
 // never accept a team id from tool input.
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.77.0';
+import { loadFleetTruth, recommendationFor, recommendAll, sharePct, rankByUtilization, methodNote, type FleetTruth } from '../motoriq/serverFacts.ts';
+import { matchDemandCity } from '../demandCities.ts';
+import { addDays, dayKey, endOfLocalDay, safeTimeZone } from '../motoriq/facts.ts';
+import { calendarEvents, applyCalendarChecks, sliceEvents } from '../eventEngine.ts';
 
 // Type definitions for database records
 export interface Vehicle {
@@ -132,30 +136,55 @@ export function formatNumberWords(n: number): string {
  *
  * Returns ISO bounds; `start` is null for all-time.
  */
-export function resolveTimeframeWindow(timeframe?: string): { start: string | null; end: string; label: string } {
-  const now = new Date();
-  const end = new Date(now);
-  end.setHours(23, 59, 59, 999);
-
-  const start = new Date(now);
+export function resolveTimeframeWindow(timeframe?: string, tz = 'UTC'): { start: string | null; end: string; label: string } {
+  // Days are the tenant's calendar days: "today" starts at local midnight, not at UTC midnight.
+  const zone = safeTimeZone(tz);
+  const todayKey = dayKey(Date.now(), zone);
+  const startOf = (key: string) => new Date(endOfLocalDay(addDays(key, -1), zone) + 1).toISOString();
+  const end = new Date(endOfLocalDay(todayKey, zone)).toISOString();
   switch (timeframe) {
     case 'today':
-      start.setHours(0, 0, 0, 0);
-      return { start: start.toISOString(), end: end.toISOString(), label: 'today' };
+      return { start: startOf(todayKey), end, label: 'today' };
     case 'week':
-      start.setDate(start.getDate() - 7);
-      start.setHours(0, 0, 0, 0);
-      return { start: start.toISOString(), end: end.toISOString(), label: 'the last 7 days' };
+      return { start: startOf(addDays(todayKey, -7)), end, label: 'the last 7 days' };
     case 'month':
-      start.setMonth(start.getMonth() - 1);
-      start.setHours(0, 0, 0, 0);
-      return { start: start.toISOString(), end: end.toISOString(), label: 'the last 30 days' };
+      return { start: startOf(addDays(todayKey, -30)), end, label: 'the last 30 days' };
     case 'year':
-      start.setFullYear(start.getFullYear() - 1);
-      start.setHours(0, 0, 0, 0);
-      return { start: start.toISOString(), end: end.toISOString(), label: 'the last 12 months' };
+      return { start: startOf(addDays(todayKey, -365)), end, label: 'the last 12 months' };
     default:
-      return { start: null, end: end.toISOString(), label: 'all time' };
+      return { start: null, end, label: 'all time' };
+  }
+}
+
+/** The start and end (ms) of one local calendar day, yyyy-MM-dd, in a time zone. */
+export function localDayBounds(key: string, tz = 'UTC'): { start: number; end: number } {
+  const zone = safeTimeZone(tz);
+  return { start: endOfLocalDay(addDays(key, -1), zone) + 1, end: endOfLocalDay(key, zone) };
+}
+
+/** A date or timestamp as a local calendar day: date-only strings stay as they are, timestamps are read in `tz`. */
+function ymdOf(value: string, tz = 'UTC'): string {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : dayKey(Date.parse(value), safeTimeZone(tz));
+}
+
+/** "10/10/2026"-style short date in the tenant's zone (replaces server-local toLocaleDateString()). */
+export function fmtDay(value: string | number | Date, tz = 'UTC'): string {
+  return new Date(value).toLocaleDateString('en-US', { timeZone: safeTimeZone(tz) });
+}
+
+/** "2:30 PM" in the tenant's zone, for times Rari says out loud. */
+export function fmtTime(value: string | number | Date, tz = 'UTC'): string {
+  return new Date(value).toLocaleTimeString('en-US', { timeZone: safeTimeZone(tz), hour: 'numeric', minute: '2-digit' });
+}
+
+/** The tenant's IANA time zone (teams.timezone), else UTC. */
+async function tenantTimeZone(supabase: SupabaseClient, teamId: string | null): Promise<string> {
+  if (!teamId) return 'UTC';
+  try {
+    const { data } = await supabase.from('teams').select('timezone').eq('id', teamId).maybeSingle();
+    return safeTimeZone((data as any)?.timezone);
+  } catch {
+    return 'UTC';
   }
 }
 
@@ -194,18 +223,17 @@ export function formatUsdWords(amount: number): string {
   return `${sign}$${Math.round(absAmount)}`;
 }
 
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
 /**
  * Formats an ISO date string to natural speech format
  * Example: "2026-02-10" -> "February 10, 2026"
  */
-export function formatDateLong(isoDate: string): string {
+export function formatDateLong(isoDate: string, tz = 'UTC'): string {
   try {
-    const d = new Date(isoDate);
-    return d.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    });
+    const [y, m, d] = ymdOf(isoDate, tz).split('-').map(Number);
+    if (!y || !m || !d) return isoDate;
+    return `${MONTHS[m - 1]} ${d}, ${y}`;
   } catch {
     return isoDate;
   }
@@ -215,18 +243,19 @@ export function formatDateLong(isoDate: string): string {
  * Formats a date range for natural speech
  * Example: ("2026-02-10", "2026-02-14") -> "February 10 to 14, 2026" or "February 10 to March 2, 2026"
  */
-export function formatDateRange(startIso: string, endIso: string): string {
+export function formatDateRange(startIso: string, endIso: string, tz = 'UTC'): string {
   try {
-    const start = new Date(startIso);
-    const end = new Date(endIso);
-    
-    const startMonth = start.toLocaleDateString('en-US', { month: 'long' });
-    const endMonth = end.toLocaleDateString('en-US', { month: 'long' });
-    const startDay = start.getDate();
-    const endDay = end.getDate();
-    const startYear = start.getFullYear();
-    const endYear = end.getFullYear();
-    
+    const [startYear, sm, startDay] = ymdOf(startIso, tz).split('-').map(Number);
+    const [endYear, em, endDay] = ymdOf(endIso, tz).split('-').map(Number);
+    if (!startYear || !sm || !startDay || !endYear || !em || !endDay) return `${startIso} to ${endIso}`;
+    const startMonth = MONTHS[sm - 1];
+    const endMonth = MONTHS[em - 1];
+
+    // One day
+    if (startYear === endYear && sm === em && startDay === endDay) {
+      return `${startMonth} ${startDay}, ${startYear}`;
+    }
+
     // Same month and year
     if (startMonth === endMonth && startYear === endYear) {
       return `${startMonth} ${startDay} to ${endDay}, ${startYear}`;
@@ -609,6 +638,7 @@ async function getVehicleBookingWindow(
   supabase: SupabaseClient,
   vehicleId: string,
   teamId: string | null,
+  tz = 'UTC',
 ): Promise<Array<Record<string, unknown>>> {
   let q = supabase
     .from('bookings')
@@ -618,8 +648,7 @@ async function getVehicleBookingWindow(
   const { data } = await q.order('start_date', { ascending: false }).limit(100);
   const rows = data || [];
 
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
+  const todayStart = new Date(localDayBounds(dayKey(Date.now(), safeTimeZone(tz)), tz).start);
   const dead = new Set(['cancelled', 'canceled', 'declined', 'expired', 'rejected']);
 
   const live = rows.filter(
@@ -643,7 +672,7 @@ async function getVehicleBookingWindow(
     return {
       reference: b.booking_ref,
       customer: b.customers?.full_name || b.customer_name || 'Unknown',
-      dates: `${start.toLocaleDateString()} to ${end.toLocaleDateString()}`,
+      dates: `${fmtDay(start, tz)} to ${fmtDay(end, tz)}`,
       status: b.status,
       timing: end < todayStart ? 'past' : isCurrent ? 'current' : 'upcoming',
       amount: `$${Number(b.total_value || b.total_amount || 0).toFixed(0)}`,
@@ -652,8 +681,88 @@ async function getVehicleBookingWindow(
 }
 
 
+// ---------------------------------------------------------------------------
+// Facts, not stored columns. `vehicles.utilization`, `vehicles.suggested_rate` and `vehicles.revenue` are not
+// maintained by anything (stored utilization correlated 0.06 with real bookings), so no tool may read them.
+// Everything Rari says about utilization, revenue per car and rate advice comes from the tenant's own bookings,
+// computed by the same code the MotorIQ screens use (see ../motoriq), in the tenant's time zone.
+// ---------------------------------------------------------------------------
+
+const COUNTED_STATUSES = ['active', 'confirmed', 'completed'];
+
+/** The tenant's computed fleet facts, or null when there is no team or the read fails (callers then say so). */
+async function fleetTruth(supabase: SupabaseClient, teamId: string | null, location?: unknown): Promise<FleetTruth | null> {
+  if (!teamId) return null;
+  try {
+    const loc = typeof location === 'string' && location.trim() && location !== 'all' ? location : null;
+    return await loadFleetTruth(supabase as any, teamId, { location: loc });
+  } catch (e) {
+    console.error('[fleetTruth] could not compute facts:', e);
+    return null;
+  }
+}
+
+/** "37%" or "not enough data" */
+const pctLabel = (p: number | null | undefined): string => (p == null ? 'not enough data' : `${p}%`);
+/** "37% utilization" or "utilization not measurable yet" (for sentences) */
+const utilPhrase = (label: string): string => (label.endsWith('%') ? `${label} utilization` : 'utilization not measurable yet');
+const carsWord = (n: number): string => `${n} ${n === 1 ? 'vehicle' : 'vehicles'}`;
+const dollars0 = (n: number): string => `$${Math.round(n).toLocaleString('en-US')}`;
+
+/** One car's utilization in words, or an honest "not measurable". */
+function utilizationWords(truth: FleetTruth | null, vehicleId: string): string {
+  const p = sharePct(truth?.byId.get(vehicleId)?.trailing30);
+  return p == null ? 'utilization not measurable yet' : `${p}% of days booked in the last 30 days`;
+}
+
+/** What one car brought in over the last 30 days, in words. */
+function earnedWords(truth: FleetTruth | null, vehicleId: string): string {
+  const e = truth?.byId.get(vehicleId)?.earnedLast30;
+  return e != null ? `${formatUsdWords(e)} from bookings in the last 30 days` : 'no booked days in the last 30 days';
+}
+
+/**
+ * Booked revenue per car from the tenant's bookings (counted statuses only), optionally inside a rental window.
+ * `bookings.total_value` is the only amount column.
+ */
+async function bookedRevenueByVehicle(
+  supabase: SupabaseClient,
+  teamId: string | null,
+  window?: { start: string | null; end: string },
+): Promise<{ byVehicle: Map<string, { revenue: number; bookings: number }>; truncated: boolean }> {
+  const byVehicle = new Map<string, { revenue: number; bookings: number }>();
+  if (!teamId) return { byVehicle, truncated: false };
+  const PAGE = 1000;
+  const MAX_PAGES = 10;
+  let truncated = false;
+  for (let page = 0; page < MAX_PAGES; page++) {
+    let q = supabase
+      .from('bookings')
+      .select('vehicle_id, total_value')
+      .eq('team_id', teamId)
+      .in('status', COUNTED_STATUSES)
+      .order('start_date', { ascending: false })
+      .range(page * PAGE, page * PAGE + PAGE - 1);
+    if (window?.start) q = (q as any).lte('start_date', window.end).gte('end_date', window.start);
+    const { data, error } = await q;
+    if (error) { console.error('[bookedRevenueByVehicle]', error.message); break; }
+    for (const b of (data || []) as any[]) {
+      if (!b.vehicle_id) continue;
+      const e = byVehicle.get(b.vehicle_id) || { revenue: 0, bookings: 0 };
+      e.revenue += Number(b.total_value || 0);
+      e.bookings += 1;
+      byVehicle.set(b.vehicle_id, e);
+    }
+    if (!data || data.length < PAGE) break;
+    if (page === MAX_PAGES - 1) truncated = true;
+  }
+  return { byVehicle, truncated };
+}
+
 export async function executeFunction(functionName: string, rawArgs: Record<string, unknown>, supabase: SupabaseClient, userId: string, teamId: string | null): Promise<ToolResult> {
   const args = normalizeToolArgs(functionName, rawArgs || {});
+  // Every date and "today" a tool uses is in the tenant's own time zone (selected location's, else the team's), not UTC.
+  const tz = await tenantTimeZone(supabase, teamId);
   console.log(`[TOOL] Executing: ${functionName} | User: ${userId} | Team: ${teamId} | Args:`, JSON.stringify(args));
 
   try {
@@ -779,13 +888,14 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
           };
         }
         
+        const truth = await fleetTruth(supabase, teamId, location);
         const vehicleList = vehicleData.map((v: Vehicle) => ({
           name: vehicleDisplayName(v),
           status: v.status,
           location: v.location || 'Unassigned',
           rate: `$${v.daily_rate || v.current_rate} per day`,
-          utilization: `${(v.utilization || 0)}% utilized`,
-          revenue: `$${Number(v.revenue || 0).toFixed(0)} total revenue`
+          utilization: utilizationWords(truth, v.id),
+          revenue: earnedWords(truth, v.id),
         }));
 
         // Group by location for summary
@@ -834,8 +944,11 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
         // --- Date window resolution -------------------------------------------
         // `date` keyword takes precedence over explicit start/end; both produce
         // an OVERLAP filter (start <= window_end AND end >= window_start).
-        const todayStart = new Date(); todayStart.setUTCHours(0, 0, 0, 0);
-        const todayEnd   = new Date(); todayEnd.setUTCHours(23, 59, 59, 999);
+        const todayKey = dayKey(Date.now(), tz);
+        const tomorrowKey = addDays(todayKey, 1);
+        const todayB = localDayBounds(todayKey, tz);
+        const todayStart = new Date(todayB.start);
+        const todayEnd = new Date(todayB.end);
         let windowStart: Date | null = null;
         let windowEnd: Date | null = null;
         let windowLabel: string | null = null;
@@ -846,25 +959,26 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
 
         if (keyword === 'today') {
           windowStart = todayStart; windowEnd = todayEnd;
-          windowLabel = `today (${todayStart.toISOString().slice(0,10)})`;
+          windowLabel = `today (${todayKey})`;
         } else if (keyword === 'tomorrow') {
-          windowStart = new Date(todayStart.getTime() + 86400000);
-          windowEnd   = new Date(todayEnd.getTime()   + 86400000);
-          windowLabel = `tomorrow (${windowStart.toISOString().slice(0,10)})`;
+          const tb = localDayBounds(tomorrowKey, tz);
+          windowStart = new Date(tb.start);
+          windowEnd   = new Date(tb.end);
+          windowLabel = `tomorrow (${tomorrowKey})`;
         } else if (keyword === 'this_week' || keyword === 'week') {
           windowStart = todayStart;
-          windowEnd   = new Date(todayEnd.getTime() + 6 * 86400000);
-          windowLabel = `this week (${windowStart.toISOString().slice(0,10)} → ${windowEnd.toISOString().slice(0,10)})`;
+          windowEnd   = new Date(localDayBounds(addDays(todayKey, 6), tz).end);
+          windowLabel = `this week (${todayKey} → ${addDays(todayKey, 6)})`;
         } else if (keyword === 'upcoming' || keyword === 'future') {
           windowStart = todayStart; windowEnd = null;
-          windowLabel = `upcoming (from ${todayStart.toISOString().slice(0,10)})`;
+          windowLabel = `upcoming (from ${todayKey})`;
         } else if (start_date || end_date) {
           windowStart = start_date ? new Date(start_date) : null;
           windowEnd   = end_date   ? new Date(end_date)   : null;
           windowLabel = `${start_date || '…'} → ${end_date || '…'}`;
         } else if (timeframe && timeframe !== 'all') {
           // Registry param: today | week | month | year. Same overlap semantics.
-          const tf = resolveTimeframeWindow(String(timeframe));
+          const tf = resolveTimeframeWindow(String(timeframe), tz);
           windowStart = tf.start ? new Date(tf.start) : null;
           windowEnd   = new Date(tf.end);
           windowLabel = tf.label;
@@ -940,7 +1054,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
             customer: customerName,
             vehicle: vehicleName,
             location: b.vehicles?.location || 'Unassigned',
-            dates: formatDateRange(b.start_date, b.end_date),
+            dates: formatDateRange(b.start_date, b.end_date, tz),
             status: b.status,
             total: formatUsdWords(totalAmount),
             totalRaw: totalAmount,
@@ -1003,7 +1117,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
         const { timeframe, location } = args;
         console.log(`[getFleetMetrics] Team: ${teamId}, Timeframe: ${timeframe}, Location: ${location || 'all'}`);
         
-        const window = resolveTimeframeWindow(timeframe);
+        const window = resolveTimeframeWindow(timeframe, tz);
 
         // Get vehicles with optional location filter
         let vehicleQuery = supabase.from('vehicles').select('*');
@@ -1046,9 +1160,8 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
 
         const totalRevenue = revenue.reduce((sum: number, b: any) => sum + Number(b.total_value || 0), 0);
         const activeBookings = bookings.filter((b: any) => b.status === 'active' || b.status === 'confirmed').length;
-        const avgUtilization = vehicles.length > 0 
-          ? vehicles.reduce((sum, v) => sum + ((v.utilization || 0) || 0), 0) / vehicles.length 
-          : 0;
+        const truth = await fleetTruth(supabase, teamId, location);
+        const utilPct = truth ? sharePct(truth.facts.fleet.trailing30) : null;
 
         console.log(`[getFleetMetrics] Results - Vehicles: ${vehicles.length}, Active Bookings: ${activeBookings}, Revenue: $${totalRevenue}`);
 
@@ -1058,16 +1171,18 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
           totalBookings: bookings.length,
           revenue: formatUsdWords(totalRevenue),
           revenueRaw: totalRevenue,
-          averageUtilization: `${avgUtilization.toFixed(0)}%`,
+          averageUtilization: pctLabel(utilPct),
+          utilizationPeriod: 'last 30 days',
+          howUtilizationIsMeasured: truth ? methodNote(truth) : null,
           location: location || 'all',
           timeframe,
-          summary: `${location ? `${location} fleet` : 'Your fleet'} has ${vehicles.length} vehicles with ${activeBookings} active bookings and ${formatUsdWords(totalRevenue)} in revenue for the ${timeframe || 'period'}.`
+          summary: `${location ? `${location} fleet` : 'Your fleet'} has ${vehicles.length} vehicles with ${activeBookings} active bookings and ${formatUsdWords(totalRevenue)} in revenue for the ${timeframe || 'period'}.${utilPct != null ? ` Utilization over the last 30 days is ${utilPct}%.` : ''}`
         };
       }
 
       case "getLocationMetrics": {
         const { location, timeframe } = args;
-        const locWindow = resolveTimeframeWindow(typeof timeframe === 'string' ? timeframe : undefined);
+        const locWindow = resolveTimeframeWindow(typeof timeframe === 'string' ? timeframe : undefined, tz);
         console.log(`[getLocationMetrics] Team: ${teamId}, Location: ${location || 'all'}, Timeframe: ${locWindow.label}`);
         
         // Get all vehicles
@@ -1087,9 +1202,10 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
           };
         }
         
-        // Group by location
+        // Group by location. Utilization is measured from bookings (booked days / available days, last 30 days).
+        const truth = await fleetTruth(supabase, teamId, null);
         const locationStats: Record<string, any> = {};
-        
+
         for (const vehicle of allVehicles) {
           const loc = vehicle.location || 'Unassigned';
           if (!locationStats[loc]) {
@@ -1097,27 +1213,31 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
               location: loc,
               vehicleCount: 0,
               totalRevenue: 0,
-              totalUtilization: 0,
+              booked: 0,
+              available: 0,
               avgRate: 0,
               vehicles: []
             };
           }
+          const f = truth?.byId.get(vehicle.id);
           locationStats[loc].vehicleCount++;
-          locationStats[loc].totalRevenue += Number(vehicle.revenue || 0);
-          locationStats[loc].totalUtilization += vehicle.utilization || 0;
           locationStats[loc].avgRate += Number(vehicle.current_rate || vehicle.daily_rate || 0);
+          if (f && !f.outOfService) {
+            locationStats[loc].booked += f.trailing30.booked;
+            locationStats[loc].available += f.trailing30.available;
+          }
           locationStats[loc].vehicles.push({
             name: vehicleDisplayName(vehicle),
             status: vehicle.status,
-            utilization: vehicle.utilization || 0,
+            utilization: pctLabel(sharePct(f?.trailing30)),
             rate: vehicle.current_rate || vehicle.daily_rate
           });
         }
-        
+
         // Calculate averages
         for (const loc of Object.keys(locationStats)) {
           const stats = locationStats[loc];
-          stats.avgUtilization = stats.totalUtilization / stats.vehicleCount;
+          stats.avgUtilization = stats.available > 0 ? Math.round((stats.booked / stats.available) * 100) : null;
           stats.avgRate = stats.avgRate / stats.vehicleCount;
         }
         
@@ -1139,26 +1259,14 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
           }
         }
 
-        // Timeframe-scoped revenue. `vehicles.revenue` is lifetime, so when the
-        // caller asks for a window we recompute from bookings in that window.
-        if (locWindow.start) {
-          let revQuery = supabase
-            .from('bookings')
-            .select('total_value, total_amount, start_date, vehicles(location)')
-            .gte('start_date', locWindow.start)
-            .lte('start_date', locWindow.end)
-            .not('status', 'in', '("cancelled")');
-          if (teamId) revQuery = revQuery.eq('team_id', teamId);
-          const { data: windowBookings } = await revQuery;
-          for (const loc of Object.keys(locationStats)) locationStats[loc].totalRevenue = 0;
-          for (const b of (windowBookings || [])) {
-            const loc = (b as any).vehicles?.location || 'Unassigned';
-            if (locationStats[loc]) {
-              locationStats[loc].totalRevenue += Number((b as any).total_value || (b as any).total_amount || 0);
-            }
-          }
+        // Revenue per location from the tenant's bookings (counted statuses) inside the asked window; the stored
+        // `vehicles.revenue` column is not maintained, so it is never used.
+        const locRevenue = await bookedRevenueByVehicle(supabase, teamId, locWindow);
+        for (const vehicle of allVehicles) {
+          const r = locRevenue.byVehicle.get(vehicle.id);
+          if (r) locationStats[vehicle.location || 'Unassigned'].totalRevenue += r.revenue;
         }
-        
+
         // If specific location requested
         if (location && location !== 'all') {
           const matchingLoc = Object.keys(locationStats).find(l => l.toLowerCase().includes(location.toLowerCase()));
@@ -1169,12 +1277,13 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
               vehicleCount: stats.vehicleCount,
               totalRevenue: formatUsdWords(stats.totalRevenue),
               totalRevenueRaw: stats.totalRevenue,
-              avgUtilization: `${stats.avgUtilization.toFixed(0)}%`,
+              avgUtilization: pctLabel(stats.avgUtilization),
+              utilizationPeriod: 'last 30 days',
               avgRate: `$${stats.avgRate.toFixed(0)}`,
               activeBookings: stats.activeBookings || 0,
               topVehicles: stats.vehicles.slice(0, 5),
               timeframe: locWindow.label,
-              summary: `${stats.location} has ${stats.vehicleCount} vehicles with ${formatUsdWords(stats.totalRevenue)} revenue for ${locWindow.label}, ${stats.avgUtilization.toFixed(0)}% average utilization, and ${stats.activeBookings || 0} active bookings.`
+              summary: `${stats.location} has ${carsWord(stats.vehicleCount)} with ${formatUsdWords(stats.totalRevenue)} revenue for ${locWindow.label}, ${stats.avgUtilization == null ? 'not enough data to measure utilization' : `${stats.avgUtilization}% utilization over the last 30 days`}, and ${stats.activeBookings || 0} active bookings.`
             };
           }
         }
@@ -1189,11 +1298,11 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
             vehicleCount: l.vehicleCount,
             totalRevenue: formatUsdWords(l.totalRevenue),
             totalRevenueRaw: l.totalRevenue,
-            avgUtilization: `${l.avgUtilization.toFixed(0)}%`,
+            avgUtilization: pctLabel(l.avgUtilization),
             avgRate: `$${l.avgRate.toFixed(0)}`,
             activeBookings: l.activeBookings || 0
           })),
-          summary: `Your fleet spans ${locations.length} location${locations.length > 1 ? 's' : ''}: ${locations.map((l: any) => `${l.location} (${l.vehicleCount} vehicles, ${formatUsdWords(l.totalRevenue)} revenue)`).join('; ')}.`
+          summary: `Your fleet spans ${locations.length} location${locations.length > 1 ? 's' : ''}: ${locations.map((l: any) => `${l.location} (${carsWord(l.vehicleCount)}, ${formatUsdWords(l.totalRevenue)} revenue)`).join('; ')}.`
         };
       }
 
@@ -1202,7 +1311,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
         console.log(`[getPaymentSummary] Team: ${teamId}, Status: ${status || 'all'}, Timeframe: ${timeframe || 'all'}, Location: ${location || 'all'}`);
         
         // Payments are events, not rentals: created_at IS the correct axis here.
-        const window = resolveTimeframeWindow(timeframe);
+        const window = resolveTimeframeWindow(timeframe, tz);
         
         // Get payments with team filter
         let paymentsQuery = supabase
@@ -1286,10 +1395,13 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
         };
 
         const fullName = vehicleDisplayName(vehicle);
+        const truth = await fleetTruth(supabase, teamId, null);
+        const rec = truth ? recommendationFor(truth, vehicle.id) : null;
+        const utilText = utilizationWords(truth, vehicle.id);
         // Bookings are ALWAYS included: this used to hang off an `includeBookings`
         // flag the registry never sends, so Rari reported "no bookings" on
         // vehicles that were booked.
-        const bookingsData = await getVehicleBookingWindow(supabase, vehicle.id, teamId);
+        const bookingsData = await getVehicleBookingWindow(supabase, vehicle.id, teamId, tz);
         const nextBooking = bookingsData.find((b) => b.timing === 'current')
           || bookingsData.find((b) => b.timing === 'upcoming');
 
@@ -1303,9 +1415,10 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
             status: vehicle.status,
             location: vehicle.location || 'Unassigned',
             rate: `$${vehicle.current_rate || vehicle.daily_rate} per day`,
-            suggestedRate: vehicle.suggested_rate ? `$${vehicle.suggested_rate}` : null,
-            utilization: `${vehicle.utilization || 0}% utilization`,
-            revenue: `$${Number(vehicle.revenue || 0).toFixed(0)} total revenue`,
+            suggestedRate: rec && rec.action !== 'hold' ? `$${rec.recommendedRate}` : null,
+            rateAdvice: rec ? rec.speakable : null,
+            utilization: utilText,
+            revenue: earnedWords(truth, vehicle.id),
             licensePlate: vehicle.license_plate,
             vin: vehicle.vin,
             bookings: bookingsData,
@@ -1313,7 +1426,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
           bookings: bookingsData,
           bookingCount: bookingsData.length,
           nextBooking: nextBooking || null,
-          summary: `${fullName} in ${vehicle.location || 'Unassigned'} is currently ${vehicle.status}, priced at $${vehicle.current_rate || vehicle.daily_rate} per day with ${vehicle.utilization || 0}% utilization.${bookingSentence}`
+          summary: `${fullName} in ${vehicle.location || 'Unassigned'} is currently ${vehicle.status}, priced at $${vehicle.current_rate || vehicle.daily_rate} per day, ${utilText}.${bookingSentence}`
         };
       }
 
@@ -1360,7 +1473,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
             bookingsData = bookings.map(b => ({
               vehicle: b.vehicles ? vehicleDisplayName(b.vehicles) : 'Unknown',
               location: b.vehicles?.location || 'Unassigned',
-              dates: `${new Date(b.start_date).toLocaleDateString()} to ${new Date(b.end_date).toLocaleDateString()}`,
+              dates: `${fmtDay(b.start_date, tz)} to ${fmtDay(b.end_date, tz)}`,
               status: b.status,
               total: `$${Number(b.total_value || b.total_amount || 0).toFixed(0)}`
             }));
@@ -1423,7 +1536,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
             rate: `$${vehicle.current_rate}`,
             available: !conflicts || conflicts.length === 0,
             conflicts: conflicts?.map(c => ({
-              dates: `${new Date(c.start_date).toLocaleDateString()} to ${new Date(c.end_date).toLocaleDateString()}`,
+              dates: `${fmtDay(c.start_date, tz)} to ${fmtDay(c.end_date, tz)}`,
               customer: c.customer_name
             })) || []
           });
@@ -1444,7 +1557,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
 
       case "getRevenueAnalysis": {
         const { timeframe, vehicleName, location } = args;
-        const window = resolveTimeframeWindow(timeframe);
+        const window = resolveTimeframeWindow(timeframe, tz);
 
         let query = supabase
           .from('bookings')
@@ -1490,18 +1603,19 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
       case "getTopPerformers": {
         const { metric, limit: rawLimit, location, timeframe } = args;
         const limit = toLimit(rawLimit, 5, 25);
-        const topWindow = resolveTimeframeWindow(typeof timeframe === 'string' ? timeframe : undefined);
+        const topWindow = resolveTimeframeWindow(typeof timeframe === 'string' ? timeframe : undefined, tz);
         
         if (metric === 'revenue' || metric === 'utilization') {
-          // `vehicles.revenue` is lifetime. When a timeframe is asked for, rank
-          // by revenue booked inside that window instead.
+          const topTruth = await fleetTruth(supabase, teamId, location);
+          // Revenue is ranked from the tenant's bookings (the stored `vehicles.revenue` is not maintained);
+          // utilization is measured over the last 30 days.
           if (metric === 'revenue' && topWindow.start) {
             let bq = supabase
               .from('bookings')
-              .select('total_value, total_amount, vehicle_id, vehicles(name, make, model, year, location, utilization)')
+              .select('total_value, vehicle_id, vehicles(name, make, model, year, location)')
               .gte('start_date', topWindow.start)
               .lte('start_date', topWindow.end)
-              .neq('status', 'cancelled');
+              .in('status', COUNTED_STATUSES);
             if (teamId) bq = bq.eq('team_id', teamId);
             const { data: windowBookings } = await bq;
 
@@ -1512,21 +1626,21 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
               if (location && location !== 'all' && !String(veh.location || '').toLowerCase().includes(String(location).toLowerCase())) continue;
               const key = b.vehicle_id;
               const entry = byVehicle.get(key) || { v: veh, revenue: 0, bookings: 0 };
-              entry.revenue += Number(b.total_value || b.total_amount || 0);
+              entry.revenue += Number(b.total_value || 0);
               entry.bookings += 1;
               byVehicle.set(key, entry);
             }
 
-            const performers = [...byVehicle.values()]
-              .sort((a, b) => b.revenue - a.revenue)
+            const performers = [...byVehicle.entries()]
+              .sort((a, b) => b[1].revenue - a[1].revenue)
               .slice(0, limit)
-              .map((e) => ({
+              .map(([vid, e]) => ({
                 name: vehicleDisplayName(e.v),
                 location: e.v.location,
                 revenue: formatUsdWords(e.revenue),
                 revenueRaw: e.revenue,
                 bookings: e.bookings,
-                utilization: `${e.v.utilization || 0}%`,
+                utilization: pctLabel(sharePct(topTruth?.byId.get(vid)?.trailing30)),
               }));
 
             return {
@@ -1539,38 +1653,44 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
             };
           }
 
-          let query = supabase
-            .from('vehicles')
-            .select('name, make, model, year, revenue, utilization, location');
-          
-          if (teamId) {
-            query = query.eq('team_id', teamId);
+          if (!topTruth) {
+            return { metric, performers: [], summary: "I can't measure vehicle performance right now." };
           }
-          
-          if (location && location !== 'all') {
-            query = query.ilike('location', `%${location}%`);
+
+          let performers: any[];
+          if (metric === 'utilization') {
+            performers = rankByUtilization(topTruth)
+              .filter((f) => f.trailing30.share != null)
+              .slice(0, limit)
+              .map((f) => ({
+                name: vehicleDisplayName(topTruth.rows.get(f.id) || f),
+                location: topTruth.rows.get(f.id)?.location,
+                utilization: pctLabel(sharePct(f.trailing30)),
+                earnedLast30: f.earnedLast30 != null ? formatUsdWords(f.earnedLast30) : null,
+              }));
+          } else {
+            const all = await bookedRevenueByVehicle(supabase, teamId, undefined);
+            performers = [...topTruth.rows.values()]
+              .map((r) => ({ r, rev: all.byVehicle.get(r.id)?.revenue ?? 0 }))
+              .filter((x) => x.rev > 0)
+              .sort((a, b) => b.rev - a.rev)
+              .slice(0, limit)
+              .map((x) => ({
+                name: vehicleDisplayName(x.r),
+                location: x.r.location,
+                revenue: formatUsdWords(x.rev),
+                revenueRaw: x.rev,
+                utilization: pctLabel(sharePct(topTruth.byId.get(x.r.id)?.trailing30)),
+              }));
           }
-          
-          const { data: vehicles } = await query
-            .order(metric === 'utilization' ? 'utilization' : 'revenue', { ascending: false })
-            .limit(limit);
-          
-          const performers = vehicles?.map(v => {
-            const rev = Number(v.revenue || 0);
-            return {
-              name: vehicleDisplayName(v),
-              location: v.location,
-              revenue: formatUsdWords(rev),
-              revenueRaw: rev,
-              utilization: `${v.utilization || 0}%`
-            };
-          }) || [];
-          
-          return { 
-            metric, 
-            timeframe: metric === 'utilization' ? 'current' : 'all time',
+
+          return {
+            metric,
+            timeframe: metric === 'utilization' ? 'last 30 days' : 'all time',
             performers,
-            summary: `Top ${performers.length} vehicles by ${metric}${location ? ` in ${location}` : ''}: ${performers.map(p => `${p.name} (${metric === 'revenue' ? p.revenue : p.utilization})`).join(', ')}.`
+            summary: performers.length
+              ? `Top ${performers.length} vehicles by ${metric}${location ? ` in ${location}` : ''}: ${performers.map((p: any) => `${p.name} (${metric === 'revenue' ? p.revenue : p.utilization})`).join(', ')}.`
+              : `I don't have enough booking history to rank vehicles by ${metric}${location ? ` in ${location}` : ''}.`
           };
         } else {
 
@@ -1692,7 +1812,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
             customer: b.customers?.full_name || b.customer_name || 'Unknown',
             vehicle: vehicleName,
             location: b.vehicles?.location || 'Unassigned',
-            dates: formatDateRange(b.start_date, b.end_date),
+            dates: formatDateRange(b.start_date, b.end_date, tz),
             status: b.status,
             total: formatUsdWords(amt),
             totalRaw: amt
@@ -1742,7 +1862,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
           severity: c.severity,
           status: c.claim_status,
           estimatedCost: c.estimated_cost ? `$${c.estimated_cost}` : 'TBD',
-          reportedDate: new Date(c.reported_date).toLocaleDateString()
+          reportedDate: fmtDay(c.reported_date, tz)
         }));
         
         return { 
@@ -1784,7 +1904,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
           vehicle: m.vehicles ? vehicleDisplayName(m.vehicles) : 'Unknown',
           location: m.vehicles?.location || 'Unassigned',
           type: m.maintenance_type,
-          scheduledDate: new Date(m.scheduled_date).toLocaleDateString(),
+          scheduledDate: fmtDay(m.scheduled_date, tz),
           estimatedCost: m.estimated_cost ? `$${m.estimated_cost}` : 'TBD',
           status: m.status
         }));
@@ -2017,47 +2137,39 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
         }
 
         const currentRate = Number(vehicle.current_rate || vehicle.daily_rate);
-        const utilization = vehicle.utilization || 0;
         const vehicleLocation = vehicle.location || 'Unassigned';
+        const vName = vehicleDisplayName(vehicle);
 
-        // Calculate recommendation
-        let suggestedRate = currentRate;
-        const factors: string[] = [];
-        
-        // Utilization-based pricing
-        if (utilization > 80) {
-          suggestedRate *= 1.15;
-          factors.push(`high demand at ${utilization}% utilization`);
-        } else if (utilization < 50) {
-          suggestedRate *= 0.95;
-          factors.push(`low utilization at ${utilization}%`);
+        // The same engine the MotorIQ Pricing tab runs: booking pace against normal, what guests recently paid
+        // against the listed rate, and the team's minimum rate. Advice only; nothing is changed here.
+        const truth = await fleetTruth(supabase, teamId, null);
+        const rec = truth ? recommendationFor(truth, vehicle.id) : null;
+        if (!rec) {
+          return {
+            vehicle: vName,
+            location: vehicleLocation,
+            currentRate: `$${currentRate}`,
+            summary: `I can't work out a pricing recommendation for your ${vName} right now.`,
+          };
         }
-        
-        // Use suggested_rate from DB if available
-        if (vehicle.suggested_rate && Math.abs(vehicle.suggested_rate - suggestedRate) < 100) {
-          suggestedRate = vehicle.suggested_rate;
-        }
-        
-        suggestedRate = Math.round(suggestedRate / 5) * 5;
-        const difference = suggestedRate - currentRate;
-        const percentChange = ((difference / currentRate) * 100).toFixed(1);
-        const factorsText = factors.length > 0 ? factors.join(' and ') : 'current utilization and market conditions';
-
-        
+        const difference = rec.recommendedRate - rec.currentRate;
         return {
-          vehicle: vehicleDisplayName(vehicle),
+          vehicle: vName,
           location: vehicleLocation,
-          currentRate: `$${currentRate}`,
-          suggestedRate: `$${suggestedRate}`,
+          action: rec.action,
+          confidence: rec.confidence,
+          currentRate: `$${rec.currentRate}`,
+          suggestedRate: `$${rec.recommendedRate}`,
           difference: difference > 0 ? `+$${difference}` : `$${difference}`,
-          percentChange: difference > 0 ? `+${percentChange}%` : `${percentChange}%`,
-          factors,
-          monthlyImpact: `$${Math.abs(difference * 20).toFixed(0)}/month`,
-          summary: suggestedRate > currentRate 
-            ? `I recommend increasing the rate for your ${vehicleDisplayName(vehicle)} in ${vehicleLocation} from $${currentRate} to $${suggestedRate} per day, a ${percentChange}% increase. This is based on ${factors.join(' and ')}. This could add approximately $${Math.abs(difference * 20).toFixed(0)} per month in revenue.`
-            : suggestedRate < currentRate
-              ? `Consider reducing the rate for your ${vehicleDisplayName(vehicle)} in ${vehicleLocation} from $${currentRate} to $${suggestedRate} per day to boost bookings. This is based on ${factors.join(' and ')}.`
-              : `The current rate of $${currentRate} for your ${vehicleDisplayName(vehicle)} in ${vehicleLocation} appears optimal given current market conditions.`
+          percentChange: `${rec.changePct > 0 ? '+' : ''}${rec.changePct}%`,
+          reasons: rec.drivers.map((d) => d.detail),
+          whyNotMore: rec.holdReasons,
+          estimatedExtraRevenue: rec.estimate
+            ? { amount: `$${Math.round(rec.estimate.extraRevenue)}`, openDays: rec.estimate.openDays, assumption: rec.estimate.assumption }
+            : null,
+          basedOn: 'your own bookings: how booked the next week is compared with normal, what guests recently paid against your listed rate, and your minimum rate',
+          eventNote: 'Event-date premiums are separate quotes; ask about events for your market.',
+          summary: rec.speakable,
         };
       }
 
@@ -2086,76 +2198,120 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
         }
         
         const totalVehicles = vehicles.length;
-        const avgRate = vehicles.reduce((sum, v) => sum + Number(v.current_rate || v.daily_rate || 0), 0) / totalVehicles;
-        const avgUtilization = vehicles.reduce((sum, v) => sum + (v.utilization || 0), 0) / totalVehicles;
-        const totalRevenue = vehicles.reduce((sum, v) => sum + Number(v.revenue || 0), 0);
-        
-        // Find under and over-utilized vehicles
-        const underUtilized = vehicles.filter(v => (v.utilization || 0) < 50);
-        const highPerformers = vehicles.filter(v => (v.utilization || 0) > 75);
-        
-        // Group by location
-        const byLocation = vehicles.reduce((acc, v) => {
-          const loc = v.location || 'Unassigned';
-          if (!acc[loc]) {
-            acc[loc] = { count: 0, revenue: 0, avgRate: 0 };
-          }
-          acc[loc].count++;
-          acc[loc].revenue += Number(v.revenue || 0);
-          acc[loc].avgRate += Number(v.current_rate || v.daily_rate || 0);
-          return acc;
-        }, {} as Record<string, { count: number; revenue: number; avgRate: number }>);
-        
-        for (const loc of Object.keys(byLocation)) {
-          byLocation[loc].avgRate = byLocation[loc].avgRate / byLocation[loc].count;
+        const avgRate = vehicles.reduce((sum: number, v: any) => sum + Number(v.current_rate || v.daily_rate || 0), 0) / totalVehicles;
+
+        const truth = await fleetTruth(supabase, teamId, location);
+        if (!truth) {
+          return { totalVehicles, averageRate: `$${avgRate.toFixed(0)}`, summary: `Your fleet has ${totalVehicles} vehicles at an average listed rate of ${dollars0(avgRate)}. I can't measure utilization right now.` };
         }
-        
+        const utilPct = sharePct(truth.facts.fleet.trailing30);
+        const earned = truth.facts.fleet.earnedLast30.value;
+        const recs = recommendAll(truth);
+        const toRaise = recs.filter((r) => r.action === 'raise');
+        const toLower = recs.filter((r) => r.action === 'lower');
+
+        // Group by location (counts and listed rates; revenue is what bookings brought in over the last 30 days)
+        const byLocation: Record<string, { count: number; revenue: number; avgRate: number }> = {};
+        for (const v of vehicles as any[]) {
+          const loc = v.location || 'Unassigned';
+          if (!byLocation[loc]) byLocation[loc] = { count: 0, revenue: 0, avgRate: 0 };
+          byLocation[loc].count++;
+          byLocation[loc].revenue += truth.byId.get(v.id)?.earnedLast30 ?? 0;
+          byLocation[loc].avgRate += Number(v.current_rate || v.daily_rate || 0);
+        }
+        for (const loc of Object.keys(byLocation)) byLocation[loc].avgRate = byLocation[loc].avgRate / byLocation[loc].count;
+
+        const busiest = rankByUtilization(truth).filter((f) => f.trailing30.share != null).slice(0, 3);
+
         return {
           totalVehicles,
-          averageRate: `$${avgRate.toFixed(0)}`,
-          averageUtilization: `${avgUtilization.toFixed(0)}%`,
-          totalFleetRevenue: formatUsdWords(totalRevenue),
-          totalFleetRevenueRaw: totalRevenue,
-          underUtilizedCount: underUtilized.length,
-          highPerformerCount: highPerformers.length,
+          averageRate: dollars0(avgRate),
+          averageUtilization: pctLabel(utilPct),
+          utilizationPeriod: 'last 30 days',
+          bookedRevenueLast30Days: earned != null ? formatUsdWords(earned) : null,
+          carsToRaise: toRaise.length,
+          carsToLower: toLower.length,
           location: location || 'all',
           byLocation: Object.entries(byLocation).map(([loc, stats]) => ({
             location: loc,
             vehicleCount: stats.count,
-            revenue: formatUsdWords(stats.revenue),
+            revenueLast30Days: formatUsdWords(stats.revenue),
             revenueRaw: stats.revenue,
             avgRate: `$${stats.avgRate.toFixed(0)}`
           })),
-          topPerformers: highPerformers.slice(0, 3).map(v => ({
-            name: vehicleDisplayName(v),
-            location: v.location,
-            utilization: `${v.utilization || 0}%`,
-            rate: `$${v.current_rate || v.daily_rate}`
+          busiestVehicles: busiest.map((f) => ({
+            name: vehicleDisplayName(truth.rows.get(f.id) || f),
+            location: truth.rows.get(f.id)?.location,
+            utilization: pctLabel(sharePct(f.trailing30)),
+            rate: `$${f.currentRate}`
           })),
-          recommendations: underUtilized.length > 0 
-            ? `${underUtilized.length} vehicles are under-utilized and may benefit from price adjustments.`
-            : 'Fleet pricing looks healthy!',
-          summary: `Your fleet${location ? ` in ${location}` : ''} has ${totalVehicles} vehicles with an average daily rate of $${avgRate.toFixed(0)} and ${avgUtilization.toFixed(0)}% average utilization. Total fleet revenue is ${formatUsdWords(totalRevenue)}. ${highPerformers.length} vehicles are performing above 75% utilization, while ${underUtilized.length} are below 50%.`
+          recommendations: toRaise.length + toLower.length > 0
+            ? `MotorIQ suggests a base-rate change on ${toRaise.length + toLower.length} of ${recs.length} cars (${toRaise.length} to raise, ${toLower.length} to lower); the rest hold.`
+            : 'No base-rate changes are suggested right now; the booking data supports the current rates.',
+          summary: `Your fleet${location ? ` in ${location}` : ''} has ${totalVehicles} vehicles at an average listed rate of ${dollars0(avgRate)}. ${utilPct == null ? 'There is not enough booking data to measure utilization.' : `Over the last 30 days ${utilPct}% of available days were booked`}${earned != null ? ` and bookings brought in ${formatUsdWords(earned)}` : ''}. ${toRaise.length + toLower.length > 0 ? `MotorIQ suggests raising ${toRaise.length} and lowering ${toLower.length}; the rest hold.` : 'No base-rate changes are suggested right now.'}`
         };
       }
 
       case "getEventImpact": {
         const { eventName, location } = args as { eventName?: string; location?: string };
-        const named = typeof eventName === 'string' ? eventName.trim() : '';
-        console.log(`[getEventImpact] Searching for event: ${named || '(none named)'}, Location: ${location || 'all'}`);
+        const named = typeof eventName === 'string' ? eventName.trim().toLowerCase() : '';
+        console.log(`[getEventImpact] Team: ${teamId}, event: ${named || '(none named)'}, location: ${location || 'all'}`);
 
-        // The hardcoded peak-season calendar was removed — event context
-        // comes from the tenant's real demand data (MotorIQ), not a static
-        // Miami/Scottsdale event list.
-        const where = location ? ` in ${location}` : '';
+        // Events for the markets the tenant's own cars are in: the curated calendar plus the nightly search
+        // snapshot (the same sources the Demand Forecast card and MotorIQ read). Never a generic statistic.
+        const truth = await fleetTruth(supabase, teamId, location);
+        if (!truth) return { events: [], summary: "I can't look up events for your markets right now." };
+        const markets = [...new Set([...truth.rows.values()].map((r) => matchDemandCity(r.location)?.value).filter(Boolean) as string[])];
+        if (markets.length === 0) {
+          return { events: [], summary: "I don't have an event calendar for your locations yet, so I can't say what's coming up there." };
+        }
+
+        const start = truth.today;
+        const end = addDays(start, 14);
+        const { data: snaps } = await supabase
+          .from('demand_event_snapshots')
+          .select('city, events, calendar_checks')
+          .in('city', markets);
+        const snapByCity = new Map((snaps || []).map((r: any) => [r.city, r]));
+        const mySegments = new Set(truth.facts.vehicles.map((v) => v.segment));
+
+        const found: any[] = [];
+        for (const city of markets) {
+          const snap = snapByCity.get(city);
+          const curated = applyCalendarChecks(calendarEvents(city, start, end), snap?.calendar_checks);
+          const searched = snap && Array.isArray(snap.events) ? sliceEvents(snap.events, start, end) : [];
+          for (const e of [...curated, ...searched]) {
+            if (e.evidence === 'unconfirmed' || e.tier === 'routine') continue;
+            if (named && !String(e.name).toLowerCase().includes(named)) continue;
+            // the biggest modeled effect among the segments this tenant actually owns (already weighted by evidence)
+            let gain = 0;
+            for (const seg of mySegments) gain = Math.max(gain, (e.segmentImpact?.[seg] ?? 1) - 1);
+            found.push({
+              name: e.name,
+              market: city,
+              dates: formatDateRange(e.date, e.endDate, tz),
+              date: e.date,
+              expectedAttendance: e.attendance > 0 ? formatNumberWords(e.attendance) : null,
+              howSure: e.evidence,
+              modeledLiftForYourCars: gain > 0.005 ? `about ${Math.round(gain * 100)}%` : null,
+              gain,
+            });
+          }
+        }
+        // The events that matter most for these cars first (largest modeled lift), then by date
+        found.sort((a, b) => b.gain - a.gain || a.date.localeCompare(b.date));
+        const top = found.slice(0, 6).map(({ gain: _gain, ...e }) => e);
+
         return {
-          searched: named || null,
-          location: location || null,
-          impact: "Events typically increase demand by 15-30% in the surrounding area",
-          recommendation: "Consider adjusting rates 2-3 days before major events to capture increased demand",
-          summary: named
-            ? `For events like "${named}"${where}, you can expect increased demand for luxury vehicle rentals. I recommend raising rates by 15-25% during peak event days and ensuring your highest-demand vehicles are available.`
-            : `Major local events${where} typically lift luxury rental demand by 15-30%. I recommend raising rates by 15-25% across the event window and keeping your highest-demand vehicles free. Tell me which event you have in mind and I'll be more specific.`,
+          events: top,
+          count: found.length,
+          windowDays: 14,
+          caveat: 'The lift is a modeled estimate for your type of car, not yet measured on your own results.',
+          summary: top.length
+            ? `In the next two weeks around your cars: ${top.slice(0, 3).map((e) => `${e.name} (${e.dates}${e.expectedAttendance ? `, about ${e.expectedAttendance} people expected` : ''}, ${e.howSure})`).join('; ')}. The lift is a modeled estimate, not yet measured on your own bookings.`
+            : named
+              ? `I don't have a confirmed event matching "${eventName}" near your cars in the next two weeks.`
+              : `I don't have any confirmed major events near your cars in the next two weeks.`,
         };
       }
 
@@ -2324,7 +2480,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
         // as the Margin / Per-vehicle P&L tab. The previous inline maths only
         // counted maintenance_schedules as an expense and used created_at as
         // the date axis, which under-reported costs and mis-bucketed rentals.
-        const window = resolveTimeframeWindow(timeframe);
+        const window = resolveTimeframeWindow(timeframe, tz);
         const pStart = (window.start ?? '2000-01-01T00:00:00.000Z').slice(0, 10);
         const pEnd = window.end.slice(0, 10);
 
@@ -2432,7 +2588,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
         // Get all vehicles grouped by location
         let vehicleQuery = supabase
           .from('vehicles')
-          .select('id, name, make, model, location, current_rate, utilization, revenue, status');
+          .select('id, name, make, model, location, current_rate, status');
         
         if (teamId) {
           vehicleQuery = vehicleQuery.eq('team_id', teamId);
@@ -2444,7 +2600,9 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
           return { summary: "You don't have any vehicles to compare." };
         }
         
-        // Group by location
+        // Group by location. Utilization and revenue come from the tenant's bookings over the last 30 days
+        // (the stored vehicles.utilization / vehicles.revenue columns are not maintained).
+        const cmpTruth = await fleetTruth(supabase, teamId, null);
         const locationData: Record<string, any> = {};
         
         for (const vehicle of vehicles) {
@@ -2456,14 +2614,19 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
               availableCount: 0,
               rentedCount: 0,
               totalRevenue: 0,
-              totalUtilization: 0,
+              booked: 0,
+              available: 0,
               avgRate: 0
             };
           }
-          
+
+          const cf = cmpTruth?.byId.get(vehicle.id);
           locationData[loc].vehicleCount++;
-          locationData[loc].totalUtilization += (vehicle.utilization || 0);
-          locationData[loc].totalRevenue += Number(vehicle.revenue || 0);
+          if (cf && !cf.outOfService) {
+            locationData[loc].booked += cf.trailing30.booked;
+            locationData[loc].available += cf.trailing30.available;
+          }
+          locationData[loc].totalRevenue += cf?.earnedLast30 ?? 0;
           locationData[loc].avgRate += Number(vehicle.current_rate || 0);
           
           if (vehicle.status === 'available') locationData[loc].availableCount++;
@@ -2477,7 +2640,9 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
           availableCount: loc.availableCount,
           rentedCount: loc.rentedCount,
           revenue: `$${loc.totalRevenue.toFixed(0)}`,
-          avgUtilization: `${(loc.totalUtilization / loc.vehicleCount).toFixed(0)}%`,
+          revenuePeriod: 'last 30 days',
+          avgUtilization: pctLabel(loc.available > 0 ? Math.round((loc.booked / loc.available) * 100) : null),
+          utilizationPeriod: 'last 30 days',
           avgRate: `$${(loc.avgRate / loc.vehicleCount).toFixed(0)}`
         }));
         
@@ -2487,7 +2652,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
         return {
           locations,
           locationCount: locations.length,
-          summary: `Location comparison: ${locations.map(l => `${l.location} (${l.vehicleCount} vehicles, ${l.revenue} revenue, ${l.avgUtilization} utilization)`).join('; ')}.`
+          summary: `Location comparison for the last 30 days: ${locations.map(l => `${l.location} (${carsWord(l.vehicleCount)}, ${formatUsdWords(parseFloat(l.revenue.replace('$', '')) || 0)} booked revenue, ${utilPhrase(l.avgUtilization)})`).join('; ')}.`
         };
       }
 
@@ -2563,7 +2728,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
         // Get available vehicles
         let vehicleQuery = supabase
           .from('vehicles')
-          .select('id, name, make, model, year, location, current_rate, utilization')
+          .select('id, name, make, model, year, location, current_rate')
           .eq('status', 'available');
         
         if (teamId) {
@@ -2592,29 +2757,31 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
         
         const recentlyBookedIds = new Set(recentBookings?.map((b: any) => b.vehicle_id) || []);
         
+        const idleTruth = await fleetTruth(supabase, teamId, location);
         const idleVehicles = vehicles
           .filter((v: any) => !recentlyBookedIds.has(v.id))
-          .map((v: any) => ({
-            vehicle: vehicleDisplayName(v),
-            location: v.location || 'Unassigned',
-            currentRate: `$${v.current_rate}`,
-            utilization: `${v.utilization || 0}%`,
-            recommendation: (v.utilization || 0) < 20 ? 'Consider 10-15% price reduction' : 'Run promotion'
-          }));
-        
-        const potentialLoss = idleVehicles.reduce((sum: number, v: any) => 
-          sum + (parseFloat(v.currentRate.replace('$', '')) * daysIdle), 0
-        );
-        
+          .map((v: any) => {
+            const rec = idleTruth ? recommendationFor(idleTruth, v.id) : null;
+            return {
+              vehicle: vehicleDisplayName(v),
+              location: v.location || 'Unassigned',
+              currentRate: `$${v.current_rate}`,
+              utilization: utilizationWords(idleTruth, v.id),
+              openDaysNext14: idleTruth?.byId.get(v.id)?.openDates14.length ?? null,
+              recommendation: rec ? rec.speakable : 'There is not enough booking history yet to recommend a price change.',
+            };
+          });
+        const openDaysTotal = idleVehicles.reduce((sum: number, v: any) => sum + (v.openDaysNext14 || 0), 0);
+
         return {
           idleVehicles,
           count: idleVehicles.length,
           totalVehicles: vehicles.length,
-          potentialRevenueLoss: `$${potentialLoss.toFixed(0)}`,
+          openDaysNext14: openDaysTotal,
           daysThreshold: daysIdle,
           summary: idleVehicles.length > 0
-            ? `${idleVehicles.length} of ${vehicles.length} vehicles are idle (no bookings in ${daysIdle} days)${location ? ` in ${location}` : ''}. Potential revenue loss: $${potentialLoss.toFixed(0)}. Most idle: ${idleVehicles[0]?.vehicle}. ${idleVehicles[0]?.recommendation}.`
-            : `Great news! All ${vehicles.length} vehicles${location ? ` in ${location}` : ''} have been active in the last ${daysIdle} days.`
+            ? `${idleVehicles.length} of ${vehicles.length} vehicles are idle (no bookings in ${daysIdle} days)${location ? ` in ${location}` : ''}, with ${openDaysTotal} open days in the next two weeks. Most idle: ${idleVehicles[0]?.vehicle}. ${idleVehicles[0]?.recommendation}`
+            : `All ${vehicles.length} vehicles${location ? ` in ${location}` : ''} have been active in the last ${daysIdle} days.`
         };
       }
 
@@ -2777,29 +2944,43 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
         // Generate insights on-the-fly based on current data
         const insights: any[] = [];
         
-        // Check for idle vehicles
-        let vehicleQuery = supabase
-          .from('vehicles')
-          .select('name, make, model, year, location, utilization, status')
-          .eq('status', 'available')
-          .lt('utilization', 30);
-        
-        if (teamId) {
-          vehicleQuery = vehicleQuery.eq('team_id', teamId);
+        // Insights from the tenant's own bookings (the same facts and engine as MotorIQ)
+        const insightTruth = await fleetTruth(supabase, teamId, null);
+        if (insightTruth) {
+          const slow = rankByUtilization(insightTruth)
+            .filter((f) => f.trailing30.share != null && f.trailing30.share < 0.3 && f.trailing30.available >= 10)
+            .reverse();
+          if (slow.length > 0) {
+            insights.push({
+              type: 'utilization',
+              priority: 'medium',
+              title: `${slow.length} ${slow.length === 1 ? 'car was' : 'cars were'} booked under 30% of the last 30 days`,
+              description: slow.slice(0, 3).map((f) => `${f.name} (${sharePct(f.trailing30)}%)`).join(', '),
+              action: 'Look at price and availability for these cars'
+            });
+          }
+          const changes = recommendAll(insightTruth).filter((r) => r.action !== 'hold' && r.confidence !== 'low');
+          if (changes.length > 0) {
+            insights.push({
+              type: 'pricing',
+              priority: 'medium',
+              title: `${changes.length} ${changes.length === 1 ? 'car has' : 'cars have'} a base-rate change worth making`,
+              description: changes.slice(0, 2).map((r) => r.speakable).join(' '),
+              action: 'Review these in the MotorIQ pricing tab'
+            });
+          }
+          const pk = insightTruth.facts.fleet.pickups;
+          if (pk.last7 === 0 && pk.prev7 === 0 && insightTruth.facts.fleet.vehicles > 0) {
+            insights.push({
+              type: 'data',
+              priority: 'medium',
+              title: 'No new bookings in the last two weeks',
+              description: 'Pricing advice holds when there is no fresh booking activity to read.',
+              action: 'Check that new bookings are being recorded'
+            });
+          }
         }
-        
-        const { data: vehicles } = await vehicleQuery;
-        
-        if (vehicles && vehicles.length > 0) {
-          insights.push({
-            type: 'utilization',
-            priority: 'medium',
-            title: `${vehicles.length} vehicles with low utilization`,
-            description: `${vehicles.slice(0, 3).map((v: any) => `${v.make} ${v.model}`).join(', ')} have under 30% utilization`,
-            action: 'Consider price adjustments or promotions'
-          });
-        }
-        
+
         // Check for upcoming maintenance
         const nextWeek = new Date();
         nextWeek.setDate(nextWeek.getDate() + 7);
@@ -2849,7 +3030,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
       case "get_vehicle_status": {
         const { vehicle_name } = args as { vehicle_name?: string };
         const now = new Date().toISOString();
-        let vQ = supabase.from('vehicles').select('id, year, make, model, status, location, current_rate, utilization');
+        let vQ = supabase.from('vehicles').select('id, year, make, model, status, location, current_rate');
         if (teamId) vQ = vQ.eq('team_id', teamId);
         if (vehicle_name) vQ = vQ.or(`make.ilike.%${vehicle_name}%,model.ilike.%${vehicle_name}%`);
         const { data: vehicles, error: vErr } = await vQ.limit(50);
@@ -2869,7 +3050,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
           const openWO = wos?.filter((w: any) => w.vehicle_id === v.id) || [];
           let liveState = 'available';
           let detail = '';
-          if (live) { liveState = 'on rent'; detail = `with ${live.customer_name}${live.booking_ref ? ` (${live.booking_ref})` : ''} until ${new Date(live.end_date).toLocaleDateString()}`; }
+          if (live) { liveState = 'on rent'; detail = `with ${live.customer_name}${live.booking_ref ? ` (${live.booking_ref})` : ''} until ${fmtDay(live.end_date, tz)}`; }
           else if (mw) { liveState = 'in maintenance'; detail = mw.reason || ''; }
           else if (v.status === 'retired') liveState = 'retired';
           return {
@@ -2889,8 +3070,9 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
       }
 
       case "get_todays_schedule": {
-        const todayStart = new Date(); todayStart.setUTCHours(0,0,0,0);
-        const todayEnd   = new Date(); todayEnd.setUTCHours(23,59,59,999);
+        const todayBounds = localDayBounds(dayKey(Date.now(), tz), tz);
+        const todayStart = new Date(todayBounds.start);
+        const todayEnd   = new Date(todayBounds.end);
         const nowIso = new Date().toISOString();
         const teamFilter = (q: any) => teamId ? q.eq('team_id', teamId) : q;
 
@@ -2902,10 +3084,11 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
         ]);
 
         return {
-          date: todayStart.toISOString().slice(0,10),
-          check_outs: (checkOuts || []).map((b: any) => ({ ref: b.booking_ref, customer: b.customer_name, phone: b.customer_phone, vehicle: b.vehicle_name, time: b.start_date, location: b.pickup_location })),
-          check_ins:  (checkIns  || []).map((b: any) => ({ ref: b.booking_ref, customer: b.customer_name, phone: b.customer_phone, vehicle: b.vehicle_name, time: b.end_date, location: b.dropoff_location })),
-          overdue:    (overdue   || []).map((b: any) => ({ ref: b.booking_ref, customer: b.customer_name, phone: b.customer_phone, vehicle: b.vehicle_name, was_due: b.end_date })),
+          date: dayKey(Date.now(), tz),
+          timeZone: tz,
+          check_outs: (checkOuts || []).map((b: any) => ({ ref: b.booking_ref, customer: b.customer_name, phone: b.customer_phone, vehicle: b.vehicle_name, time: b.start_date, timeLocal: fmtTime(b.start_date, tz), location: b.pickup_location })),
+          check_ins:  (checkIns  || []).map((b: any) => ({ ref: b.booking_ref, customer: b.customer_name, phone: b.customer_phone, vehicle: b.vehicle_name, time: b.end_date, timeLocal: fmtTime(b.end_date, tz), location: b.dropoff_location })),
+          overdue:    (overdue   || []).map((b: any) => ({ ref: b.booking_ref, customer: b.customer_name, phone: b.customer_phone, vehicle: b.vehicle_name, was_due: b.end_date, wasDueLocal: `${fmtDay(b.end_date, tz)} ${fmtTime(b.end_date, tz)}` })),
           maintenance_starting: (maint || []).length,
           summary: `Today: ${(checkOuts||[]).length} check-out${(checkOuts||[]).length===1?'':'s'}, ${(checkIns||[]).length} check-in${(checkIns||[]).length===1?'':'s'}, ${(overdue||[]).length} overdue return${(overdue||[]).length===1?'':'s'}.`,
         };
@@ -2930,7 +3113,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
             total: data.total_value, balance_due: data.balance_due, payment_status: data.payment_status,
             notes: data.notes,
           },
-          summary: `${data.booking_ref}: ${data.customer_name} in the ${data.vehicle_name}, ${new Date(data.start_date).toLocaleDateString()} to ${new Date(data.end_date).toLocaleDateString()}, status ${data.status}.`,
+          summary: `${data.booking_ref}: ${data.customer_name} in the ${data.vehicle_name}, ${fmtDay(data.start_date, tz)} to ${fmtDay(data.end_date, tz)}, status ${data.status}.`,
         };
       }
 

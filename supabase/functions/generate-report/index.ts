@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.77.0';
 import { logTransfer } from "../_shared/transferGuard.ts";
+import { COUNTED_STATUSES, occupiedDays, addDays, safeTimeZone } from "../_shared/motoriq/facts.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -39,12 +40,23 @@ serve(async (req) => {
     // Generate report content based on type
     let reportContent: any;
 
+    // The team's time zone: days in a report are the tenant's calendar days.
+    let tz = "UTC";
+    try {
+      const { data: member } = await supabase
+        .from("team_members").select("team_id").eq("user_id", claimsData.claims.sub).eq("is_active", true).limit(1).maybeSingle();
+      if (member?.team_id) {
+        const { data: team } = await supabase.from("teams").select("timezone").eq("id", member.team_id).maybeSingle();
+        tz = safeTimeZone(team?.timezone);
+      }
+    } catch (_) { /* UTC */ }
+
     switch (reportType) {
       case "revenue":
         reportContent = generateRevenueReport(data, dateRange);
         break;
       case "utilization":
-        reportContent = generateUtilizationReport(data, dateRange);
+        reportContent = generateUtilizationReport(data, dateRange, tz);
         break;
       case "bookings":
         reportContent = generateBookingsReport(data, dateRange);
@@ -159,34 +171,58 @@ function generateRevenueReport(data: any, dateRange: { start: string; end: strin
   };
 }
 
-function generateUtilizationReport(data: any, dateRange: { start: string; end: string }) {
-  const vehicles = data?.vehicles || [];
+/**
+ * Utilization over the chosen period, measured from the bookings themselves: the share of the period's days a car
+ * was booked, counting active/confirmed/completed bookings only, in the tenant's time zone. The stored
+ * vehicles.utilization column is not maintained by anything and is never read.
+ */
+function generateUtilizationReport(data: any, dateRange: { start: string; end: string }, tz: string) {
+  const vehicles = (data?.vehicles || []).filter((v: any) => !v.archived_at && !v.trashed_at);
   const bookings = data?.bookings || [];
 
-  const vehicleStats = vehicles.map((v: any) => {
-    const vehicleBookings = bookings.filter((b: any) => b.vehicle_id === v.id);
-    const revenue = vehicleBookings.reduce((sum: number, b: any) => sum + Number(b.total_value), 0);
+  const from = String(dateRange.start).slice(0, 10);
+  const to = String(dateRange.end).slice(0, 10);
+  const days: string[] = [];
+  for (let d = from; d <= to && days.length < 366; d = addDays(d, 1)) days.push(d);
+  const inPeriod = new Set(days);
 
+  const vehicleStats = vehicles.map((v: any) => {
+    const counted = bookings.filter((b: any) => b.vehicle_id === v.id && COUNTED_STATUSES.has(String(b.status ?? "completed")));
+    const booked = new Set<string>();
+    let overlapping = 0;
+    let revenue = 0;
+    for (const b of counted) {
+      const hit = occupiedDays(b, tz).filter((d) => inPeriod.has(d));
+      if (hit.length === 0) continue;
+      hit.forEach((d) => booked.add(d));
+      overlapping += 1;
+      revenue += Number(b.total_value || 0);
+    }
     return {
       id: v.id,
       name: v.name,
-      utilization: v.utilization || 0,
+      outOfService: String(v.status ?? "").toLowerCase() === "maintenance",
+      utilization: days.length > 0 ? Math.round((booked.size / days.length) * 100) : 0,
+      bookedDays: booked.size,
       revenue,
-      bookingCount: vehicleBookings.length,
+      bookingCount: overlapping,
       currentRate: v.current_rate,
     };
   });
 
-  const avgUtilization = vehicleStats.length > 0
-    ? Math.round(vehicleStats.reduce((sum: number, v: any) => sum + v.utilization, 0) / vehicleStats.length)
+  const rentable = vehicleStats.filter((v: any) => !v.outOfService);
+  const avgUtilization = rentable.length > 0 && days.length > 0
+    ? Math.round(rentable.reduce((sum: number, v: any) => sum + v.utilization, 0) / rentable.length)
     : 0;
 
   return {
     summary: {
       totalVehicles: vehicles.length,
       avgUtilization,
-      highPerformers: vehicleStats.filter((v: any) => v.utilization >= 80).length,
-      underperformers: vehicleStats.filter((v: any) => v.utilization < 50).length,
+      periodDays: days.length,
+      howMeasured: "Booked days divided by days in the period, from your bookings, in your time zone. Cancelled and unconfirmed bookings are not counted; cars in maintenance are left out of the average.",
+      highPerformers: rentable.filter((v: any) => v.utilization >= 80).length,
+      underperformers: rentable.filter((v: any) => v.utilization < 50).length,
     },
     details: vehicleStats,
   };

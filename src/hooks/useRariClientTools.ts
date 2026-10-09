@@ -1,4 +1,18 @@
 import { supabase } from '@/integrations/supabase/client';
+import { loadFleetTruth, rankByUtilization, sharePct, type FleetTruth } from '../../supabase/functions/_shared/motoriq/serverFacts.ts';
+
+// Utilization and revenue per car come from the tenant's own bookings (the same facts MotorIQ shows), never from
+// the stored vehicles.utilization / vehicles.revenue columns, which nothing maintains.
+async function truthFor(teamId?: string, location?: string | null): Promise<FleetTruth | null> {
+  if (!teamId) return null;
+  try {
+    return await loadFleetTruth(supabase as any, teamId, { location: location && location !== 'all' ? location : null });
+  } catch (error) {
+    console.error('Could not compute fleet facts:', error);
+    return null;
+  }
+}
+const pctText = (p: number | null | undefined) => (p == null ? 'not enough data' : `${p}%`);
 
 // Client-side tools for Rari voice assistant
 // These execute in the browser with user's auth context
@@ -13,7 +27,7 @@ export function createRariClientTools(userId: string, teamId?: string, userRole?
       try {
         let vehicleQuery = supabase
           .from('vehicles')
-          .select('id, status, location, current_rate, utilization, revenue');
+          .select('id, status, location, current_rate');
         
         // Filter by team_id if available
         if (teamId) {
@@ -36,10 +50,9 @@ export function createRariClientTools(userId: string, teamId?: string, userRole?
         const availableVehicles = vehicles?.filter(v => v.status === 'available').length || 0;
         const rentedVehicles = vehicles?.filter(v => v.status === 'rented').length || 0;
         const activeBookings = bookings?.filter(b => b.status === 'active' || b.status === 'confirmed').length || 0;
-        const avgUtilization = vehicles?.length 
-          ? Math.round(vehicles.reduce((sum, v) => sum + (v.utilization || 0), 0) / vehicles.length)
-          : 0;
-        const totalRevenue = vehicles?.reduce((sum, v) => sum + (v.revenue || 0), 0) || 0;
+        const truth = await truthFor(teamId, params.location);
+        const avgUtilization = sharePct(truth?.facts.fleet.trailing30);
+        const bookedLast30 = truth?.facts.fleet.earnedLast30.value ?? null;
 
         return JSON.stringify({
           totalVehicles,
@@ -47,8 +60,9 @@ export function createRariClientTools(userId: string, teamId?: string, userRole?
           rentedVehicles,
           maintenanceVehicles: vehicles?.filter(v => v.status === 'maintenance').length || 0,
           activeBookings,
-          averageUtilization: `${avgUtilization}%`,
-          totalRevenue: `$${totalRevenue.toLocaleString()}`,
+          averageUtilization: pctText(avgUtilization),
+          utilizationPeriod: 'last 30 days',
+          bookedRevenueLast30Days: bookedLast30 != null ? `$${bookedLast30.toLocaleString()}` : 'no booked days in the last 30 days',
           status: 'success'
         });
       } catch (error) {
@@ -62,13 +76,14 @@ export function createRariClientTools(userId: string, teamId?: string, userRole?
       try {
         let vehicleQuery = supabase
           .from('vehicles')
-          .select('id, location, status, current_rate, utilization, revenue');
+          .select('id, location, status, current_rate');
         
         if (teamId) {
           vehicleQuery = vehicleQuery.eq('team_id', teamId);
         }
         
         const { data: vehicles } = await vehicleQuery;
+        const truth = await truthFor(teamId, null);
 
         // Group by location
         const locationMap: Record<string, any> = {};
@@ -81,21 +96,29 @@ export function createRariClientTools(userId: string, teamId?: string, userRole?
               available: 0, 
               rented: 0,
               revenue: 0,
-              avgUtilization: 0,
-              utilizationSum: 0
+              booked: 0,
+              availableDays: 0,
             };
           }
+          const f = truth?.byId.get(v.id);
           locationMap[loc].vehicleCount++;
           if (v.status === 'available') locationMap[loc].available++;
           if (v.status === 'rented') locationMap[loc].rented++;
-          locationMap[loc].revenue += v.revenue || 0;
-          locationMap[loc].utilizationSum += v.utilization || 0;
+          locationMap[loc].revenue += f?.earnedLast30 ?? 0;
+          if (f && !f.outOfService) {
+            locationMap[loc].booked += f.trailing30.booked;
+            locationMap[loc].availableDays += f.trailing30.available;
+          }
         });
 
         const locations = Object.values(locationMap).map((loc: any) => ({
-          ...loc,
-          avgUtilization: loc.vehicleCount ? Math.round(loc.utilizationSum / loc.vehicleCount) : 0,
-          revenue: `$${loc.revenue.toLocaleString()}`
+          name: loc.name,
+          vehicleCount: loc.vehicleCount,
+          available: loc.available,
+          rented: loc.rented,
+          avgUtilization: pctText(loc.availableDays > 0 ? Math.round((loc.booked / loc.availableDays) * 100) : null),
+          utilizationPeriod: 'last 30 days',
+          bookedRevenueLast30Days: `$${loc.revenue.toLocaleString()}`,
         }));
 
         // Filter if specific location requested
@@ -233,6 +256,8 @@ export function createRariClientTools(userId: string, teamId?: string, userRole?
           return JSON.stringify({ error: `Vehicle "${term}" not found`, status: 'not_found' });
         }
 
+        const detailTruth = await truthFor(teamId, null);
+
         // Bookings are always returned — the tool schema has no flag for them.
         const { data: bookings } = await supabase
           .from('bookings')
@@ -261,8 +286,10 @@ export function createRariClientTools(userId: string, teamId?: string, userRole?
             status: vehicle.status,
             location: vehicle.location,
             dailyRate: `$${vehicle.current_rate?.toLocaleString() || 0}`,
-            utilization: `${vehicle.utilization || 0}%`,
-            totalRevenue: `$${vehicle.revenue?.toLocaleString() || 0}`,
+            utilization: pctText(sharePct(detailTruth?.byId.get(vehicle.id)?.trailing30)) + ' (last 30 days)',
+            bookedRevenueLast30Days: detailTruth?.byId.get(vehicle.id)?.earnedLast30 != null
+              ? `$${detailTruth.byId.get(vehicle.id)!.earnedLast30!.toLocaleString()}`
+              : 'no booked days in the last 30 days',
             licensePlate: vehicle.license_plate,
             vin: vehicle.vin
           },
@@ -398,28 +425,22 @@ export function createRariClientTools(userId: string, teamId?: string, userRole?
           });
         }
 
-        // Default: top vehicles by revenue
-        let query = supabase
-          .from('vehicles')
-          .select('name, make, model, revenue, utilization, location')
-          .order(params.metric === 'utilization' ? 'utilization' : 'revenue', { ascending: false });
-        
-        if (teamId) {
-          query = query.eq('team_id', teamId);
+        // Default: top vehicles. Ranked on measured facts from bookings over the last 30 days.
+        const truth = await truthFor(teamId, params.location);
+        if (!truth) {
+          return JSON.stringify({ topVehicles: [], message: 'Not enough booking data to rank vehicles right now.', status: 'success' });
         }
-
-        if (params.location) {
-          query = query.ilike('location', `%${params.location}%`);
-        }
-
-        const { data: vehicles } = await query.limit(limit);
+        const ranked = params.metric === 'utilization'
+          ? rankByUtilization(truth).filter((f) => f.trailing30.share != null)
+          : [...truth.facts.vehicles].filter((f) => (f.earnedLast30 ?? 0) > 0).sort((x, y) => (y.earnedLast30 ?? 0) - (x.earnedLast30 ?? 0));
 
         return JSON.stringify({
-          topVehicles: vehicles?.map(v => ({
-            name: `${v.make} ${v.model}`,
-            location: v.location,
-            revenue: `$${v.revenue?.toLocaleString() || 0}`,
-            utilization: `${v.utilization || 0}%`
+          rankedBy: params.metric === 'utilization' ? 'utilization, last 30 days' : 'booked revenue, last 30 days',
+          topVehicles: ranked.slice(0, limit).map((f) => ({
+            name: `${f.make} ${f.model}`,
+            location: truth.rows.get(f.id)?.location,
+            bookedRevenueLast30Days: `$${(f.earnedLast30 ?? 0).toLocaleString()}`,
+            utilization: pctText(sharePct(f.trailing30)),
           })),
           status: 'success'
         });

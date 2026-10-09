@@ -454,3 +454,35 @@ describe("Rari: speaks in the tenant's zone and only about the tenant's business
     expect(rariRules("UTC").length).toBe(6);
   });
 });
+
+describe("engine: a stalled booking feed", () => {
+  /** Four exotics booked every other day for 60 days, all created long ago; nothing booked for the next week. */
+  const stale = (freshPickup: boolean) => {
+    const ids = ["a", "b", "c", "d"];
+    const vehicles = ids.map((id) => car(id));
+    const bookings: BookingRow[] = [];
+    for (const id of ids) {
+      for (let back = 60; back >= 1; back--) {
+        if (back % 2 === 0) bookings.push(booking(id, addDays(TODAY, -back), 1, { created_at: at(addDays(TODAY, -back - 30)) }));
+      }
+    }
+    // one booking made yesterday, for a date well outside the next 7 days, keeps the feed alive without changing the week
+    if (freshPickup) bookings.push(booking("a", addDays(TODAY, 20), 2, { created_at: at(addDays(TODAY, -1)) }));
+    return computeFleetFacts({ vehicles, bookings, today: TODAY });
+  };
+
+  it("holds, and says why, when no booking was made in the last 14 days", () => {
+    const facts = stale(false);
+    expect(facts.fleet.pickups.last7 + facts.fleet.pickups.prev7).toBe(0);
+    const recs = recommendRates(ctx(facts));
+    expect(recs.every((r) => r.action === "hold")).toBe(true);
+    expect(recs[0].holdReasons.join(" ")).toMatch(/no new bookings were made in the last 14 days/i);
+  });
+
+  it("acts on a slow week once fresh bookings are arriving", () => {
+    const facts = stale(true);
+    expect(facts.fleet.pickups.last7).toBeGreaterThan(0);
+    const recs = recommendRates(ctx(facts));
+    expect(recs.some((r) => r.action === "lower")).toBe(true);
+  });
+});
