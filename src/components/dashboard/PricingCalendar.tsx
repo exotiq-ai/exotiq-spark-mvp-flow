@@ -28,7 +28,8 @@ import {
   Star,
   Users,
   Flame,
-  Eye
+  Eye,
+  Tag,
 } from "lucide-react";
 import {
   Tooltip,
@@ -38,6 +39,9 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useMoney } from "@/hooks/useMoney";
+import { useRateOverrides } from "@/hooks/useRateOverrides";
+import { addDays as addDaysKey } from "@/lib/motoriq/facts";
+import type { RateOverride } from "@/lib/motoriq/dateRates";
 import { matchDemandCity } from "@/lib/demandCities";
 import { evidenceOf, EVIDENCE_LABELS, type ImpactEvent } from "@/lib/eventImpact";
 import { COUNTED_STATUSES, occupiedDays } from "@/lib/motoriq/facts";
@@ -104,6 +108,7 @@ export const PricingCalendar = () => {
   const { vehicles, bookings, maintenance, damageClaims } = useLocationFilteredFleet();
   const { money } = useMoney();
   const tz = useTenantTimeZone();
+  const { active: dateRates } = useRateOverrides();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [vehicleFilter, setVehicleFilter] = useState<string>("all");
@@ -259,6 +264,19 @@ export const PricingCalendar = () => {
 
     return dataMap;
   }, [daysInMonth, bookings, vehicles, maintenance, damageClaims, vehicleFilter, tz]);
+
+  // Date-specific rates by calendar day (for the cars shown), so a day with a special rate is visible at a glance.
+  const dateRatesByDay = useMemo(() => {
+    const map = new Map<string, RateOverride[]>();
+    for (const o of dateRates) {
+      if (vehicleFilter !== "all" && o.vehicle_id !== vehicleFilter) continue;
+      for (let d = o.start_date, n = 0; d <= o.end_date && n < 370; d = addDaysKey(d, 1), n++) {
+        const list = map.get(d);
+        if (list) list.push(o); else map.set(d, [o]);
+      }
+    }
+    return map;
+  }, [dateRates, vehicleFilter]);
 
   const maxRevenue = useMemo(() => {
     let max = 0;
@@ -483,6 +501,12 @@ export const PricingCalendar = () => {
                         )}
                       </div>
 
+                      {(dateRatesByDay.get(dateKey)?.length ?? 0) > 0 && (
+                        <span className="absolute left-0.5 top-0.5 z-10 text-warning" aria-label="Special rate on this day" title="Special rate on this day">
+                          <Tag className="h-3 w-3" />
+                        </span>
+                      )}
+
                       {/* Event overlay stripe */}
                       {hasEvents && (
                         <>
@@ -563,6 +587,32 @@ export const PricingCalendar = () => {
           </div>
 
           <ScrollArea className="h-[400px] pr-4">
+            {/* Date-specific rates */}
+            {(dateRatesByDay.get(format(selectedDate, 'yyyy-MM-dd'))?.length ?? 0) > 0 && (
+              <div className="mb-6">
+                <h4 className="text-sm font-semibold flex items-center gap-2 mb-3">
+                  <Tag className="h-4 w-4 text-warning" />
+                  Special rates ({dateRatesByDay.get(format(selectedDate, 'yyyy-MM-dd'))!.length})
+                </h4>
+                <div className="space-y-2">
+                  {dateRatesByDay.get(format(selectedDate, 'yyyy-MM-dd'))!.map((o) => {
+                    const car = vehicles.find((v) => v.id === o.vehicle_id);
+                    return (
+                      <div key={o.id} className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm">
+                        <div className="min-w-0">
+                          <p className="truncate font-medium">{car?.name || [car?.make, car?.model].filter(Boolean).join(' ') || 'Vehicle'}</p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {o.source === 'manual' ? 'Set by hand' : 'From a MotorIQ quote'}{o.reason ? `: ${o.reason}` : ''}
+                          </p>
+                        </div>
+                        <span className="shrink-0 font-semibold tabular-nums">{money(Number(o.daily_rate))}/day</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Events Section */}
             {selectedDayEvents.length > 0 && (
               <div className="mb-6">

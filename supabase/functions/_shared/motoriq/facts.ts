@@ -7,6 +7,7 @@
  * Counted bookings are active, confirmed and completed.
  */
 import { matchDemandCity } from "../demandCities.ts";
+import { rateForDay, type RateOverride } from "./dateRates.ts";
 import { classifyVehicleSegment as classifyVehicleSegmentClient } from "../eventTaxonomy.ts";
 import type {
   BlockedRow,
@@ -80,7 +81,9 @@ export function occupiedDays(b: Pick<BookingRow, "start_date" | "end_date">, tz 
   const s = Date.parse(b.start_date);
   const e = Date.parse(b.end_date);
   if (!Number.isFinite(s) || !Number.isFinite(e) || e < s) return [];
-  const n = Math.min(MAX_SPAN_DAYS, Math.max(1, Math.ceil((e - s) / DAY)));
+  // elapsed hours on the local wall clock, so a stay across a daylight-saving change is not a night too long or short
+  const localMs = e + tzOffsetMs(e, tz) - (s + tzOffsetMs(s, tz));
+  const n = Math.min(MAX_SPAN_DAYS, Math.max(1, Math.ceil(localMs / DAY - 1e-9)));
   const first = dayKey(s, tz);
   return Array.from({ length: n }, (_, i) => addDays(first, i));
 }
@@ -249,6 +252,8 @@ export function computeFleetFacts(input: {
   vehicles: VehicleRow[];
   bookings: BookingRow[];
   blocked?: BlockedRow[];
+  /** date-specific rates (active and revoked, so history is known); without them every day is at the base rate */
+  overrides?: RateOverride[];
   /** the tenant's local date (yyyy-MM-dd) */
   today: string;
   /** the tenant's IANA time zone; days are calendar days there (default UTC) */
@@ -256,6 +261,7 @@ export function computeFleetFacts(input: {
 }): FleetFacts {
   const { today } = input;
   const tz = safeTimeZone(input.tz);
+  const overrides = input.overrides ?? [];
   const live = input.vehicles.filter((v) => !v.archived_at && !v.trashed_at);
   const idx = buildIndex(live, input.bookings, input.blocked ?? [], tz);
   const countedAll = input.bookings.filter((b) => b.vehicle_id && COUNTED_STATUSES.has(String(b.status ?? "completed")));
@@ -274,7 +280,22 @@ export function computeFleetFacts(input: {
       const made = dayKey(c, tz);
       return made >= addDays(today, -29) && made <= today;
     });
-    const rates = recent.map((b) => bookingDayRate(b, occupiedDays(b, tz).length)).filter((r): r is number => r != null);
+    // Each booking is compared with the rate that was LISTED on its days when it was made (the base rate, or a date rate
+    // in force then), so an event premium does not make guests look like they are paying "above list".
+    const priced = recent
+      .map((b) => {
+        const days = occupiedDays(b, tz);
+        const r = bookingDayRate(b, days.length);
+        if (r == null) return null;
+        const created = Date.parse(b.created_at as string);
+        const listed = days.length
+          ? days.reduce((sum, d) => sum + rateForDay(overrides, v.id, d, currentRate, created).rate, 0) / days.length
+          : currentRate;
+        return { r, listed };
+      })
+      .filter((x): x is { r: number; listed: number } => x != null);
+    const rates = priced.map((x) => x.r);
+    const listedSum = priced.reduce((sum, x) => sum + x.listed, 0);
     const achieved = rates.length ? rates.reduce((s, r) => s + r, 0) / rates.length : null;
     const src = "bookings made in the last 30 days";
 
@@ -317,7 +338,7 @@ export function computeFleetFacts(input: {
         ...(rates.length === 0 ? { note: "No bookings were made for this car in the last 30 days." } : {}),
       },
       rateRealization: {
-        value: rates.length >= 3 && currentRate > 0 && achieved != null ? achieved / currentRate : null,
+        value: rates.length >= 3 && currentRate > 0 && achieved != null && listedSum > 0 ? rates.reduce((a, b) => a + b, 0) / listedSum : null,
         provenance: prov(src, rates.length, today),
         ...(rates.length < 3 ? { note: "Needs at least 3 recent bookings to compare with your listed rate." } : {}),
       },
