@@ -15,6 +15,7 @@ import { VehiclePhotoManager } from "@/components/photos/VehiclePhotoManager";
 import { BulkUploadModal } from "@/components/photos/BulkUploadModal";
 import { PhotoGalleryStrip } from "@/components/photos/PhotoGalleryStrip";
 import { QuickPriceEditorContent } from "@/components/pricing/QuickPriceEditorContent";
+import { useMotorIQ } from "@/hooks/useMotorIQ";
 import { VehicleTasksList } from "@/components/fleet/VehicleTasksList";
 import { useVehiclePhotos } from "@/hooks/useVehiclePhotos";
 import { PermissionGuard } from "@/components/common/PermissionGuard";
@@ -103,6 +104,39 @@ function RentalBlock({
   );
 }
 
+/** This car's measured utilization and booked revenue over the last 30 days (same facts as MotorIQ and Rari). */
+const MeasuredPerformance = ({ vehicleId }: { vehicleId: string }) => {
+  const { snapshot } = useMotorIQ();
+  const f = snapshot?.facts.vehicles.find((v) => v.id === vehicleId);
+  if (!f) return null;
+  const pct = f.trailing30.share == null ? null : Math.round(f.trailing30.share * 100);
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      <div className="p-3 rounded-lg bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/15">
+        <div className="flex items-center gap-1.5 mb-1">
+          <TrendingUp className="h-3.5 w-3.5 text-primary" />
+          <span className="text-xs text-muted-foreground">Utilization (30 days)</span>
+        </div>
+        <div className="text-2xl font-bold">{pct == null ? "Not enough data" : `${pct}%`}</div>
+      </div>
+      <div className="p-3 rounded-lg bg-gradient-to-br from-success/5 to-success/10 border border-success/15">
+        <div className="flex items-center gap-1.5 mb-1">
+          <DollarSign className="h-3.5 w-3.5 text-success" />
+          <span className="text-xs text-muted-foreground">Booked (30 days)</span>
+        </div>
+        <div className="text-2xl font-bold">{f.earnedLast30 == null ? "No booked days" : formatCurrency(f.earnedLast30)}</div>
+      </div>
+    </div>
+  );
+};
+
+/** The price editor with MotorIQ's recommendation for this car. */
+const VehiclePricing = ({ vehicle, onApplyRate }: Pick<React.ComponentProps<typeof QuickPriceEditorContent>, "vehicle" | "onApplyRate">) => {
+  const { snapshot } = useMotorIQ();
+  const recommendation = snapshot?.recommendations.find((r) => r.vehicleId === vehicle.id) ?? null;
+  return <QuickPriceEditorContent vehicle={vehicle} recommendation={recommendation} onApplyRate={onApplyRate} compact />;
+};
+
 interface VehicleImageDialogProps {
 
   open: boolean;
@@ -122,7 +156,9 @@ interface VehicleImageDialogProps {
     year: number;
     status: string;
     dailyRate: number;
+    /** @deprecated ignored: the stored columns are not maintained; the dialog measures from bookings */
     utilization?: number;
+    /** @deprecated ignored: see utilization */
     revenue?: number;
     returnDate?: string;
     color?: string;
@@ -131,6 +167,7 @@ interface VehicleImageDialogProps {
     location?: string;
     image_url?: string | null;
     ops_status?: string | null;
+    /** @deprecated ignored: MotorIQ's recommendation is used instead */
     suggested_rate?: number | null;
     maintenanceAlerts?: Array<{
       type: string;
@@ -217,8 +254,6 @@ export function VehicleImageDialog({
     year: vehicleDetails.year,
     status: vehicleDetails.status,
     current_rate: vehicleDetails.dailyRate,
-    suggested_rate: vehicleDetails.suggested_rate,
-    utilization: vehicleDetails.utilization,
     image_url: mainImageUrl,
   } : null;
 
@@ -432,30 +467,11 @@ export function VehicleImageDialog({
                 )}
 
 
-                {/* Performance Metrics */}
-                {(vehicleDetails?.utilization !== undefined || vehicleDetails?.revenue !== undefined) && (
+                {/* Performance: measured from this car's bookings over the last 30 days */}
+                {vehicleId && (
                   <>
                     <Separator />
-                    <div className="grid grid-cols-2 gap-3">
-                      {vehicleDetails?.utilization !== undefined && (
-                        <div className="p-3 rounded-lg bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/15">
-                          <div className="flex items-center gap-1.5 mb-1">
-                            <TrendingUp className="h-3.5 w-3.5 text-primary" />
-                            <span className="text-xs text-muted-foreground">Utilization</span>
-                          </div>
-                          <div className="text-2xl font-bold">{vehicleDetails.utilization}%</div>
-                        </div>
-                      )}
-                      {vehicleDetails?.revenue !== undefined && (
-                        <div className="p-3 rounded-lg bg-gradient-to-br from-success/5 to-success/10 border border-success/15">
-                          <div className="flex items-center gap-1.5 mb-1">
-                            <DollarSign className="h-3.5 w-3.5 text-success" />
-                            <span className="text-xs text-muted-foreground">Revenue</span>
-                          </div>
-                          <div className="text-2xl font-bold">{formatCurrency(vehicleDetails.revenue || 0)}</div>
-                        </div>
-                      )}
-                    </div>
+                    <MeasuredPerformance vehicleId={vehicleId} />
                   </>
                 )}
 
@@ -523,11 +539,7 @@ export function VehicleImageDialog({
               {hasCommandFeatures && (
                 <TabsContent value="pricing" className="px-6 pb-6 pt-4 mt-0">
                   {vehicleForPricing && onApplyRate ? (
-                    <QuickPriceEditorContent
-                      vehicle={vehicleForPricing}
-                      onApplyRate={onApplyRate}
-                      compact
-                    />
+                    <VehiclePricing vehicle={vehicleForPricing} onApplyRate={onApplyRate} />
                   ) : (
                     <div className="text-center py-8 text-sm text-muted-foreground">
                       Pricing editor not available

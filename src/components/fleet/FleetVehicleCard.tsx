@@ -58,7 +58,6 @@ interface Vehicle {
   ops_status?: string | null;
   /** The 24hr/daily rate. Preserved name for backwards compatibility (48+ references). */
   current_rate: number;
-  suggested_rate?: number | null;
   license_plate?: string | null;
   image_url?: string | null;
   last_ops_update?: string | null;
@@ -80,6 +79,8 @@ interface Booking {
 
 interface FleetVehicleCardProps {
   vehicle: Vehicle;
+  /** MotorIQ recommends a base-rate change for this car (from the pricing engine, never a stored column) */
+  hasRateSuggestion?: boolean;
   activeBooking?: Booking | null;
   nextBooking?: Booking | null;
   taskCount?: number;
@@ -121,6 +122,7 @@ const OpsStatusIcon: Record<string, React.ComponentType<{ className?: string }>>
 
 export const FleetVehicleCard = ({
   vehicle,
+  hasRateSuggestion = false,
   activeBooking,
   nextBooking,
   taskCount = 0,
@@ -232,7 +234,7 @@ export const FleetVehicleCard = ({
   const quickStatusActions = !isRetired ? (OPS_STATUS_CONFIG[opsStatus]?.nextStates || []) : [];
 
   // Has Rari pricing suggestion
-  const hasRariSuggestion = !isRetired && vehicle.suggested_rate != null && vehicle.suggested_rate !== vehicle.current_rate;
+  const hasRariSuggestion = !isRetired && hasRateSuggestion;
 
   // ============================================================
   // OPS MODE (mobile) — unchanged horizontal layout
@@ -471,7 +473,7 @@ export const FleetVehicleCard = ({
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Rari has a pricing suggestion</p>
+                    <p>MotorIQ suggests a rate change</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -764,7 +766,7 @@ export const FleetVehicleCard = ({
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>Rari has a pricing suggestion</p>
+                        <p>MotorIQ suggests a rate change</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
