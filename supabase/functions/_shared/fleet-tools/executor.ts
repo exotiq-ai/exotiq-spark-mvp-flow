@@ -2160,8 +2160,8 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
           confidence: rec.confidence,
           currentRate: `$${rec.currentRate}`,
           suggestedRate: `$${rec.recommendedRate}`,
-          difference: difference > 0 ? `+$${difference}` : `$${difference}`,
-          percentChange: `${rec.changePct > 0 ? '+' : ''}${rec.changePct}%`,
+          difference: `${difference > 0 ? '+' : difference < 0 ? '-' : ''}$${Math.abs(difference)}`,
+          percentChange: `${rec.changePct > 0 ? '+' : ''}${Math.round(rec.changePct * 100)}%`,
           reasons: rec.drivers.map((d) => d.detail),
           whyNotMore: rec.holdReasons,
           estimatedExtraRevenue: rec.estimate

@@ -47,7 +47,7 @@ export const CustomizableDashboard = ({ modules, onModuleClick }: CustomizableDa
   const isMobile = useIsMobile();
   const { vehicles, bookings, applyPriceOptimization } = useLocationFilteredFleet();
   const { layout, visibleWidgets, loading, saveLayout, resetLayout, toggleWidget, setLayout } = useDashboardLayout();
-  const aiInsight = useFleetAIInsight(vehicles, bookings);
+  const aiInsight = useFleetAIInsight();
 
   // Calculate metrics for CompactMetricsBar
   const activeBookingsCount = bookings.filter(b => b.status === 'confirmed').length;
@@ -105,7 +105,8 @@ export const CustomizableDashboard = ({ modules, onModuleClick }: CustomizableDa
         <CompactAIInsightBanner
           vehicleName={aiInsight.vehicleName}
           suggestedIncrease={aiInsight.suggestedIncreasePercent}
-          potentialRevenue={aiInsight.potentialMonthlyRevenue}
+          estimatedExtraRevenue={aiInsight.estimatedExtraRevenue}
+          openDays={aiInsight.openDays}
           onApply={() => setShowOptimizationDialog(true)}
           onViewAnalysis={() => onModuleClick('motoriq')}
           hasFleetData={vehicles.length > 0}

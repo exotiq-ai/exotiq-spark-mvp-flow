@@ -44,6 +44,26 @@ function loadEvents(city: string, today: string): Promise<ImpactEvent[]> {
   return p;
 }
 
+// Several dashboard components read the same snapshot; they share one blocked-dates read for a minute.
+const BLOCKED_TTL_MS = 60_000;
+const blockedCache = new Map<string, { at: number; p: Promise<{ rows: BlockedRow[]; failed: boolean }> }>();
+function loadBlocked(teamKey: string, today: string): Promise<{ rows: BlockedRow[]; failed: boolean }> {
+  const key = `${teamKey}|${today}`;
+  const hit = blockedCache.get(key);
+  if (hit && Date.now() - hit.at < BLOCKED_TTL_MS) return hit.p;
+  const p = Promise.resolve(
+    (supabase as any)
+      .from("vehicle_blocked_dates")
+      .select("vehicle_id,start_date,end_date")
+      .gte("end_date", addDays(today, -35)),
+  ).then(
+    ({ data, error }: { data: BlockedRow[] | null; error: unknown }) => (error ? { rows: [], failed: true } : { rows: data ?? [], failed: false }),
+    () => ({ rows: [] as BlockedRow[], failed: true }),
+  );
+  blockedCache.set(key, { at: Date.now(), p });
+  return p;
+}
+
 export function useMotorIQ(): MotorIQState {
   const { vehicles, bookings, loading } = useLocationFilteredFleet();
   const { currentTeam, currentLocation, selectedLocationId } = useTeam();
@@ -58,14 +78,11 @@ export function useMotorIQ(): MotorIQState {
   // Blocked dates (maintenance, personal use...): they are not available to rent, so they leave the denominator.
   useEffect(() => {
     let alive = true;
-    (supabase as any)
-      .from("vehicle_blocked_dates")
-      .select("vehicle_id,start_date,end_date")
-      .gte("end_date", addDays(today, -35))
-      .then(({ data, error }: { data: BlockedRow[] | null; error: unknown }) => {
-        if (!alive) return;
-        if (error) { setBlockedUnavailable(true); setBlocked([]); } else { setBlockedUnavailable(false); setBlocked(data ?? []); }
-      });
+    loadBlocked(currentTeam?.id ?? "none", today).then(({ rows, failed }) => {
+      if (!alive) return;
+      setBlockedUnavailable(failed);
+      setBlocked(rows);
+    });
     return () => { alive = false; };
   }, [today, currentTeam?.id]);
 

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import type { DetectedEntity } from './useEntityDetection';
+import { loadFleetTruth, sharePct } from '../../supabase/functions/_shared/motoriq/serverFacts.ts';
 
 export interface CustomerPreview {
   id: string;
@@ -32,7 +33,8 @@ export interface VehiclePreview {
   year: number;
   status: string;
   current_rate: number;
-  utilization: number;
+  /** share of available days booked in the last 30 days, in percent; null when it cannot be measured */
+  utilization: number | null;
 }
 
 export interface EnrichedEntity extends DetectedEntity {
@@ -145,6 +147,9 @@ export function useEntityEnrichment(entities: DetectedEntity[]): EnrichedEntity[
                   .single();
 
                 if (!error && vehicle) {
+                  // measured from bookings (the stored vehicles.utilization column is not maintained)
+                  const truth = vehicle.team_id ? await loadFleetTruth(supabase as any, vehicle.team_id).catch(() => null) : null;
+                  const measured = sharePct(truth?.byId.get(vehicle.id)?.trailing30);
                   return {
                     ...entity,
                     enrichedData: {
@@ -155,7 +160,7 @@ export function useEntityEnrichment(entities: DetectedEntity[]): EnrichedEntity[
                         year: vehicle.year,
                         status: vehicle.status,
                         current_rate: vehicle.current_rate,
-                        utilization: vehicle.utilization || 0,
+                        utilization: measured,
                       },
                     },
                     isLoading: false,

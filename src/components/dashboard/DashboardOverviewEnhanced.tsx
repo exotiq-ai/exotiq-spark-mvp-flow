@@ -186,7 +186,7 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
   }, [vehicles]);
 
   // Get AI insight recommendation based on real fleet data
-  const aiInsight = useFleetAIInsight(vehicles, bookings);
+  const aiInsight = useFleetAIInsight();
 
   const firstBooking = bookings[0];
 

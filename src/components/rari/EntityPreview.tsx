@@ -200,9 +200,9 @@ export const EntityPreview = ({ type, data, isLoading, error }: EntityPreviewPro
           <div className="flex items-center justify-between pt-2 border-t">
             <span className="text-muted-foreground flex items-center gap-1">
               <Activity className="h-3 w-3" />
-              Utilization
+              Utilization (30 days)
             </span>
-            <span className="font-medium">{vehicle.utilization}%</span>
+            <span className="font-medium">{vehicle.utilization == null ? "Not enough data" : `${vehicle.utilization}%`}</span>
           </div>
         </div>
       </div>

@@ -139,7 +139,7 @@ export const useDailyBrief = (): DailyBriefFacts => {
   const { tasks, loading: tasksLoading } = useFleetTasks();
   const { role } = useUserRole();
   const { profile } = useProfile();
-  const aiInsight = useFleetAIInsight(fleet.vehicles, fleet.bookings);
+  const aiInsight = useFleetAIInsight();
 
   const bookings = fleet.bookings as unknown as BriefBooking[];
   const vehicles = fleet.vehicles as unknown as BriefVehicle[];
@@ -323,7 +323,7 @@ export const useDailyBrief = (): DailyBriefFacts => {
         id: 'pricing-opportunity',
         severity: 'low',
         category: 'pricing',
-        title: `Raise ${aiInsight.vehicleName} rate ${aiInsight.suggestedIncreasePercent}% · ~$${aiInsight.potentialMonthlyRevenue.toLocaleString()}/mo`,
+        title: `Raise ${aiInsight.vehicleName} rate ${aiInsight.suggestedIncreasePercent}% · about $${aiInsight.estimatedExtraRevenue.toLocaleString()} over ${aiInsight.openDays} open ${aiInsight.openDays === 1 ? 'day' : 'days'}`,
         module: 'motoriq',
         meta: { vehicleId: aiInsight.vehicleId },
       });

@@ -207,6 +207,7 @@ export function createRariClientTools(userId: string, teamId?: string, userRole?
         }
 
         const { data: vehicles } = await query.limit(20);
+        const fleetTruth = await truthFor(teamId, params.location);
 
         const formatted = vehicles?.map(v => ({
           name: v.name,
@@ -216,11 +217,11 @@ export function createRariClientTools(userId: string, teamId?: string, userRole?
           status: v.status,
           location: v.location,
           dailyRate: `$${v.current_rate?.toLocaleString() || 0}`,
-          utilization: `${v.utilization || 0}%`
+          utilization: `${pctText(sharePct(fleetTruth?.byId.get(v.id)?.trailing30))} (last 30 days)`
         }));
 
         return JSON.stringify({ 
-          vehicles: formatted, 
+          vehicles: formatted,  
           count: formatted?.length || 0,
           status: 'success' 
         });

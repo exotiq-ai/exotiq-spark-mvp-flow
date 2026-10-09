@@ -235,7 +235,8 @@ serve(async (req) => {
       city: resolvedCity,
     };
 
-    let topAction = `Review your fleet pricing — ${completedBookings.length} bookings active or completed this week with $${currentRevenue.toLocaleString()} in revenue.`;
+    // revenue is rental revenue for the week; the booking count is by creation date, so the two are not put in one sentence
+    let topAction = `Review your fleet pricing — rentals this week brought in $${currentRevenue.toLocaleString()}.`;
 
     if (LOVABLE_API_KEY) {
       try {

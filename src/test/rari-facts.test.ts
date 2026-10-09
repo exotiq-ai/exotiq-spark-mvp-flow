@@ -233,3 +233,28 @@ describe("Rari speaks in the tenant's time zone", () => {
     }
   });
 });
+
+describe("Rari's rate advice matches the engine's numbers", () => {
+  it("states a lowering as a signed whole percent and dollar change", async () => {
+    // Four Miami exotics booked every other day for 60 days (made long ago), one fresh booking so the feed is live,
+    // and nothing booked for the coming week: the engine lowers.
+    const t = tables();
+    const rows: Row[] = [];
+    let k = 0;
+    for (const id of ["a", "b", "c", "d"]) {
+      for (let back = 60; back >= 1; back -= 2) {
+        rows.push({ id: `h${k++}`, team_id: TEAM, vehicle_id: id, start_date: at(addDays(TODAY, -back)), end_date: at(addDays(TODAY, -back + 1)), status: "confirmed", total_value: 1000, daily_rate: 1000, created_at: at(addDays(TODAY, -back - 30)) });
+      }
+    }
+    rows.push({ id: "fresh", team_id: TEAM, vehicle_id: "a", start_date: at(addDays(TODAY, 25)), end_date: at(addDays(TODAY, 27)), status: "confirmed", total_value: 2000, daily_rate: 1000, created_at: at(addDays(TODAY, -1)) });
+    t.bookings = rows;
+    const out = await executeFunction("getPricingRecommendation", { vehicleName: "488 Spider" }, fakeDb(t), "user-1", TEAM) as Row;
+    expect(out.action).toBe("lower");
+    const rec = recommendationFor(await loadFleetTruth(fakeDb(t), TEAM, { nowMs: NOW }), "a")!;
+    expect(out.suggestedRate).toBe(`$${rec.recommendedRate}`);
+    expect(out.percentChange).toBe(`${Math.round(rec.changePct * 100)}%`);
+    expect(out.percentChange).toMatch(/^-\d+%$/);
+    expect(out.difference).toBe(`-$${rec.currentRate - rec.recommendedRate}`);
+    expect(out.summary).toBe(rec.speakable);
+  });
+});
