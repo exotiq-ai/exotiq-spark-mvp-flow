@@ -24,6 +24,8 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { teamConnectedAccountId, resolveStripeMode } from "../_shared/stripeMode.ts";
+import { dayKey, safeTimeZone } from "../_shared/motoriq/facts.ts";
+import { priceExtensionNights, type NightRateRow } from "../_shared/motoriq/extensionPricing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -122,7 +124,7 @@ serve(async (req) => {
     const { data: booking, error: bErr } = await db
       .from("bookings")
       .select(
-        "id, user_id, team_id, vehicle_id, booking_ref, booking_source, status, start_date, end_date, total_value, operator_payment_intent_id, exotiq_payment_intent_id, paid_at, customer_email, customer_name, platform_fee_cents, state_fee_cents, processing_fee_cents, protection_total_cents, protection_tier",
+        "id, user_id, team_id, vehicle_id, booking_ref, booking_source, status, start_date, end_date, total_value, rate_breakdown, operator_payment_intent_id, exotiq_payment_intent_id, paid_at, customer_email, customer_name, platform_fee_cents, state_fee_cents, processing_fee_cents, protection_total_cents, protection_tier",
       )
       .eq("id", booking_id)
       .single();
@@ -213,9 +215,34 @@ serve(async (req) => {
       }
     }
 
-    // Compute deltas.
-    const ratePerDayCents = Math.round(Number(rate_cents_per_day));
-    const addedSubtotalCents = ratePerDayCents * addedDays;
+    // Price each added night. A date-specific rate in force on a night (set by hand or applied from a MotorIQ quote)
+    // is that night's price; every other night is charged at the rate entered above. The database decides which
+    // nights have a date rate, so the app, bookings and Rari all quote the same price.
+    const enteredRateCents = Math.round(Number(rate_cents_per_day));
+    let nightRows: NightRateRow[] | null = null;
+    let zone = "UTC";
+    if (booking.vehicle_id) {
+      const { data: teamTz } = await db.from("teams").select("timezone").eq("id", booking.team_id).maybeSingle();
+      zone = safeTimeZone(teamTz?.timezone);
+      const { data: rows, error: rowsErr } = await db.rpc("nightly_rates", {
+        p_vehicle_id: booking.vehicle_id,
+        p_first_day: dayKey(prevEnd.getTime(), zone),
+        p_nights: addedDays,
+        p_base_rate: enteredRateCents / 100,
+      });
+      if (rowsErr) log("nightly_rates unavailable, charging the entered rate", { error: rowsErr.message });
+      else nightRows = rows as NightRateRow[];
+    }
+    const priced = priceExtensionNights(nightRows, enteredRateCents, addedDays, dayKey(prevEnd.getTime(), zone));
+    const ratePerDayCents = priced.averageRateCents;
+    const addedSubtotalCents = priced.subtotalCents;
+    const extensionBreakdown = {
+      version: 1,
+      origin: "extension",
+      time_zone: zone,
+      entered_rate_cents: enteredRateCents,
+      nights: priced.nights.map((n) => ({ date: n.date, rate: n.rateCents / 100, source: n.source })),
+    };
     const addedStateFeeCents = STATE_FEE_CENTS_PER_DAY * addedDays;
 
     const originalSubtotalCents = Math.max(0, Math.round(Number(booking.total_value ?? 0) * 100));
@@ -255,6 +282,23 @@ serve(async (req) => {
     const addedExotiqLegCents = exotiqPreFeeCents + addedProcessingFeeCents;
     const addedTotalCents = addedSubtotalCents + addedExotiqLegCents;
 
+    // Preview only: the operator's dialog asks what this would cost; nothing is recorded or charged.
+    if (body?.dry_run === true) {
+      return json({
+        dry_run: true,
+        added_days: addedDays,
+        rate_cents_per_day: ratePerDayCents,
+        has_date_rates: priced.hasDateRates,
+        nights: extensionBreakdown.nights,
+        added_subtotal_cents: addedSubtotalCents,
+        added_state_fee_cents: addedStateFeeCents,
+        added_platform_fee_cents: addedPlatformFeeCents,
+        added_protection_cents: addedProtectionCents,
+        added_processing_fee_cents: addedProcessingFeeCents,
+        added_total_cents: addedTotalCents,
+      });
+    }
+
     log("Computed deltas", {
       addedDays,
       ratePerDayCents,
@@ -277,6 +321,7 @@ serve(async (req) => {
         new_end_date: newEnd.toISOString(),
         added_days: addedDays,
         rate_cents_per_day: ratePerDayCents,
+        rate_breakdown: extensionBreakdown,
         added_subtotal_cents: addedSubtotalCents,
         added_state_fee_cents: addedStateFeeCents,
         added_processing_fee_cents: addedProcessingFeeCents,
@@ -328,6 +373,18 @@ serve(async (req) => {
             Number(booking.processing_fee_cents ?? 0) + addedProcessingFeeCents,
           protection_total_cents:
             Number(booking.protection_total_cents ?? 0) + addedProtectionCents,
+          // Keep the nightly record complete when the booking has one (older bookings have none, and stay that way).
+          ...(booking.rate_breakdown && Array.isArray((booking.rate_breakdown as { nights?: unknown }).nights)
+            ? {
+                rate_breakdown: {
+                  ...(booking.rate_breakdown as Record<string, unknown>),
+                  nights: [
+                    ...((booking.rate_breakdown as { nights: unknown[] }).nights),
+                    ...extensionBreakdown.nights,
+                  ],
+                },
+              }
+            : {}),
         } as Record<string, unknown>)
 
         .eq("id", booking.id);

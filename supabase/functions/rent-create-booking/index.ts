@@ -206,6 +206,26 @@ serve(async (req) => {
     const row = Array.isArray(created) ? created[0] : created;
     logStep("Booking created", { ref: row.booking_ref, status: row.status });
 
+    // Date-specific rates: the booking records the nightly rates it was priced with (a database trigger). Check the
+    // record adds up to the subtotal that was quoted; a mismatch means a date rate changed between the quote and the
+    // insert (milliseconds apart). The renter is charged the quoted total either way; this only surfaces it in the logs.
+    try {
+      const { data: saved } = await admin
+        .from("bookings")
+        .select("rate_breakdown")
+        .eq("booking_ref", row.booking_ref)
+        .maybeSingle();
+      const nights = (saved?.rate_breakdown as { nights?: Array<{ rate: number | string }> } | null)?.nights;
+      if (Array.isArray(nights)) {
+        const savedCents = nights.reduce((sum, n) => sum + Math.round(Number(n.rate) * 100), 0);
+        if (savedCents !== Number(quote.rental_subtotal_cents)) {
+          logStep("RATE BREAKDOWN MISMATCH", { ref: row.booking_ref, quoted_cents: Number(quote.rental_subtotal_cents), saved_cents: savedCents });
+        }
+      }
+    } catch (checkError) {
+      logStep("Rate breakdown check skipped", { error: String(checkError) });
+    }
+
     // Request-received email (2026-08-18). This is the renter's only durable
     // copy of the tokenized confirmation link — without it, closing the tab
     // locks them out of their own booking until the operator approves.

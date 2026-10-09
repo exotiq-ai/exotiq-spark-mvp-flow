@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { format, addDays, differenceInCalendarDays, startOfDay } from "date-fns"
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useMoney } from "@/hooks/useMoney";
+import { niceDay } from "@/lib/motoriq/format";
 import { cn } from "@/lib/utils";
 
 interface ExtendBookingDialogProps {
@@ -73,8 +74,8 @@ export function ExtendBookingDialog({
   }, [newEndDate, currentEnd]);
 
   const rateNum = Math.max(0, Number(ratePerDay) || 0);
-  const addedSubtotal = rateNum * addedDays;
-  const addedStateFee = (STATE_FEE_CENTS_PER_DAY * addedDays) / 100;
+  const localSubtotal = rateNum * addedDays;
+  const localStateFee = (STATE_FEE_CENTS_PER_DAY * addedDays) / 100;
 
   // Platform fee % derived from the original booking snapshot so extensions
   // charge the same rate the renter agreed to at checkout.
@@ -82,27 +83,55 @@ export function ExtendBookingDialog({
   const originalPlatformCents = Number(booking?.platform_fee_cents ?? 0);
   const platformFeePct =
     originalRental > 0 ? originalPlatformCents / (originalRental * 100) : 0.10;
-  const addedPlatformFee = addedSubtotal * platformFeePct;
+  const localPlatformFee = localSubtotal * platformFeePct;
 
   // Protection: read rate from the tier (do NOT derive from bumped totals).
   const protectionDaily = protectionDailyCentsForTier(booking?.protection_tier) / 100;
-  const addedProtection = protectionDaily * addedDays;
+  const localProtection = protectionDaily * addedDays;
 
   // Processing fee — mirrors public_vehicle_quote / rent-extend-booking:
   //   2% platform overhead on rental subtotal
   // + Stripe 2.9% + $0.30 on the EXOTIQ LEG only (platform + state + protection + 2%).
   // Do NOT charge Stripe 2.9% on the rental subtotal — the operator absorbs
   // that on their destination-charge leg. Applying it here double-bills.
-  const platformOverhead = 0.02 * addedSubtotal;
+  const platformOverhead = 0.02 * localSubtotal;
   const exotiqPreProcessing =
-    addedPlatformFee + addedStateFee + addedProtection + platformOverhead;
-  const addedProcessingFee =
+    localPlatformFee + localStateFee + localProtection + platformOverhead;
+  const localProcessingFee =
     platformOverhead + (Math.round(exotiqPreProcessing * 100 * 0.029) + 30) / 100;
 
-  const addedTotal =
-    addedSubtotal + addedStateFee + addedPlatformFee + addedProtection + addedProcessingFee;
+  const localTotal =
+    localSubtotal + localStateFee + localPlatformFee + localProtection + localProcessingFee;
 
 
+
+  // The server is the authority on the price (date-specific rates, fees): ask it for a dry run and show its numbers.
+  // The local figures above are only shown until it answers.
+  const [server, setServer] = useState<null | {
+    added_subtotal_cents: number; added_state_fee_cents: number; added_platform_fee_cents: number;
+    added_protection_cents: number; added_processing_fee_cents: number; added_total_cents: number;
+    has_date_rates: boolean; nights: Array<{ date: string; rate: number; source: string }>;
+  }>(null);
+  useEffect(() => {
+    setServer(null);
+    if (!open || !booking || !newEndDate || addedDays < 1 || rateNum <= 0) return;
+    let alive = true;
+    const timer = setTimeout(async () => {
+      const { data, error } = await supabase.functions.invoke("rent-extend-booking", {
+        body: { booking_id: booking.id, new_end_date: newEndDate.toISOString(), rate_cents_per_day: Math.round(rateNum * 100), charge_method: chargeMethod, dry_run: true },
+      });
+      if (!alive || error || (data as any)?.error || !(data as any)?.dry_run) return;
+      setServer(data as any);
+    }, 400);
+    return () => { alive = false; clearTimeout(timer); };
+  }, [open, booking?.id, newEndDate?.getTime(), addedDays, rateNum, chargeMethod]);
+
+  const addedSubtotal = server ? server.added_subtotal_cents / 100 : localSubtotal;
+  const addedStateFee = server ? server.added_state_fee_cents / 100 : localStateFee;
+  const addedPlatformFee = server ? server.added_platform_fee_cents / 100 : localPlatformFee;
+  const addedProtection = server ? server.added_protection_cents / 100 : localProtection;
+  const addedProcessingFee = server ? server.added_processing_fee_cents / 100 : localProcessingFee;
+  const addedTotal = server ? server.added_total_cents / 100 : localTotal;
 
   const canSubmit = addedDays > 0 && rateNum > 0 && !submitting;
 
@@ -200,9 +229,16 @@ export function ExtendBookingDialog({
               <div className="space-y-1 pt-1 border-t">
                 <div className="text-xs uppercase tracking-wide text-muted-foreground">To operator</div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Rental ({addedDays} × {fmt(rateNum)})</span>
+                  <span className="text-muted-foreground">
+                    {server?.has_date_rates ? `Rental (${addedDays} ${addedDays === 1 ? "night" : "nights"}, special rates)` : `Rental (${addedDays} × ${fmt(rateNum)})`}
+                  </span>
                   <span>{fmt(addedSubtotal)}</span>
                 </div>
+                {server?.has_date_rates && (
+                  <p className="text-xs text-muted-foreground">
+                    {server.nights.map((n) => `${niceDay(n.date)} ${fmt(n.rate)}`).join(" · ")}. Nights with a special rate are charged at that rate, not the one entered above.
+                  </p>
+                )}
               </div>
               <div className="space-y-1 pt-1 border-t">
                 <div className="text-xs uppercase tracking-wide text-muted-foreground">Fees</div>
