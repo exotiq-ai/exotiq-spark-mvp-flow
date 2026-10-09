@@ -35,7 +35,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { validators, validateForm } from '@/lib/validation';
 import { toast } from '@/hooks/use-toast';
 import { useRateAdvice } from '@/hooks/useRateAdvice';
-import { niceRange } from '@/lib/motoriq/format';
+import { niceDay, niceRange } from '@/lib/motoriq/format';
 import { useTeam } from '@/contexts/TeamContext';
 import { useMoney } from '@/hooks/useMoney';
 import { supabase } from '@/integrations/supabase/client';
@@ -458,7 +458,7 @@ export const NewBookingDialog = ({
                   <div>
                     <div className="font-medium">Special rates apply to these dates</div>
                     <p className="text-xs text-muted-foreground">
-                      {dateQuote.breakdown.map((d) => `${d.date.slice(5)} ${money(Number(d.rate))}`).join(' · ')}. Average {money(dateQuote.average)}/day over {dateQuote.nights} {dateQuote.nights === 1 ? 'night' : 'nights'}.
+                      {dateQuote.breakdown.map((d) => `${niceDay(d.date)} ${money(Number(d.rate))}`).join(' · ')}. Average {money(dateQuote.average)}/day over {dateQuote.nights} {dateQuote.nights === 1 ? 'night' : 'nights'}.
                     </p>
                   </div>
                   <label className="flex shrink-0 items-center gap-2 text-xs">
