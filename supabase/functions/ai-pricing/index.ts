@@ -2,6 +2,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.77.0';
 import { logTransfer } from "../_shared/transferGuard.ts";
 
+import { aiChatUrl, aiModel, aiProviderLabel, aiRequestParams } from "../_shared/aiProvider.ts";
+import { classifyVehicleSegment, eventsOnDay, segmentMultiplier, type Segment, type SegmentImpact } from "../_shared/eventTaxonomy.ts";
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -27,8 +29,15 @@ interface PricingRequest {
     upcomingEvents: Array<{
       name: string;
       date: string;
+      endDate?: string;
       attendance: number;
       category: string;
+      venue?: string;
+      audience?: string;
+      /** Multiplier per vehicle segment (event demand engine v2). Absent on older clients. */
+      segmentImpact?: Partial<SegmentImpact>;
+      /** False for unconfirmed AI-found events: shown, never priced. */
+      pricingEligible?: boolean;
     }>;
     demandMultiplier: number;
   };
@@ -49,6 +58,50 @@ interface PricingResponse {
     monthly: number;
     improvement: number;
   };
+  /** Why events moved (or did not move) this vehicle's price. */
+  eventImpact: EventImpact;
+}
+
+interface EventImpact {
+  segment: Segment;
+  /** Premium multiplier for THIS vehicle on the rental date, 1.0 = no event effect. */
+  multiplier: number;
+  basis: 'segment' | 'market' | 'none';
+  drivers: Array<{ name: string; date: string; effectPct: number; counted: boolean }>;
+}
+
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}/;
+
+/**
+ * Event effect for one vehicle. Uses the per-segment impact the event engine attached to each event
+ * (so a music festival lifts an SUV more than a supercar). Unconfirmed events are listed but never priced.
+ */
+function computeEventImpact(vehicle: PricingRequest['vehicle'], eventData: PricingRequest['eventData'], startDate?: string): EventImpact {
+  const segment = classifyVehicleSegment(vehicle.make, vehicle.model);
+  const events = eventData?.upcomingEvents ?? [];
+  if (!events.length) return { segment, multiplier: 1, basis: 'none', drivers: [] };
+
+  const segmentAware = events.filter((e) => e.segmentImpact);
+  if (!segmentAware.length) {
+    // Older client without per-segment data: fall back to the single market-wide number.
+    const m = Number(eventData?.demandMultiplier);
+    return { segment, multiplier: Number.isFinite(m) && m > 1 ? m : 1, basis: 'market', drivers: [] };
+  }
+
+  const day = startDate && ISO_DAY.test(startDate) ? startDate.slice(0, 10) : undefined;
+  const scoped = day ? eventsOnDay(segmentAware, day) : segmentAware;
+  const multiplier = segmentMultiplier(segmentAware, segment, day);
+  const drivers = scoped
+    .map((e) => ({
+      name: e.name,
+      date: e.date,
+      effectPct: Math.round(((e.segmentImpact?.[segment] ?? 1) - 1) * 100),
+      counted: e.pricingEligible !== false,
+    }))
+    .filter((d) => d.effectPct > 0)
+    .sort((a, b) => Number(b.counted) - Number(a.counted) || b.effectPct - a.effectPct)
+    .slice(0, 4);
+  return { segment, multiplier, basis: 'segment', drivers };
 }
 
 serve(async (req) => {
@@ -70,10 +123,11 @@ serve(async (req) => {
     }
 
     const { vehicle, bookingHistory, eventData, startDate } = await req.json() as PricingRequest;
+    const eventImpact = computeEventImpact(vehicle, eventData, startDate);
     
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY is not configured');
+    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+    if (!OPENAI_API_KEY) {
+      throw new Error('OPENAI_API_KEY is not configured');
     }
 
     console.log('Analyzing pricing for vehicle:', vehicle.name);
@@ -101,8 +155,12 @@ ${bookingHistory ? `BOOKING HISTORY:
 - Average Rate Achieved: $${bookingHistory.averageRate}
 - Peak Demand Days: ${bookingHistory.peakDays.join(', ')}` : ''}
 
-${eventData && eventData.upcomingEvents.length > 0 ? `UPCOMING LOCAL EVENTS:
-${eventData.upcomingEvents.map(e => `- ${e.name} (${e.date}): ~${e.attendance} attendees, Category: ${e.category}`).join('\n')}
+${eventImpact.basis === 'segment' ? `EVENT EFFECT FOR THIS VEHICLE (segment: ${eventImpact.segment}):
+${eventImpact.drivers.length
+  ? eventImpact.drivers.map(d => `- ${d.name} (${d.date}): +${d.effectPct}% for ${eventImpact.segment} vehicles${d.counted ? '' : ' (unconfirmed, do not price)'}`).join('\n')
+  : '- No confirmed event touches the requested start date.'}
+Confirmed event premium to apply for this vehicle: ${eventImpact.multiplier}x. Apply exactly this event premium and do not add a separate event adjustment of your own.` : eventData && eventData.upcomingEvents.length > 0 ? `UPCOMING LOCAL EVENTS:
+${eventData.upcomingEvents.slice(0, 5).map(e => `- ${e.name} (${e.date}): ~${e.attendance} attendees, Category: ${e.category}`).join('\n')}
 Event Demand Multiplier: ${eventData.demandMultiplier}x` : ''}
 
 Based on this data, provide a JSON response with your pricing recommendation. Consider:
@@ -123,14 +181,14 @@ Respond with ONLY a valid JSON object in this exact format:
   "monthlyRevenuePotential": <number>
 }`;
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const response = await fetch(aiChatUrl(), {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        ...aiRequestParams("text"),
         messages: [
           { 
             role: 'system', 
@@ -169,8 +227,8 @@ Respond with ONLY a valid JSON object in this exact format:
       team_id: teamId ?? null,
       user_id: userId ?? null,
       caller: "ai-pricing",
-      model: "google/gemini-2.5-flash",
-      provider: "Google (Gemini / Vision via Lovable AI Gateway)",
+      model: aiModel("text"),
+      provider: aiProviderLabel(),
       provider_region: "United States / Global",
       response_bytes: content ? content.length : 0,
       status: "ok",
@@ -188,7 +246,7 @@ Respond with ONLY a valid JSON object in this exact format:
     } catch (parseError) {
       console.error('Failed to parse AI response:', parseError);
       // Fallback to rule-based pricing
-      parsedContent = calculateFallbackPricing(vehicle, eventData);
+      parsedContent = calculateFallbackPricing(vehicle, eventImpact);
     }
 
     // Build the full response
@@ -202,6 +260,7 @@ Respond with ONLY a valid JSON object in this exact format:
         monthly: parsedContent.monthlyRevenuePotential || parsedContent.suggestedRate * 20,
         improvement: Math.round(((parsedContent.suggestedRate - vehicle.currentRate) / vehicle.currentRate) * 100),
       },
+      eventImpact,
     };
 
     return new Response(JSON.stringify(pricingResponse), {
@@ -217,7 +276,7 @@ Respond with ONLY a valid JSON object in this exact format:
   }
 });
 
-function calculateFallbackPricing(vehicle: PricingRequest['vehicle'], eventData?: PricingRequest['eventData']) {
+function calculateFallbackPricing(vehicle: PricingRequest['vehicle'], eventImpact: EventImpact) {
   let suggestedRate = vehicle.currentRate;
   const factors: Array<{name: string; impact: number; description: string}> = [];
 
@@ -252,14 +311,16 @@ function calculateFallbackPricing(vehicle: PricingRequest['vehicle'], eventData?
     });
   }
 
-  // Event-based adjustment
-  if (eventData && eventData.demandMultiplier > 1) {
-    const increase = Math.round((eventData.demandMultiplier - 1) * 100);
-    suggestedRate *= eventData.demandMultiplier;
+  // Event-based adjustment (segment-aware)
+  if (eventImpact.multiplier > 1) {
+    const increase = Math.round((eventImpact.multiplier - 1) * 100);
+    suggestedRate *= eventImpact.multiplier;
     factors.push({
       name: 'Local Events',
       impact: increase,
-      description: `${eventData.upcomingEvents.length} upcoming events driving demand`
+      description: eventImpact.drivers.length
+        ? eventImpact.drivers.filter(d => d.counted).map(d => `${d.name} +${d.effectPct}%`).join(', ')
+        : `Events lifting demand for ${eventImpact.segment} vehicles`
     });
   }
 

@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { Tables } from '@/integrations/supabase/types';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { matchDemandCity } from '@/lib/demandCities';
 
 type Vehicle = Tables<'vehicles'>;
 type Booking = Tables<'bookings'>;
@@ -33,6 +34,13 @@ interface AIPricingResult {
   };
   events?: EventData[];
   demandMultiplier?: number;
+  /** Why events moved (or did not move) this vehicle's price. */
+  eventImpact?: {
+    segment: string;
+    multiplier: number;
+    basis: 'segment' | 'market' | 'none';
+    drivers: Array<{ name: string; date: string; effectPct: number; counted: boolean }>;
+  };
 }
 
 interface UseAIPricingEnhancedReturn {
@@ -78,23 +86,28 @@ export const useAIPricingEnhanced = (): UseAIPricingEnhancedReturn => {
     setError(null);
 
     try {
-      // Detect city from vehicle location (fallback to miami)
+      // Detect the market from the vehicle's location (any supported market; falls back to Miami)
       const vehicleLocation = (vehicle as any).location?.toLowerCase() || '';
-      const city = vehicleLocation.includes('scottsdale') || vehicleLocation.includes('phoenix') || vehicleLocation.includes('arizona')
-        ? 'scottsdale'
-        : vehicleLocation.includes('denver') || vehicleLocation.includes('colorado')
-          ? 'denver'
-          : 'miami';
+      const city = matchDemandCity(vehicleLocation)?.value
+        ?? (vehicleLocation.includes('arizona') ? 'scottsdale' : vehicleLocation.includes('colorado') ? 'denver' : 'miami');
 
       // First, fetch event data
+      // Look at the window the rental starts in (default: the next two weeks).
+      const startDay = startDate && /^\d{4}-\d{2}-\d{2}/.test(startDate) ? startDate.slice(0, 10) : undefined;
+      const windowEnd = startDay
+        ? new Date(Date.parse(startDay) + 14 * 86_400_000).toISOString().slice(0, 10)
+        : undefined;
       const eventsResponse = await supabase.functions.invoke('ai-event-intelligence', {
-        body: { city },
+        body: startDay ? { city, startDate: startDay, endDate: windowEnd } : { city },
       });
 
       let eventData = null;
       if (!eventsResponse.error && eventsResponse.data) {
+        // Send every event: pricing picks the ones that touch the rental date and this vehicle's segment.
         eventData = {
-          upcomingEvents: eventsResponse.data.events.slice(0, 5),
+          upcomingEvents: [...eventsResponse.data.events]
+            .sort((a: any, b: any) => Number(b.pricingEligible !== false) - Number(a.pricingEligible !== false)) // events that can move a price first
+            .slice(0, 40),
           demandMultiplier: eventsResponse.data.demandMultiplier,
         };
         setEvents(eventsResponse.data.events);
@@ -133,8 +146,8 @@ export const useAIPricingEnhanced = (): UseAIPricingEnhancedReturn => {
 
       const result: AIPricingResult = {
         ...response.data,
-        events: eventData?.upcomingEvents,
-        demandMultiplier: eventData?.demandMultiplier,
+        events: eventData?.upcomingEvents.slice(0, 5),
+        demandMultiplier: response.data?.eventImpact?.multiplier ?? eventData?.demandMultiplier,
       };
 
       setPricingResult(result);

@@ -190,17 +190,15 @@ export const DynamicPricingCard = ({ onApplyOptimization, onOpenPriceEditor }: D
     seasonalFactor: pricingResult.factors.find(f => f.name.toLowerCase().includes('season'))?.impact 
       ? 1 + (pricingResult.factors.find(f => f.name.toLowerCase().includes('season'))?.impact || 0) / 100
       : seasonalFactor,
-    eventPremium: events.length > 0 
-      ? Math.round((events.reduce((sum, e) => sum + e.impactScore, 0) / events.length) / 10)
-      : (activeSeason ? Math.round((activeSeason.surge - 1) * 100) : 0),
-    activeSeason: activeSeason?.name || null,
+    eventPremium: Math.round(((pricingResult.eventImpact?.multiplier ?? 1) - 1) * 100),
+    activeSeason: null as string | null,
     utilization: realUtilization,
   } : {
     baseRate: vehicles[0]?.current_rate || 100,
     demandMultiplier: activeSeason?.surge || 1.0,
     seasonalFactor,
-    eventPremium: activeSeason ? Math.round((activeSeason.surge - 1) * 100) : 0,
-    activeSeason: activeSeason?.name || null,
+    eventPremium: 0,
+    activeSeason: null as string | null,
     utilization: realUtilization,
   };
 
@@ -364,18 +362,18 @@ export const DynamicPricingCard = ({ onApplyOptimization, onOpenPriceEditor }: D
             </HoverCardContent>
           </HoverCard>
 
-          {/* Demand */}
+          {/* Demand: what your own bookings say */}
           <HoverCard>
             <HoverCardTrigger asChild>
               <Badge className="cursor-pointer px-3 py-1.5 text-sm gap-1.5 bg-success/15 text-success border-success/30 hover:bg-success/25 transition-colors">
                 <TrendingUp className="h-3 w-3" />
-                Demand +{((pricingFactors.demandMultiplier - 1) * 100).toFixed(0)}%
+                Demand {pricingFactors.utilization}% booked
               </Badge>
             </HoverCardTrigger>
             <HoverCardContent className="w-64">
               <div className="space-y-2">
-                <h4 className="font-semibold text-sm">Demand Multiplier</h4>
-                <p className="text-xs text-muted-foreground">Based on current booking velocity and fleet utilization ({pricingFactors.utilization}% utilized).</p>
+                <h4 className="font-semibold text-sm">Demand</h4>
+                <p className="text-xs text-muted-foreground">Share of your fleet on the road today, from your own bookings.</p>
                 <div className="text-xs">{currentMonthBookings.length} bookings this month</div>
               </div>
             </HoverCardContent>
@@ -398,40 +396,42 @@ export const DynamicPricingCard = ({ onApplyOptimization, onOpenPriceEditor }: D
             </HoverCardContent>
           </HoverCard>
 
-          {/* Events */}
+          {/* Events: effect on the analyzed car, with its drivers */}
           <HoverCard>
             <HoverCardTrigger asChild>
               <Badge className={`cursor-pointer px-3 py-1.5 text-sm gap-1.5 transition-colors ${
-                pricingFactors.eventPremium > 0 
-                  ? 'bg-accent/15 text-accent border-accent/30 hover:bg-accent/25' 
+                pricingFactors.eventPremium > 0
+                  ? 'bg-accent/15 text-accent border-accent/30 hover:bg-accent/25'
                   : 'bg-muted/30 text-muted-foreground border-border hover:bg-muted/50'
               }`}>
                 <Sparkles className="h-3 w-3" />
-                {pricingFactors.eventPremium > 0 
-                  ? `🎪 ${pricingFactors.activeSeason || 'Events'} +${pricingFactors.eventPremium}%`
-                  : 'No Events'
-                }
+                {!pricingResult
+                  ? 'Events: analyze a car'
+                  : pricingFactors.eventPremium > 0
+                    ? `Events +${pricingFactors.eventPremium}% for this car`
+                    : 'No event effect on this car'}
               </Badge>
             </HoverCardTrigger>
-            <HoverCardContent className="w-72">
+            <HoverCardContent className="w-80">
               <div className="space-y-2">
-                <h4 className="font-semibold text-sm">Event Impact</h4>
-                {pricingFactors.activeSeason ? (
-                  <p className="text-xs text-muted-foreground">
-                    <span className="font-medium text-foreground">{pricingFactors.activeSeason}</span> is driving a {pricingFactors.eventPremium}% premium on luxury vehicle demand.
-                  </p>
-                ) : events.length > 0 ? (
-                  <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground">Upcoming events in market:</p>
-                    {events.slice(0, 3).map(e => (
-                      <div key={e.id} className="text-xs flex justify-between">
-                        <span>{e.name}</span>
-                        <span className="text-muted-foreground">Impact: {e.impactScore}</span>
+                <h4 className="font-semibold text-sm">Event impact, per car</h4>
+                {!pricingResult ? (
+                  <p className="text-xs text-muted-foreground">Events affect each vehicle class differently (a festival lifts SUVs more than supercars). Press Analyze on a car to see its own effect and the events behind it.</p>
+                ) : pricingResult.eventImpact && pricingResult.eventImpact.drivers.length > 0 ? (
+                  <div className="space-y-1.5">
+                    <p className="text-xs text-muted-foreground">
+                      Events on the rental date, for {pricingResult.eventImpact.segment === 'suv' ? 'SUVs' : `${pricingResult.eventImpact.segment} cars`}:
+                    </p>
+                    {pricingResult.eventImpact.drivers.map((d, i) => (
+                      <div key={i} className="flex justify-between gap-2 text-xs">
+                        <span className="min-w-0 truncate">{d.name}{d.counted ? '' : ' (not counted)'}</span>
+                        <span className="shrink-0 tabular-nums text-muted-foreground">+{d.effectPct}%</span>
                       </div>
                     ))}
+                    <p className="text-[11px] text-muted-foreground">Modeled estimate, capped at +35%. Unconfirmed events are shown but not counted.</p>
                   </div>
                 ) : (
-                  <p className="text-xs text-muted-foreground">No major events detected in your market this period.</p>
+                  <p className="text-xs text-muted-foreground">No confirmed event touches this car's rental date.</p>
                 )}
               </div>
             </HoverCardContent>
@@ -455,14 +455,14 @@ export const DynamicPricingCard = ({ onApplyOptimization, onOpenPriceEditor }: D
                   {pricingResult.expectedRevenue.improvement > 0 ? '+' : ''}{pricingResult.expectedRevenue.improvement}% potential
                 </Badge>
               </div>
-              {pricingResult.events && pricingResult.events.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-3 pt-2 border-t border-primary/10">
-                  <span className="text-xs text-muted-foreground">Events factored:</span>
-                  {pricingResult.events.slice(0, 3).map((event) => (
-                    <Badge key={event.id} variant="outline" className="text-xs gap-1">
+              {pricingResult.eventImpact && pricingResult.eventImpact.drivers.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2 mt-3 pt-2 border-t border-primary/10">
+                  <span className="text-xs text-muted-foreground">Events behind this price:</span>
+                  {pricingResult.eventImpact.drivers.map((d, i) => (
+                    <Badge key={i} variant="outline" className={`text-xs gap-1 ${d.counted ? '' : 'border-dashed text-muted-foreground'}`}>
                       <Calendar className="h-3 w-3" />
-                      {event.name}
-                      <span className="text-muted-foreground">({event.impactScore})</span>
+                      {d.name}
+                      <span className="text-muted-foreground">+{d.effectPct}%{d.counted ? '' : ' not counted'}</span>
                     </Badge>
                   ))}
                 </div>

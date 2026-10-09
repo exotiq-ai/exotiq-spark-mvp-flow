@@ -59,29 +59,33 @@ import { format, addDays, differenceInDays, startOfDay, subMonths, subYears } fr
 import { DateRange } from "react-day-picker";
 import { useAIDemandForecast, type DemandForecast, type PricingAdjustment, type Opportunity } from "@/hooks/useAIDemandForecast";
 import { DEMAND_CITIES, DEFAULT_DEMAND_CITY } from "@/lib/demandCities";
+import { EventImpactOverview } from "@/components/dashboard/EventImpactOverview";
+import { useEventHistory } from "@/hooks/useEventHistory";
+import { AUDIENCE_GROUPS, type ImpactEvent, type SegmentMap } from "@/lib/eventImpact";
 
 
 const safeFormat = (value: unknown, fmt: string, fallback = '—') => {
   if (!value) return fallback;
-  const d = value instanceof Date ? value : new Date(value as string);
+  const dayOnly = typeof value === 'string' ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(value) : null;
+  const d = value instanceof Date
+    ? value
+    : dayOnly
+      ? new Date(Number(dayOnly[1]), Number(dayOnly[2]) - 1, Number(dayOnly[3])) // a calendar day, not UTC midnight
+      : new Date(value as string);
   return isNaN(d.getTime()) ? fallback : format(d, fmt);
 };
 
 type Booking = Tables<'bookings'>;
 
-interface EventData {
-  id: string;
-  name: string;
-  date: string;
-  endDate?: string;
-  category: string;
-  attendance: number;
-  impactScore: number;
+// Event payload from ai-event-intelligence (v2 adds venue, audience, tier, per-segment impact, pricing eligibility)
+interface EventData extends ImpactEvent {
   labels?: string[];
 }
 
 interface DemandForecastCardProps {
   bookings?: Booking[];
+  /** The tenant's cars (used to measure their own results around past events). */
+  vehicles?: any[];
 }
 
 // Supported markets come from the shared registry (mirrored server-side)
@@ -125,9 +129,10 @@ const getCategoryData = (category: string) => {
   ) || { color: 'text-muted-foreground', bgColor: 'bg-muted' };
 };
 
-export const DemandForecastCard = ({ bookings = [] }: DemandForecastCardProps) => {
+export const DemandForecastCard = ({ bookings = [], vehicles = [] }: DemandForecastCardProps) => {
   const [events, setEvents] = useState<EventData[]>([]);
   const [demandMultiplier, setDemandMultiplier] = useState(1.0);
+  const [segmentMultipliers, setSegmentMultipliers] = useState<SegmentMap | null>(null);
   const [loading, setLoading] = useState(false);
   const [eventsError, setEventsError] = useState<string | null>(null);
   const [peakDate, setPeakDate] = useState<string | null>(null);
@@ -138,9 +143,6 @@ export const DemandForecastCard = ({ bookings = [] }: DemandForecastCardProps) =
     from: new Date(),
     to: addDays(new Date(), 14),
   });
-  const [selectedCategories, setSelectedCategories] = useState<string[]>(
-    EVENT_CATEGORIES.map(c => c.id)
-  );
   const [showLegend, setShowLegend] = useState(false);
   const [activeTab, setActiveTab] = useState('forecast');
   
@@ -208,6 +210,7 @@ export const DemandForecastCard = ({ bookings = [] }: DemandForecastCardProps) =
   // Monotonic request id — guarantees a slow response for a previously
   // selected city/range can never overwrite the current selection.
   const requestSeq = useRef(0);
+  const eventHistory = useEventHistory(selectedCity, bookings as any[], vehicles);
 
   const startDate = dateRange?.from
     ? format(dateRange.from, 'yyyy-MM-dd')
@@ -234,12 +237,14 @@ export const DemandForecastCard = ({ bookings = [] }: DemandForecastCardProps) =
 
       setEvents(Array.isArray(response.data?.events) ? response.data.events : []);
       setDemandMultiplier(Number(response.data?.demandMultiplier) || 1.0);
+      setSegmentMultipliers(response.data?.segmentMultipliers ?? null);
       setPeakDate(response.data?.summary?.peakDate || null);
     } catch (err) {
       if (seq !== requestSeq.current) return;
       console.error('Failed to fetch events:', err);
       setEvents([]);
       setDemandMultiplier(1.0);
+      setSegmentMultipliers(null);
       setPeakDate(null);
       setEventsError(err instanceof Error ? err.message : 'Could not load event intelligence');
     } finally {
@@ -286,21 +291,8 @@ export const DemandForecastCard = ({ bookings = [] }: DemandForecastCardProps) =
     }
   };
 
-  const toggleCategory = (categoryId: string) => {
-    setSelectedCategories(prev => 
-      prev.includes(categoryId)
-        ? prev.filter(c => c !== categoryId)
-        : [...prev, categoryId]
-    );
-  };
-
-  // Filter events by selected categories
-  const filteredEvents = useMemo(() => events.filter(e => {
-    const categoryId = EVENT_CATEGORIES.find(c => 
-      c.label.toLowerCase() === e.category.toLowerCase()
-    )?.id || e.category.toLowerCase().replace(' ', '-');
-    return selectedCategories.includes(categoryId);
-  }), [events, selectedCategories]);
+  // Audience filtering lives in the overview (chips); the card passes every event through.
+  const filteredEvents = events;
 
   // Calculate date range in days
   const rangeDays = dateRange?.from && dateRange?.to 
@@ -499,54 +491,6 @@ export const DemandForecastCard = ({ bookings = [] }: DemandForecastCardProps) =
           </PopoverContent>
         </Popover>
 
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className="gap-2">
-              <Filter className="h-4 w-4" />
-              <span className="hidden sm:inline">Categories</span>
-              <Badge variant="secondary" className="text-xs">
-                {selectedCategories.length}/{EVENT_CATEGORIES.length}
-              </Badge>
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-56 p-3 bg-background border" align="start">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between pb-2 border-b">
-                <span className="text-sm font-medium">Event Categories</span>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="h-6 text-xs"
-                  onClick={() => setSelectedCategories(
-                    selectedCategories.length === EVENT_CATEGORIES.length 
-                      ? [] 
-                      : EVENT_CATEGORIES.map(c => c.id)
-                  )}
-                >
-                  {selectedCategories.length === EVENT_CATEGORIES.length ? 'Clear' : 'All'}
-                </Button>
-              </div>
-              {EVENT_CATEGORIES.map((cat) => {
-                const Icon = cat.icon;
-                return (
-                  <div 
-                    key={cat.id} 
-                    className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-1 rounded"
-                    onClick={() => toggleCategory(cat.id)}
-                  >
-                    <Checkbox 
-                      checked={selectedCategories.includes(cat.id)} 
-                      onCheckedChange={() => toggleCategory(cat.id)}
-                    />
-                    <Icon className={`h-4 w-4 ${cat.color}`} />
-                    <span className="text-sm">{cat.label}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </PopoverContent>
-        </Popover>
-
         <Button 
           variant="outline" 
           size="icon"
@@ -605,15 +549,11 @@ export const DemandForecastCard = ({ bookings = [] }: DemandForecastCardProps) =
             </div>
           </div>
           <div className="flex flex-wrap gap-2 mt-3 pt-2 border-t">
-            {EVENT_CATEGORIES.map((cat) => {
-              const Icon = cat.icon;
-              return (
-                <Badge key={cat.id} variant="outline" className="text-xs gap-1">
-                  <Icon className={`h-3 w-3 ${cat.color}`} />
-                  {cat.label}
-                </Badge>
-              );
-            })}
+            {AUDIENCE_GROUPS.map((g) => (
+              <Badge key={g.id} variant="outline" className="text-xs" title={g.hint}>
+                {g.label}
+              </Badge>
+            ))}
           </div>
         </div>
       )}
@@ -631,288 +571,19 @@ export const DemandForecastCard = ({ bookings = [] }: DemandForecastCardProps) =
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="forecast" className="mt-4 space-y-4">
-          {/* Forecast Visualization */}
-          <div className="grid grid-cols-7 gap-2">
-            {forecastData.slice(0, 7).map((day, index) => {
-              const height = (day.demand / 100) * 100;
-              const isToday = index === 0 && format(dateRange?.from || new Date(), 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
-              const isPeak = day.demand === peakDay.demand;
-              
-              return (
-                <TooltipProvider key={day.date}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="flex flex-col items-center gap-2 cursor-pointer group">
-                        <div className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">{day.demand}%</div>
-                        <div className={`relative w-full h-24 bg-muted/30 rounded-lg overflow-hidden group-hover:bg-muted/50 transition-colors ${day.hasEvent ? 'ring-2 ring-performance-orange/20' : ''}`}>
-                          <div
-                            className={`absolute bottom-0 w-full rounded-lg transition-all ${
-                              isPeak 
-                                ? "bg-gradient-to-t from-success to-success/60" 
-                                : day.demand >= 75 
-                                  ? "bg-gradient-to-t from-performance-orange to-performance-orange/60"
-                                  : day.demand >= 60
-                                    ? "bg-gradient-to-t from-gulf-blue to-gulf-blue/60"
-                                    : "bg-gradient-to-t from-gulf-blue/70 to-gulf-blue/40"
-                            }`}
-                            style={{ height: `${height}%` }}
-                          />
-                          {day.hasEvent && (
-                            <div className="absolute top-1 left-1/2 -translate-x-1/2">
-                              <Badge className="text-[10px] px-1 py-0 bg-accent/80">
-                                {day.eventCount}
-                              </Badge>
-                            </div>
-                          )}
-                          {isPeak && (
-                            <div className="absolute top-1 right-1">
-                              <TrendingUp className="h-3 w-3 text-success" />
-                            </div>
-                          )}
-                        </div>
-                        <div className={`text-xs font-medium ${isToday ? "text-primary" : "text-muted-foreground"}`}>
-                          {isToday ? "Today" : day.day}
-                        </div>
-                        <div className="text-[10px] text-muted-foreground">{day.fullDate}</div>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs">
-                      <p className="font-medium">{day.fullDate}</p>
-                      <p className="text-sm text-muted-foreground">{day.demand}% predicted demand</p>
-                      {day.hasEvent && (
-                        <div className="mt-2 space-y-1">
-                          <p className="text-sm text-accent font-medium">{day.eventCount} event(s):</p>
-                          {day.events.slice(0, 3).map(e => (
-                            <p key={e.id} className="text-xs text-muted-foreground truncate">
-                              • {e.name} ({e.attendance.toLocaleString()})
-                            </p>
-                          ))}
-                        </div>
-                      )}
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              );
-            })}
-          </div>
-
-          {/* Week 2 */}
-          {forecastData.length > 7 && (
-            <div className="grid grid-cols-7 gap-2">
-              {forecastData.slice(7, 14).map((day) => {
-                const height = (day.demand / 100) * 100;
-                const isPeak = day.demand === peakDay.demand;
-                
-                return (
-                  <TooltipProvider key={day.date}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="flex flex-col items-center gap-2 cursor-pointer group">
-                          <div className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">{day.demand}%</div>
-                          <div className={`relative w-full h-20 bg-muted/30 rounded-lg overflow-hidden group-hover:bg-muted/50 transition-colors ${day.hasEvent ? 'ring-2 ring-performance-orange/20' : ''}`}>
-                            <div
-                              className={`absolute bottom-0 w-full rounded-lg transition-all ${
-                                isPeak 
-                                  ? "bg-gradient-to-t from-success to-success/60" 
-                                  : day.demand >= 75 
-                                    ? "bg-gradient-to-t from-performance-orange to-performance-orange/60"
-                                    : day.demand >= 60
-                                      ? "bg-gradient-to-t from-gulf-blue to-gulf-blue/60"
-                                      : "bg-gradient-to-t from-gulf-blue/70 to-gulf-blue/40"
-                              }`}
-                              style={{ height: `${height}%` }}
-                            />
-                            {day.hasEvent && (
-                              <Badge className="absolute top-1 left-1/2 -translate-x-1/2 text-[10px] px-1 py-0 bg-accent/80">
-                                {day.eventCount}
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="text-xs text-muted-foreground">{day.day}</div>
-                          <div className="text-[10px] text-muted-foreground">{day.fullDate}</div>
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p className="font-medium">{day.fullDate}</p>
-                        <p className="text-sm">{day.demand}% demand</p>
-                        {day.hasEvent && <p className="text-sm text-accent">{day.eventCount} event(s)</p>}
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                );
-              })}
-            </div>
-          )}
-
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="p-3 rounded-lg bg-muted/30 border">
-              <div className="text-sm text-muted-foreground mb-1">Avg Demand</div>
-              <div className="text-xl font-bold">{avgDemand}%</div>
-            </div>
-            <div className="p-3 rounded-lg bg-success/10 border border-success/20">
-              <div className="text-sm text-muted-foreground mb-1">Peak Day</div>
-              <div className="text-xl font-bold text-success">{peakDay.fullDate}</div>
-            </div>
-            <div className="p-3 rounded-lg bg-accent/10 border border-accent/20">
-              <div className="text-sm text-muted-foreground mb-1">Total Events</div>
-              <div className="text-xl font-bold text-accent">{filteredEvents.length}</div>
-            </div>
-            <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
-              <div className="text-sm text-muted-foreground mb-1">Price Multiplier</div>
-              <div className="text-xl font-bold text-primary">{demandMultiplier.toFixed(2)}x</div>
-            </div>
-          </div>
-
-          {/* Merged Impact Analysis Section */}
-          <div className="space-y-4 pt-2 border-t">
-            {/* Revenue Comparison (real data) */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="p-4 rounded-lg border bg-gradient-to-br from-primary/5 to-primary/10">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-muted-foreground">YoY Revenue</span>
-                  {bookingMetrics.yoyChange !== null && bookingMetrics.yoyChange >= 0 ? (
-                    <ArrowUpRight className="h-4 w-4 text-success" />
-                  ) : (
-                    <ArrowDownRight className="h-4 w-4 text-destructive" />
-                  )}
-                </div>
-                <div className={`text-2xl font-bold ${
-                  bookingMetrics.yoyChange !== null && bookingMetrics.yoyChange >= 0 ? 'text-success' : 'text-destructive'
-                }`}>
-                  {bookingMetrics.yoyChange !== null ? `${bookingMetrics.yoyChange > 0 ? '+' : ''}${bookingMetrics.yoyChange}%` : '--'}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">vs same month last year</p>
-              </div>
-              <div className="p-4 rounded-lg border bg-gradient-to-br from-accent/5 to-accent/10">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-muted-foreground">MoM Revenue</span>
-                  {bookingMetrics.momChange !== null && bookingMetrics.momChange >= 0 ? (
-                    <ArrowUpRight className="h-4 w-4 text-success" />
-                  ) : (
-                    <ArrowDownRight className="h-4 w-4 text-destructive" />
-                  )}
-                </div>
-                <div className={`text-2xl font-bold ${
-                  bookingMetrics.momChange !== null && bookingMetrics.momChange >= 0 ? 'text-success' : 'text-destructive'
-                }`}>
-                  {bookingMetrics.momChange !== null ? `${bookingMetrics.momChange > 0 ? '+' : ''}${bookingMetrics.momChange}%` : '--'}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">vs last month</p>
-              </div>
-              <div className="p-4 rounded-lg border bg-gradient-to-br from-success/5 to-success/10">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-muted-foreground">Price Suggestion</span>
-                  <Zap className="h-4 w-4 text-success" />
-                </div>
-                <div className="text-2xl font-bold text-success">
-                  +{impactAnalysis.recommendedPriceIncrease}%
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">recommended increase</p>
-              </div>
-              <div className="p-4 rounded-lg border bg-gradient-to-br from-warning/5 to-warning/10">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-muted-foreground">Avg Duration</span>
-                  <Clock className="h-4 w-4 text-warning" />
-                </div>
-                <div className="text-lg font-bold text-warning">
-                  {bookingMetrics.avgBookingDuration}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">avg booking length</p>
-              </div>
-            </div>
-
-            {/* Category Impact Breakdown */}
-            {impactAnalysis.categoryBreakdown.length > 0 && (
-              <div className="p-4 rounded-lg border bg-muted/20">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <BarChart3 className="h-5 w-5 text-primary" />
-                    <span className="font-medium">Category Impact Breakdown</span>
-                  </div>
-                  <Badge variant="outline" className="text-xs">
-                    <Users className="h-3 w-3 mr-1" />
-                    {totalAttendance.toLocaleString()} total attendance
-                  </Badge>
-                </div>
-                <div className="space-y-3">
-                  {impactAnalysis.categoryBreakdown.map((cat) => {
-                    const Icon = cat.icon;
-                    const maxRevenue = Math.max(...impactAnalysis.categoryBreakdown.map(c => c.revenueImpact));
-                    const barWidth = (cat.revenueImpact / maxRevenue) * 100;
-                    
-                    return (
-                      <div key={cat.id} className="space-y-1">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className={`p-1.5 rounded ${cat.bgColor}`}>
-                              <Icon className={`h-4 w-4 ${cat.color}`} />
-                            </div>
-                            <span className="font-medium text-sm">{cat.label}</span>
-                            <Badge variant="outline" className="text-xs">
-                              {cat.eventCount} events
-                            </Badge>
-                          </div>
-                          <div className="flex items-center gap-3 text-sm">
-                            <span className="text-muted-foreground">
-                              {cat.totalAttendance.toLocaleString()} attendees
-                            </span>
-                            <Badge className={`${cat.avgImpact >= 70 ? 'bg-success/20 text-success' : 'bg-muted'}`}>
-                              {cat.avgImpact} avg impact
-                            </Badge>
-                            <span className="font-semibold text-success">
-                              +{formatCurrency(cat.revenueImpact)}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="h-2 bg-muted/30 rounded-full overflow-hidden">
-                          <div 
-                            className={`h-full rounded-full transition-all ${cat.bgColor.replace('/10', '/50')}`}
-                            style={{ width: `${barWidth}%` }}
-                          />
-                        </div>
-                        {cat.topEvent && (
-                          <p className="hidden md:block text-xs text-muted-foreground pl-8">
-                            Top: {cat.topEvent.name} ({cat.topEvent.attendance.toLocaleString()} attendees)
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* High Impact Events Alert - hidden on mobile to avoid repetition */}
-            {highImpactEvents.length > 0 && (
-              <div className="hidden md:block p-4 rounded-lg border border-warning/30 bg-warning/5">
-                <div className="flex items-center gap-2 mb-3">
-                  <Zap className="h-5 w-5 text-warning" />
-                  <span className="font-medium">High Impact Events ({highImpactEvents.length})</span>
-                </div>
-                <div className="grid gap-2 md:grid-cols-2">
-                  {highImpactEvents.slice(0, 4).map(event => {
-                    const catData = getCategoryData(event.category);
-                    return (
-                      <div key={event.id} className="flex items-center gap-3 p-2 rounded bg-background/50">
-                        <div className={`p-1.5 rounded ${catData.bgColor}`}>
-                          {getCategoryIcon(event.category)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm truncate">{event.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {safeFormat(event.date, 'MMM d')} • {event.attendance.toLocaleString()} attendees
-                          </p>
-                        </div>
-                        <Badge className="bg-warning/20 text-warning">{event.impactScore}</Badge>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
+        <TabsContent value="forecast" className="mt-4">
+          <EventImpactOverview
+            events={filteredEvents}
+            segmentMultipliers={segmentMultipliers}
+            days={forecastData.map(d => ({ date: d.date, demand: d.demand }))}
+            loading={loading}
+            history={eventHistory}
+            facts={{
+              yoyChange: bookingMetrics.yoyChange,
+              momChange: bookingMetrics.momChange,
+              avgBookingDuration: bookingMetrics.avgBookingDuration,
+            }}
+          />
         </TabsContent>
 
         {/* AI Pricing & Predictions Tab */}
@@ -1197,115 +868,6 @@ export const DemandForecastCard = ({ bookings = [] }: DemandForecastCardProps) =
         </TabsContent>
       </Tabs>
 
-      {/* Upcoming Events (shown below tabs on forecast tab) */}
-      {activeTab === 'forecast' && filteredEvents.length > 0 && (
-        <div className="p-4 rounded-lg border bg-muted/20">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <CalendarIcon className="h-5 w-5 text-primary" />
-              <span className="font-medium">Upcoming Events</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="text-xs">
-                <Users className="h-3 w-3 mr-1" />
-                {totalAttendance.toLocaleString()} total
-              </Badge>
-              {highImpactEvents.length > 0 && (
-                <Badge className="bg-warning/20 text-warning border-warning/30 text-xs">
-                  {highImpactEvents.length} high impact
-                </Badge>
-              )}
-            </div>
-          </div>
-          <div className="space-y-2 max-h-[200px] overflow-y-auto">
-            {filteredEvents.slice(0, 8).map((event) => {
-              const catData = getCategoryData(event.category);
-              return (
-                <div 
-                  key={event.id} 
-                  className={`flex items-center justify-between p-2 rounded transition-colors ${
-                    event.impactScore >= 70 
-                      ? 'bg-warning/10 border border-warning/20' 
-                      : 'bg-background/50'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <div className={`p-1.5 rounded ${event.impactScore >= 70 ? 'bg-warning/20' : catData.bgColor}`}>
-                      {getCategoryIcon(event.category)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm truncate">{event.name}</div>
-                      <div className="text-xs text-muted-foreground flex items-center gap-2">
-                        <span>{safeFormat(event.date, 'MMM d, h:mm a')}</span>
-                        <span>•</span>
-                        <span className={catData.color}>{event.category}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 ml-2">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <Badge variant="outline" className="text-xs gap-1">
-                            <Users className="h-3 w-3" />
-                            {event.attendance >= 1000 
-                              ? `${(event.attendance / 1000).toFixed(1)}K` 
-                              : event.attendance.toLocaleString()}
-                          </Badge>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Expected Attendance: {event.attendance.toLocaleString()}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <Badge 
-                            className={`text-xs ${
-                              event.impactScore >= 80 
-                                ? 'bg-success/20 text-success' 
-                                : event.impactScore >= 60 
-                                  ? 'bg-warning/20 text-warning'
-                                  : 'bg-muted text-muted-foreground'
-                            }`}
-                          >
-                            {event.impactScore}
-                          </Badge>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Impact Score: {event.impactScore}/100</p>
-                          <p className="text-xs text-muted-foreground">
-                            {event.impactScore >= 80 ? 'Very High Demand' 
-                              : event.impactScore >= 60 ? 'High Demand' 
-                              : 'Moderate Demand'}
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          {filteredEvents.length > 8 && (
-            <div className="text-center mt-2">
-              <span className="text-xs text-muted-foreground">
-                +{filteredEvents.length - 8} more events
-              </span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {activeTab === 'forecast' && filteredEvents.length === 0 && (
-        <div className="p-4 rounded-lg border border-dashed bg-muted/20">
-          <div className="flex items-center justify-center gap-3 text-muted-foreground">
-            <CalendarIcon className="h-5 w-5" />
-            <span>{loading ? 'Loading events...' : 'No events found for this period'}</span>
-          </div>
-        </div>
-      )}
     </Card>
   );
 };
