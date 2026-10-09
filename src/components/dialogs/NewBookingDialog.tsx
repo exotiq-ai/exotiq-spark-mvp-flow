@@ -40,7 +40,7 @@ import { useTeam } from '@/contexts/TeamContext';
 import { useMoney } from '@/hooks/useMoney';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
-import { calculateBookingTotal, getRateForDuration, getAvailableDurations, getDurationLabel, getGasFeeForTeam, type RentalDurationType } from '@/lib/pricingUtils';
+import { calculateBookingTotal, calculateRentalDays, getRateForDuration, getAvailableDurations, getDurationLabel, getGasFeeForTeam, type RentalDurationType } from '@/lib/pricingUtils';
 import { isBlockingBooking, getVehicleAvailabilityState, type VehicleAvailabilityState } from '@/lib/conflictDetection';
 import { useWorkOrders } from '@/hooks/useWorkOrders';
 import { useVehicleBlockedDates } from '@/hooks/useVehicleBlockedDates';
@@ -91,6 +91,8 @@ export const NewBookingDialog = ({
   const [customers, setCustomers] = useState<Tables<'customers'>[]>([]);
   const [loadingCustomers, setLoadingCustomers] = useState(false);
   const [aiExpanded, setAiExpanded] = useState(false);
+  const [useDateRates, setUseDateRates] = useState(true);
+  const [dateQuote, setDateQuote] = useState<{ nights: number; total: number; average: number; has_overrides: boolean; breakdown: Array<{ date: string; rate: number; source: string }> } | null>(null);
   const [discountExpanded, setDiscountExpanded] = useState(false);
   const [discountAmount, setDiscountAmount] = useState('');
   const [discountReason, setDiscountReason] = useState('');
@@ -171,6 +173,32 @@ export const NewBookingDialog = ({
   const selectedVehicle = vehicles.find(v => v.id === vehicleId);
   const rateAdvice = useRateAdvice(selectedVehicle?.id, startDateTimeStr, endDateTimeStr);
 
+  // The nightly price for the chosen dates comes from the database function (one source of truth for date-specific rates).
+  const tierRateForQuote = selectedVehicle
+    ? getRateForDuration(durationType, Number(selectedVehicle.current_rate), (selectedVehicle as any).rate_3hr, (selectedVehicle as any).rate_6hr, (selectedVehicle as any).rate_multiday)
+    : null;
+  const quotable = durationType === 'daily' || durationType === 'multiday';
+  useEffect(() => {
+    setDateQuote(null);
+    if (!selectedVehicle || !startDate || !endDate || !quotable || !startDateTimeStr || !endDateTimeStr) return;
+    let alive = true;
+    (supabase as any)
+      .rpc('quote_nightly', { p_vehicle_id: selectedVehicle.id, p_start: startDateTimeStr, p_end: endDateTimeStr, p_tz: null, p_base_rate: tierRateForQuote })
+      .then(({ data, error }: { data: any; error: unknown }) => {
+        if (!alive || error || !data || data.error || !(Number(data.nights) > 0)) return;
+        setDateQuote({ nights: Number(data.nights), total: Number(data.total), average: Number(data.average), has_overrides: !!data.has_overrides, breakdown: data.breakdown ?? [] });
+      });
+    return () => { alive = false; };
+  }, [selectedVehicle?.id, startDateTimeStr, endDateTimeStr, quotable, tierRateForQuote]);
+
+  /** The daily rate this booking is priced at: date rates (spread over the days billed) when they apply, else the tier or base rate. */
+  const resolveBookingRate = (): number => {
+    const tier = getRateForDuration(durationType, Number(selectedVehicle?.current_rate), (selectedVehicle as any)?.rate_3hr, (selectedVehicle as any)?.rate_6hr, (selectedVehicle as any)?.rate_multiday);
+    if (!quotable || !useDateRates || !dateQuote?.has_overrides) return tier;
+    const billedDays = calculateRentalDays(startDateTimeStr, endDateTimeStr);
+    return billedDays > 0 ? dateQuote.total / billedDays : tier;
+  };
+
   // Unified availability: booking overlap + out-of-service work orders + vehicle status
   const vehicleAvailability = useMemo(() => {
     const out: Record<string, VehicleAvailabilityState> = {};
@@ -243,13 +271,7 @@ export const NewBookingDialog = ({
     setLoading(true);
 
     try {
-      const effectiveRate = getRateForDuration(
-        durationType,
-        Number(selectedVehicle.current_rate),
-        (selectedVehicle as any).rate_3hr,
-        (selectedVehicle as any).rate_6hr,
-        (selectedVehicle as any).rate_multiday,
-      );
+      const effectiveRate = resolveBookingRate();
 
       const pricing = calculateBookingTotal({
         startDate: new Date(startDateTimeStr),
@@ -426,6 +448,25 @@ export const NewBookingDialog = ({
                     Select a pickup time — vehicle stays available for other bookings outside this window.
                   </p>
                 )}
+              </div>
+            )}
+
+            {/* Date-specific rates that apply to these dates */}
+            {quotable && dateQuote?.has_overrides && (
+              <div className="rounded-lg border border-warning/30 bg-warning/5 p-3 text-sm space-y-2">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="font-medium">Special rates apply to these dates</div>
+                    <p className="text-xs text-muted-foreground">
+                      {dateQuote.breakdown.map((d) => `${d.date.slice(5)} ${money(Number(d.rate))}`).join(' · ')}. Average {money(dateQuote.average)}/day over {dateQuote.nights} {dateQuote.nights === 1 ? 'night' : 'nights'}.
+                    </p>
+                  </div>
+                  <label className="flex shrink-0 items-center gap-2 text-xs">
+                    <input type="checkbox" checked={useDateRates} onChange={(e) => setUseDateRates(e.target.checked)} className="h-4 w-4" />
+                    Use them
+                  </label>
+                </div>
+                {!useDateRates && <p className="text-xs text-muted-foreground">Off: this booking uses the regular {money(Number(tierRateForQuote))}/day for every night.</p>}
               </div>
             )}
 
@@ -707,13 +748,7 @@ export const NewBookingDialog = ({
                     </div>
                   </div>
                   {selectedVehicle && startDate && endDate && (() => {
-                    const effectiveRate = getRateForDuration(
-                      durationType,
-                      Number(selectedVehicle.current_rate),
-                      (selectedVehicle as any).rate_3hr,
-                      (selectedVehicle as any).rate_6hr,
-                      (selectedVehicle as any).rate_multiday,
-                    );
+                    const effectiveRate = resolveBookingRate();
                     const pricing = calculateBookingTotal({
                       startDate: new Date(startDateTimeStr),
                       endDate: new Date(endDateTimeStr),

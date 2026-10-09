@@ -10,6 +10,8 @@ import { buildVoiceBrief, type VoiceBrief } from "@/lib/motoriq/voice";
 import { eventWindowsFor, EVENT_HORIZON_DAYS } from "@/lib/motoriq/eventSignal";
 import { recommendRates } from "@/lib/motoriq/pricingEngine";
 import type { BlockedRow, MotorIQSnapshot } from "@/lib/motoriq/types";
+import type { RateOverride } from "@/lib/motoriq/dateRates";
+import { loadRateOverrides, subscribeRateOverrides } from "@/lib/rateOverridesStore";
 
 /**
  * The single source of MotorIQ truth for the screens (and, later, the voice agent): facts from the tenant's own
@@ -27,6 +29,10 @@ export interface MotorIQState {
   today: string;
   /** the tenant's time zone everything here is counted and spoken in */
   timeZone: string;
+  /** date-specific rates: active ones and recently revoked ones (history); use activeRateOverrides for what is in force */
+  rateOverrides: RateOverride[];
+  /** date-specific rates in force now or later */
+  activeRateOverrides: RateOverride[];
 }
 
 // One request per market per day, shared by every component that asks.
@@ -72,6 +78,8 @@ export function useMotorIQ(): MotorIQState {
 
   const [blocked, setBlocked] = useState<BlockedRow[]>([]);
   const [blockedUnavailable, setBlockedUnavailable] = useState(false);
+  const [rateOverrides, setRateOverrides] = useState<RateOverride[]>([]);
+  const [overridesVersion, setOverridesVersion] = useState(0);
   const [eventsByMarket, setEventsByMarket] = useState<Record<string, ImpactEvent[]>>({});
   const [eventsReady, setEventsReady] = useState(false);
 
@@ -86,9 +94,21 @@ export function useMotorIQ(): MotorIQState {
     return () => { alive = false; };
   }, [today, currentTeam?.id]);
 
+  // Date-specific rates: reload whenever one is applied or reverted anywhere in the app.
+  useEffect(() => subscribeRateOverrides(() => setOverridesVersion((v) => v + 1)), []);
+  useEffect(() => {
+    let alive = true;
+    loadRateOverrides(currentTeam?.id ?? "none", today).then(({ rows }) => { if (alive) setRateOverrides(rows); });
+    return () => { alive = false; };
+  }, [today, currentTeam?.id, overridesVersion]);
+
   const facts = useMemo(
-    () => computeFleetFacts({ vehicles: vehicles as any[], bookings: bookings as any[], blocked, today, tz: timeZone }),
-    [vehicles, bookings, blocked, today, timeZone],
+    () => computeFleetFacts({ vehicles: vehicles as any[], bookings: bookings as any[], blocked, overrides: rateOverrides, today, tz: timeZone }),
+    [vehicles, bookings, blocked, rateOverrides, today, timeZone],
+  );
+  const activeRateOverrides = useMemo(
+    () => rateOverrides.filter((o) => !o.revoked_at && o.end_date >= today),
+    [rateOverrides, today],
   );
 
   // events for each market the tenant's cars are in
@@ -121,5 +141,5 @@ export function useMotorIQ(): MotorIQState {
 
   const voice = useMemo(() => (snapshot ? buildVoiceBrief(snapshot, { nowMs: Date.now() }) : null), [snapshot]);
 
-  return { snapshot, voice, loading, eventsReady, blockedUnavailable, today, timeZone };
+  return { snapshot, voice, loading, eventsReady, blockedUnavailable, today, timeZone, rateOverrides, activeRateOverrides };
 }

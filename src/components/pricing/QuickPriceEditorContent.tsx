@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Calendar, Car, Check, Copy, DollarSign, Sparkles } from "lucide-react";
+import { Car, Check, DollarSign, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -8,9 +8,9 @@ import { Slider } from "@/components/ui/slider";
 import { useTeam } from "@/contexts/TeamContext";
 import { useMoney } from "@/hooks/useMoney";
 import { useUserRole } from "@/hooks/useUserRole";
-import { niceRange } from "@/lib/motoriq/format";
 import type { PriceRecommendation } from "@/lib/motoriq/types";
 import { cn } from "@/lib/utils";
+import { DateRatesSection } from "@/components/pricing/DateRatesSection";
 
 interface Vehicle {
   id: string;
@@ -69,10 +69,6 @@ export const QuickPriceEditorContent = ({ vehicle, recommendation, onApplyRate, 
     }
   };
 
-  const copyQuote = async (text: string) => {
-    try { await navigator.clipboard.writeText(text); toast.success("Quote copied"); } catch { toast.error("Could not copy"); }
-  };
-
   return (
     <div className="space-y-5">
       {!compact && (
@@ -118,25 +114,7 @@ export const QuickPriceEditorContent = ({ vehicle, recommendation, onApplyRate, 
         </div>
       )}
 
-      {/* Event quotes for specific dates (not applied here) */}
-      {recommendation && recommendation.eventRates.length > 0 && (
-        <div className="space-y-2">
-          <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Quotes for event dates</div>
-          {recommendation.eventRates.map((e) => {
-            const text = `${niceRange(e.from, e.to)}: ${money(e.rate)}/day`;
-            return (
-              <div key={`${e.from}-${e.to}`} className="flex items-center justify-between gap-3 rounded-lg border p-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5 text-sm font-medium"><Calendar className="h-3.5 w-3.5 text-accent" />{niceRange(e.from, e.to)}: {money(e.rate)}/day <span className="text-xs font-normal text-muted-foreground">(+{e.premiumPct}%)</span></div>
-                  <div className="truncate text-xs text-muted-foreground">{e.names.slice(0, 3).join(", ")}</div>
-                </div>
-                <Button size="sm" variant="outline" className="min-h-9 shrink-0" onClick={() => copyQuote(text)}><Copy className="mr-1.5 h-3.5 w-3.5" />Copy</Button>
-              </div>
-            );
-          })}
-          <p className="text-xs text-muted-foreground">Your base rate stays the same. Use these when you quote or edit bookings for those dates.</p>
-        </div>
-      )}
+      <DateRatesSection vehicleId={vehicle.id} quotes={recommendation?.eventRates ?? []} />
 
       <Separator />
 
