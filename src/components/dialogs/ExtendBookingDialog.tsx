@@ -12,6 +12,7 @@ import { format, addDays, differenceInCalendarDays, startOfDay } from "date-fns"
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useMoney } from "@/hooks/useMoney";
+import { niceDay } from "@/lib/motoriq/format";
 import { cn } from "@/lib/utils";
 
 interface ExtendBookingDialogProps {
@@ -229,13 +230,13 @@ export function ExtendBookingDialog({
                 <div className="text-xs uppercase tracking-wide text-muted-foreground">To operator</div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">
-                    {server?.has_date_rates ? `Rental (${addedDays} nights, special rates)` : `Rental (${addedDays} × ${fmt(rateNum)})`}
+                    {server?.has_date_rates ? `Rental (${addedDays} ${addedDays === 1 ? "night" : "nights"}, special rates)` : `Rental (${addedDays} × ${fmt(rateNum)})`}
                   </span>
                   <span>{fmt(addedSubtotal)}</span>
                 </div>
                 {server?.has_date_rates && (
                   <p className="text-xs text-muted-foreground">
-                    {server.nights.map((n) => `${n.date.slice(5)} ${fmt(n.rate)}`).join(" · ")}. Nights with a special rate are charged at that rate, not the one entered above.
+                    {server.nights.map((n) => `${niceDay(n.date)} ${fmt(n.rate)}`).join(" · ")}. Nights with a special rate are charged at that rate, not the one entered above.
                   </p>
                 )}
               </div>
