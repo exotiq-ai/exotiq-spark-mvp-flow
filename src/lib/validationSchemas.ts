@@ -34,6 +34,8 @@ export const bookingSchema = z.object({
   notes: z.string().max(2000, "Notes too long").optional().nullable().or(z.literal('')),
   rental_duration_type: z.enum(['3hr', '6hr', 'daily', 'multiday']).optional().nullable(),
   is_historical: z.boolean().optional(),
+  // the nightly rates the booking was priced with (see rate_for_day / quote_nightly)
+  rate_breakdown: z.object({}).passthrough().nullable().optional(),
 }).refine(data => new Date(data.end_date) > new Date(data.start_date), {
   message: "End date must be after start date",
   path: ["end_date"]
