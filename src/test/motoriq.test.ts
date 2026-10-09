@@ -8,6 +8,7 @@ import {
 import { eventWindowsFor } from "../lib/motoriq/eventSignal";
 import { MAX_INSIGHTS, buildInsights, buildSnapshot } from "../lib/motoriq/insights";
 import { niceRange } from "../lib/motoriq/format";
+import { buildVoiceBrief, forVoice } from "../lib/motoriq/voice";
 import type { BookingRow, VehicleRow } from "../lib/motoriq/types";
 import type { ImpactEvent } from "../lib/eventImpact";
 
@@ -242,6 +243,15 @@ describe("pricing engine: events are date-specific premiums, never a silent base
     expect(r.speakable).toMatch(/quote about/);
   });
 
+  it("quotes event dates off the listed rate when the base is being lowered for slow days", () => {
+    const { vehicles, bookings } = cohortFixture(0);
+    const f = computeFleetFacts({ vehicles, bookings, today: TODAY });
+    const r = recommendRate(f.vehicles[0], ctx(f, { eventWindows: () => [window] }));
+    expect(r.action).toBe("lower");
+    expect(r.eventRates[0].rate).toBe(1100); // 1000 listed x 1.10, not the lowered base x 1.10
+    expect(r.eventRates[0].rate).toBeGreaterThan(r.currentRate);
+  });
+
   it("does not lower a price into an event that starts within 3 days", () => {
     const { vehicles, bookings } = cohortFixture(0);
     const f = computeFleetFacts({ vehicles, bookings, today: TODAY });
@@ -328,7 +338,7 @@ describe("insights", () => {
   it("builds one snapshot with a plain summary that a voice agent can read as is", () => {
     const { facts, recommendations } = rich();
     const snap = buildSnapshot({ facts, recommendations, eventsByMarket: {}, scope: "all locations" });
-    expect(snap.summary).toMatch(/4 cars in all locations/);
+    expect(snap.summary).toMatch(/4 cars across all locations/);
     expect(snap.summary).not.toMatch(/NaN|undefined/);
     expect(snap.insights.every((i) => i.speakable.length > 10 && i.provenance.length >= 0)).toBe(true);
   });
@@ -342,3 +352,30 @@ describe("format", () => {
   });
 });
 
+
+describe("voice layer (for the Rari agent)", () => {
+  it("makes money, percentages and signs speakable", () => {
+    expect(forVoice("raise from $1,450 to $1,500 (+3%)")).toBe("raise from 1,450 dollars to 1,500 dollars (up 3 percent)");
+    expect(forVoice("Lower to $740 (-7%)")).toBe("Lower to 740 dollars (down 7 percent)");
+    expect(forVoice("37% utilized")).toBe("37 percent utilized");
+    expect(forVoice("modeled +25-30% for exotics")).toBe("modeled up 25 to 30 percent for exotics");
+    expect(forVoice("15-20% for SUVs")).toBe("15 to 20 percent for SUVs");
+    expect(forVoice("booked days ÷ available days")).toBe("booked days divided by available days");
+  });
+
+  it("builds a brief from the same snapshot the screens use: an opening, the top items, direct facts and caveats", () => {
+    const { vehicles, bookings } = cohortFixture(4);
+    const facts = computeFleetFacts({ vehicles, bookings, today: TODAY });
+    const recommendations = recommendRates(ctx(facts));
+    const snap = buildSnapshot({ facts, recommendations, eventsByMarket: {}, scope: "all locations" });
+    const brief = buildVoiceBrief(snap);
+    expect(brief.opening).toMatch(/4 cars across all locations/);
+    expect(brief.items.length).toBeLessThanOrEqual(3);
+    for (const text of [brief.opening, ...brief.items.map((i) => i.say), ...Object.values(brief.facts)]) {
+      expect(text).not.toMatch(/[%$]|NaN|undefined|null/);
+    }
+    expect(brief.facts.utilization).toMatch(/percent utilized/);
+    expect(Object.keys(brief.facts).filter((k) => k.startsWith("car:"))).toHaveLength(4);
+    expect(brief.caveats.join(" ")).toMatch(/modeled estimates/);
+  });
+});

@@ -5,6 +5,7 @@ import { useTeam } from "@/contexts/TeamContext";
 import type { ImpactEvent } from "@/lib/eventImpact";
 import { addDays, computeFleetFacts } from "@/lib/motoriq/facts";
 import { buildSnapshot } from "@/lib/motoriq/insights";
+import { buildVoiceBrief, type VoiceBrief } from "@/lib/motoriq/voice";
 import { eventWindowsFor, EVENT_HORIZON_DAYS } from "@/lib/motoriq/eventSignal";
 import { recommendRates } from "@/lib/motoriq/pricingEngine";
 import type { BlockedRow, MotorIQSnapshot } from "@/lib/motoriq/types";
@@ -15,6 +16,8 @@ import type { BlockedRow, MotorIQSnapshot } from "@/lib/motoriq/types";
  */
 export interface MotorIQState {
   snapshot: MotorIQSnapshot | null;
+  /** The same snapshot as something a voice agent can say as is (used by Rari). */
+  voice: VoiceBrief | null;
   loading: boolean;
   /** false while the markets' events are still loading (the snapshot is usable without them, just without event premiums) */
   eventsReady: boolean;
@@ -40,7 +43,7 @@ function loadEvents(city: string, today: string): Promise<ImpactEvent[]> {
 
 export function useMotorIQ(): MotorIQState {
   const { vehicles, bookings, loading } = useLocationFilteredFleet();
-  const { currentTeam, currentLocation } = useTeam();
+  const { currentTeam, currentLocation, selectedLocationId } = useTeam();
   const today = new Date().toISOString().slice(0, 10);
 
   const [blocked, setBlocked] = useState<BlockedRow[]>([]);
@@ -92,8 +95,10 @@ export function useMotorIQ(): MotorIQState {
       facts, today, minRate,
       eventWindows: (market, segment) => eventWindowsFor(eventsByMarket[market] ?? [], segment, today),
     });
-    return buildSnapshot({ facts, recommendations, eventsByMarket, scope: currentLocation?.name ?? "all locations" });
-  }, [loading, facts, eventsByMarket, currentTeam, currentLocation, today]);
+    return buildSnapshot({ facts, recommendations, eventsByMarket, scope: selectedLocationId !== "all" && currentLocation?.name ? currentLocation.name : "all locations" });
+  }, [loading, facts, eventsByMarket, currentTeam, currentLocation, selectedLocationId, today]);
 
-  return { snapshot, loading, eventsReady, blockedUnavailable, today };
+  const voice = useMemo(() => (snapshot ? buildVoiceBrief(snapshot) : null), [snapshot]);
+
+  return { snapshot, voice, loading, eventsReady, blockedUnavailable, today };
 }

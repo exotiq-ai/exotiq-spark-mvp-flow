@@ -149,18 +149,20 @@ export function recommendRate(v: VehicleFacts, ctx: EngineContext): PriceRecomme
   const finalBase = action === "hold" ? L : base;
 
   // event premiums on top of the base we recommend
+  // A discount to fill slow days this week must not drag the event dates down with it: quote off the listed rate then.
+  const quoteBase = action === "lower" ? L : finalBase;
   const eventRates: EventRate[] = windows.map((w) => {
     const premium = Math.min(MAX_RAISE, EVENT_APPLY_SHARE * w.uplift);
     return {
       from: w.from,
       to: w.to,
       premiumPct: pct0(premium),
-      rate: roundStep(finalBase * (1 + premium)),
+      rate: roundStep(quoteBase * (1 + premium)),
       names: w.names,
       confirmed: w.confirmed,
       provenance: w.provenance,
     };
-  }).filter((e) => e.premiumPct >= 1 && e.rate > finalBase);
+  }).filter((e) => e.premiumPct >= 1 && e.rate > quoteBase);
 
   const confidence = confidenceOf(v, cohort, paceKnown);
 

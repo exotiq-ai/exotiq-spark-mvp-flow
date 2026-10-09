@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { VehicleThumbnail } from "@/components/common/VehicleThumbnail";
 import { supabase } from "@/integrations/supabase/client";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, isSameDay, addMonths, subMonths } from "date-fns";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, isSameDay, addMonths, subMonths, addDays } from "date-fns";
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -129,8 +129,15 @@ export const PricingCalendar = () => {
       try {
         const startDate = format(monthStart, 'yyyy-MM-dd');
         const endDate = format(monthEnd, 'yyyy-MM-dd');
+        // The nightly snapshot covers today through the next 90 days. Ask the server only for that part (instant); for past
+        // or far-future months ask for the curated calendar alone, so the calendar never triggers a slow live web search.
+        const today = format(new Date(), 'yyyy-MM-dd');
+        const horizon = format(addDays(new Date(), 89), 'yyyy-MM-dd');
+        const from = startDate < today ? today : startDate;
+        const to = endDate > horizon ? horizon : endDate;
+        const body = (city: string) => from <= to ? { city, startDate: from, endDate: to } : { city, startDate, endDate, calendarOnly: true };
         const results = await Promise.all(markets.map((city) =>
-          supabase.functions.invoke('ai-event-intelligence', { body: { city, startDate, endDate } })
+          supabase.functions.invoke('ai-event-intelligence', { body: body(city) })
             .then(({ data, error }) => (!error && Array.isArray(data?.events) ? (data.events as EventData[]) : []))
             .catch(() => [] as EventData[]),
         ));
@@ -170,7 +177,10 @@ export const PricingCalendar = () => {
 
   // Big confirmed events this month (names and evidence, no invented multipliers)
   const monthHighlights = useMemo(
-    () => events.filter((e) => e.tier === 'major' || e.tier === 'notable' && evidenceOf(e as unknown as ImpactEvent) === 'verified').slice(0, 6),
+    () => events
+      .filter((e) => e.tier === 'major' || (e.tier === 'notable' && evidenceOf(e as unknown as ImpactEvent) === 'verified'))
+      .sort((a, b) => b.attendance - a.attendance)
+      .slice(0, 6),
     [events],
   );
 
@@ -256,7 +266,7 @@ export const PricingCalendar = () => {
 
   // Occupancy heatmap: share of the fleet that is booked that day (from bookings; nothing assumed)
   const occupancyByDay = useMemo(() => {
-    const inService = vehicles.filter(v => v.status !== 'maintenance' && (vehicleFilter === 'all' || v.id === vehicleFilter));
+    const inService = vehicles.filter(v => String(v.status ?? '').toLowerCase() !== 'maintenance' && (vehicleFilter === 'all' || v.id === vehicleFilter));
     const total = inService.length;
     const ids = new Set(inService.map(v => v.id));
     const booked = new Map<string, Set<string>>();

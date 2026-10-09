@@ -271,7 +271,7 @@ export function buildSummary(facts: FleetFacts, recommendations: PriceRecommenda
   const live = facts.fleet.vehicles;
   const changes = recommendations.filter((r) => r.action !== "hold" && r.confidence !== "low").length;
   const parts = [
-    `${plural(live, "car")} in ${scope}.`,
+    `${plural(live, "car")} ${scope === "all locations" ? "across all locations" : `in ${scope}`}.`,
     `The next 7 days are ${pc(facts.fleet.forward7.share)} booked; the last 30 days were ${pc(facts.fleet.trailing30.share)} utilized.`,
     changes > 0
       ? `${plural(changes, "rate change")} ${changes === 1 ? "is" : "are"} suggested for this week.`

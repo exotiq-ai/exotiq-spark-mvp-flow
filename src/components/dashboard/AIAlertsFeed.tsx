@@ -75,26 +75,8 @@ const generateAlertsFromData = (
     }
   });
 
-  // HIGH: Pricing optimization opportunities
-  vehicles.forEach(vehicle => {
-    if (vehicle.utilization && vehicle.utilization > 75) {
-      const marketRate = vehicle.suggested_rate || vehicle.current_rate * 1.15;
-      const rateDifference = ((marketRate - vehicle.current_rate) / vehicle.current_rate) * 100;
-      
-      if (rateDifference > 10) {
-        const potentialIncrease = (marketRate - vehicle.current_rate) * 30; // Monthly estimate
-        alerts.push({
-          id: `pricing-${vehicle.id}`,
-          type: 'high',
-          category: 'revenue',
-          title: 'Pricing Opportunity Detected',
-          description: `${vehicle.name} has ${vehicle.utilization}% utilization but rate is ${rateDifference.toFixed(0)}% below market. Potential +${formatCurrency(potentialIncrease)}/mo.`,
-          action: { label: 'Optimize Price', moduleId: 'motoriq' },
-          timestamp: new Date(vehicle.updated_at)
-        });
-      }
-    }
-  });
+  // Pricing opportunities live in MotorIQ now: they are computed from real bookings there. This feed used to guess a
+  // "market rate" (current rate x 1.15) from a stored utilization value that nothing maintains.
 
   // HIGH: Upcoming bookings concentration
   const upcomingBookings = bookings.filter(b => {
