@@ -10,7 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { DollarSign, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { QuickPriceEditorContent } from "@/components/pricing/QuickPriceEditorContent";
-import type { PricingContext } from "@/components/dashboard/DynamicPricingCard";
+import type { PriceRecommendation } from "@/lib/motoriq/types";
 
 interface Vehicle {
   id: string;
@@ -20,8 +20,6 @@ interface Vehicle {
   year: number;
   status: string;
   current_rate: number;
-  suggested_rate?: number | null;
-  utilization?: number;
   image_url?: string | null;
 }
 
@@ -30,7 +28,8 @@ interface QuickPriceEditorDialogProps {
   onOpenChange: (open: boolean) => void;
   vehicle: Vehicle | null;
   onApplyRate: (vehicleId: string, newRate: number) => Promise<void>;
-  pricingContext?: PricingContext | null;
+  /** MotorIQ's recommendation for this car, when available. */
+  recommendation?: PriceRecommendation | null;
 }
 
 export const QuickPriceEditorDialog = ({
@@ -38,11 +37,11 @@ export const QuickPriceEditorDialog = ({
   onOpenChange,
   vehicle,
   onApplyRate,
-  pricingContext,
+  recommendation,
 }: QuickPriceEditorDialogProps) => {
   if (!vehicle) return null;
 
-  const hasAIContext = !!pricingContext;
+  const hasAIContext = !!recommendation;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -61,7 +60,7 @@ export const QuickPriceEditorDialog = ({
             </div>
             <div>
               <span className="block">
-                {hasAIContext ? "AI Price Recommendation" : "Edit Pricing"}
+                {hasAIContext ? "MotorIQ rate suggestion" : "Edit Pricing"}
               </span>
               <span className="text-sm font-normal text-muted-foreground">
                 {vehicle.name}
@@ -74,7 +73,7 @@ export const QuickPriceEditorDialog = ({
           <div className="px-6 py-4">
             <QuickPriceEditorContent
               vehicle={vehicle}
-              pricingContext={pricingContext}
+              recommendation={recommendation}
               onApplyRate={onApplyRate}
               onComplete={() => onOpenChange(false)}
             />

@@ -38,6 +38,9 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useMoney } from "@/hooks/useMoney";
+import { matchDemandCity } from "@/lib/demandCities";
+import { evidenceOf, EVIDENCE_LABELS, type ImpactEvent } from "@/lib/eventImpact";
+import { COUNTED_STATUSES, occupiedDays } from "@/lib/motoriq/facts";
 
 interface DayData {
   date: Date;
@@ -74,6 +77,10 @@ interface EventData {
   impactScore: number;
   description?: string;
   source?: string;
+  tier?: ImpactEvent['tier'];
+  evidence?: ImpactEvent['evidence'];
+  pricingEligible?: boolean;
+  venue?: string;
 }
 
 // Category styling config
@@ -92,30 +99,13 @@ const getCategoryConfig = (category: string) => {
   return CATEGORY_CONFIG[key] || { icon: CalendarIcon, color: 'text-muted-foreground', stripe: 'from-muted/30 to-muted/5' };
 };
 
-// PEAK_SEASONS for surge period indicators
-const PEAK_SEASONS = [
-  { name: 'Art Basel Miami', start: '12-01', end: '12-08', city: 'miami', surge: 1.35 },
-  { name: 'Miami Boat Show', start: '02-12', end: '02-16', city: 'miami', surge: 1.30 },
-  { name: 'Ultra Music Festival', start: '03-28', end: '03-30', city: 'miami', surge: 1.35 },
-  { name: 'Miami Grand Prix', start: '05-02', end: '05-04', city: 'miami', surge: 1.40 },
-  { name: 'Miami Open Tennis', start: '03-17', end: '03-30', city: 'miami', surge: 1.25 },
-  { name: 'Spring Break', start: '03-10', end: '03-25', city: 'miami', surge: 1.25 },
-  { name: 'Barrett-Jackson Auction', start: '01-18', end: '01-26', city: 'scottsdale', surge: 1.35 },
-  { name: 'WM Phoenix Open', start: '02-03', end: '02-09', city: 'scottsdale', surge: 1.40 },
-  { name: 'Spring Training Baseball', start: '02-22', end: '03-25', city: 'scottsdale', surge: 1.20 },
-  { name: 'Christmas & New Years', start: '12-20', end: '01-03', city: 'all', surge: 1.45 },
-  { name: 'Super Bowl Weekend', start: '02-05', end: '02-12', city: 'all', surge: 1.50 },
-  { name: 'Summer Peak', start: '06-15', end: '08-15', city: 'all', surge: 1.15 },
-  { name: 'Thanksgiving Week', start: '11-24', end: '11-30', city: 'all', surge: 1.30 },
-];
-
 export const PricingCalendar = () => {
   const { vehicles, bookings, maintenance, damageClaims } = useLocationFilteredFleet();
   const { money } = useMoney();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [vehicleFilter, setVehicleFilter] = useState<string>("all");
-  const [showDemandHeatmap, setShowDemandHeatmap] = useState(false);
+  const [showOccupancy, setShowOccupancy] = useState(false);
   const [events, setEvents] = useState<EventData[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
 
@@ -123,29 +113,44 @@ export const PricingCalendar = () => {
   const monthEnd = endOfMonth(currentMonth);
   const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
-  // Fetch events for the displayed month
+  // The tenant's markets: where their cars are (never a fixed city)
+  const markets = useMemo(
+    () => [...new Set(vehicles.map((v) => matchDemandCity((v as any).location)?.value).filter((m): m is string => !!m))].sort(),
+    [vehicles],
+  );
+  const marketsKey = markets.join(',');
+
+  // Fetch events for the displayed month, for each market the tenant operates in
   useEffect(() => {
+    let alive = true;
     const fetchEvents = async () => {
+      if (markets.length === 0) { setEvents([]); return; }
       setEventsLoading(true);
       try {
         const startDate = format(monthStart, 'yyyy-MM-dd');
         const endDate = format(monthEnd, 'yyyy-MM-dd');
-        
-        const { data, error } = await supabase.functions.invoke('ai-event-intelligence', {
-          body: { city: 'miami', startDate, endDate },
-        });
-        
-        if (!error && data?.events) {
-          setEvents(data.events);
-        }
+        const results = await Promise.all(markets.map((city) =>
+          supabase.functions.invoke('ai-event-intelligence', { body: { city, startDate, endDate } })
+            .then(({ data, error }) => (!error && Array.isArray(data?.events) ? (data.events as EventData[]) : []))
+            .catch(() => [] as EventData[]),
+        ));
+        if (!alive) return;
+        // Only events worth a mark on a calendar: not routine games, not unconfirmed guesses
+        const seen = new Set<string>();
+        setEvents(results.flat().filter((e) => {
+          if (seen.has(e.id)) return false;
+          seen.add(e.id);
+          return e.tier !== 'routine' && evidenceOf(e as unknown as ImpactEvent) !== 'unconfirmed';
+        }));
       } catch (err) {
         console.error('Failed to fetch calendar events:', err);
       } finally {
-        setEventsLoading(false);
+        if (alive) setEventsLoading(false);
       }
     };
     fetchEvents();
-  }, [currentMonth]);
+    return () => { alive = false; };
+  }, [currentMonth, marketsKey]);
 
   // Map events to dates
   const eventsByDate = useMemo(() => {
@@ -163,22 +168,11 @@ export const PricingCalendar = () => {
     return map;
   }, [events]);
 
-  // Surge period indicators for this month
-  const surgeIndicators = useMemo(() => {
-    const month = currentMonth.getMonth() + 1;
-    const monthStr = String(month).padStart(2, '0');
-    
-    return PEAK_SEASONS.filter(season => {
-      const sMonth = parseInt(season.start.split('-')[0]);
-      const eMonth = parseInt(season.end.split('-')[0]);
-      // Simple check: does this month overlap with the season?
-      if (sMonth <= eMonth) {
-        return month >= sMonth && month <= eMonth;
-      }
-      // Wraps around year (e.g., Dec-Jan)
-      return month >= sMonth || month <= eMonth;
-    });
-  }, [currentMonth]);
+  // Big confirmed events this month (names and evidence, no invented multipliers)
+  const monthHighlights = useMemo(
+    () => events.filter((e) => e.tier === 'major' || e.tier === 'notable' && evidenceOf(e as unknown as ImpactEvent) === 'verified').slice(0, 6),
+    [events],
+  );
 
   // Calculate data for each day
   const calendarData = useMemo(() => {
@@ -199,26 +193,22 @@ export const PricingCalendar = () => {
     });
 
     bookings.forEach(booking => {
-      const startDate = new Date(booking.start_date);
-      const endDate = new Date(booking.end_date);
+      // cancelled, expired and refunded bookings are not revenue and do not occupy a car
+      if (!COUNTED_STATUSES.has(String(booking.status ?? 'completed'))) return;
       const vehicle = vehicles.find(v => v.id === booking.vehicle_id);
       if (vehicleFilter !== "all" && booking.vehicle_id !== vehicleFilter) return;
 
-      daysInMonth.forEach(day => {
-        if (day >= startDate && day <= endDate) {
-          const dateKey = format(day, 'yyyy-MM-dd');
-          const dayData = dataMap.get(dateKey);
-          if (dayData) {
-            dayData.revenue += Number(booking.daily_rate);
-            dayData.bookingCount += 1;
-            dayData.bookings.push({
-              id: booking.id,
-              vehicleName: vehicle?.name || 'Unknown Vehicle',
-              customerName: booking.customer_name,
-              dailyRate: Number(booking.daily_rate),
-            });
-          }
-        }
+      occupiedDays(booking).forEach(dateKey => {
+        const dayData = dataMap.get(dateKey);
+        if (!dayData) return;
+        dayData.revenue += Number(booking.daily_rate) || 0;
+        dayData.bookingCount += 1;
+        dayData.bookings.push({
+          id: booking.id,
+          vehicleName: vehicle?.name || 'Unknown Vehicle',
+          customerName: booking.customer_name,
+          dailyRate: Number(booking.daily_rate),
+        });
       });
     });
 
@@ -264,17 +254,31 @@ export const PricingCalendar = () => {
     return max || 1;
   }, [calendarData]);
 
-  // Demand heatmap: compute demand score per day based on events + day-of-week
-  const getDemandColor = (dateKey: string, dayOfWeek: number) => {
-    const dayEvents = eventsByDate.get(dateKey) || [];
-    const baseScore = [40, 30, 30, 35, 45, 65, 60][dayOfWeek]; // Sun-Sat
-    const eventBoost = dayEvents.reduce((sum, e) => sum + (e.impactScore / 10), 0);
-    const score = Math.min(100, baseScore + eventBoost);
-    
-    if (score >= 80) return 'bg-destructive/25';
-    if (score >= 65) return 'bg-warning/25';
-    if (score >= 50) return 'bg-warning/15';
-    if (score >= 35) return 'bg-primary/10';
+  // Occupancy heatmap: share of the fleet that is booked that day (from bookings; nothing assumed)
+  const occupancyByDay = useMemo(() => {
+    const inService = vehicles.filter(v => v.status !== 'maintenance' && (vehicleFilter === 'all' || v.id === vehicleFilter));
+    const total = inService.length;
+    const ids = new Set(inService.map(v => v.id));
+    const booked = new Map<string, Set<string>>();
+    bookings.forEach(b => {
+      if (!b.vehicle_id || !ids.has(b.vehicle_id) || !COUNTED_STATUSES.has(String(b.status ?? 'completed'))) return;
+      occupiedDays(b).forEach(d => {
+        if (!booked.has(d)) booked.set(d, new Set());
+        booked.get(d)!.add(b.vehicle_id!);
+      });
+    });
+    return { total, booked };
+  }, [vehicles, bookings, vehicleFilter]);
+
+  const occupancyOf = (dateKey: string) =>
+    occupancyByDay.total > 0 ? (occupancyByDay.booked.get(dateKey)?.size ?? 0) / occupancyByDay.total : 0;
+
+  const getOccupancyColor = (dateKey: string) => {
+    const share = occupancyOf(dateKey);
+    if (share >= 0.8) return 'bg-primary/35';
+    if (share >= 0.6) return 'bg-primary/25';
+    if (share >= 0.4) return 'bg-primary/15';
+    if (share > 0) return 'bg-primary/8';
     return 'bg-muted/10';
   };
 
@@ -303,19 +307,14 @@ export const PricingCalendar = () => {
       selectedDate ? "lg:grid-cols-[1fr,400px]" : "grid-cols-1"
     )}>
       <Card className="card-premium p-4 sm:p-6">
-        {/* Surge Period Indicators */}
-        {surgeIndicators.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-4">
-            {surgeIndicators.map((surge, i) => (
-              <div 
-                key={i}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-warning/20 to-warning/5 border border-warning/30"
-              >
+        {/* Confirmed events this month */}
+        {monthHighlights.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-4" aria-label="Events this month">
+            {monthHighlights.map((e) => (
+              <div key={e.id} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-warning/20 to-warning/5 border border-warning/30" title={EVIDENCE_LABELS[evidenceOf(e as unknown as ImpactEvent)]}>
                 <Flame className="h-3.5 w-3.5 text-warning" />
-                <span className="text-xs font-medium">{surge.name}</span>
-                <Badge className="bg-warning/20 text-warning text-[10px] px-1.5 py-0">
-                  {surge.surge}x
-                </Badge>
+                <span className="text-xs font-medium">{e.name}</span>
+                {e.attendance > 0 && <Badge className="bg-warning/20 text-warning text-[10px] px-1.5 py-0">{e.attendance >= 1000 ? `${Math.round(e.attendance / 1000)}K` : e.attendance}</Badge>}
               </div>
             ))}
           </div>
@@ -346,12 +345,12 @@ export const PricingCalendar = () => {
             <div className="flex items-center gap-2">
               <Switch 
                 id="heatmap-toggle"
-                checked={showDemandHeatmap}
-                onCheckedChange={setShowDemandHeatmap}
+                checked={showOccupancy}
+                onCheckedChange={setShowOccupancy}
               />
               <Label htmlFor="heatmap-toggle" className="text-xs text-muted-foreground cursor-pointer">
                 <Eye className="h-3.5 w-3.5 inline mr-1" />
-                Demand
+                Occupancy
               </Label>
             </div>
             
@@ -387,21 +386,13 @@ export const PricingCalendar = () => {
             <Sparkles className="h-3.5 w-3.5 text-accent" />
             <span>Events</span>
           </div>
-          {showDemandHeatmap && (
+          {showOccupancy && (
             <>
               <div className="h-3 w-px bg-border" />
-              <div className="flex items-center gap-1.5">
-                <div className="w-4 h-4 rounded bg-destructive/25" />
-                <span>Peak</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-4 h-4 rounded bg-warning/25" />
-                <span>High</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-4 h-4 rounded bg-primary/10" />
-                <span>Normal</span>
-              </div>
+              <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-primary/35" /><span>80%+ of cars booked</span></div>
+              <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-primary/25" /><span>60-80%</span></div>
+              <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-primary/15" /><span>40-60%</span></div>
+              <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-primary/8" /><span>under 40%</span></div>
             </>
           )}
         </div>
@@ -435,8 +426,8 @@ export const PricingCalendar = () => {
                         "aspect-square p-1 sm:p-2 rounded-lg border transition-all relative overflow-hidden",
                         "flex flex-col items-center justify-start gap-0.5",
                         "hover:border-primary/40 hover:shadow-sm",
-                        showDemandHeatmap 
-                          ? getDemandColor(dateKey, day.getDay())
+                        showOccupancy
+                          ? getOccupancyColor(dateKey)
                           : getRevenueColor(dayData?.revenue || 0),
                         isToday(day) && "ring-2 ring-primary ring-offset-1",
                         isSelected && "border-primary border-2 shadow-md",
@@ -450,10 +441,16 @@ export const PricingCalendar = () => {
                         {format(day, 'd')}
                       </span>
                       
-                      {dayData && dayData.revenue > 0 && (
-                        <span className="text-[10px] sm:text-xs font-semibold text-success relative z-10">
-                          {money(dayData.revenue)}
-                        </span>
+                      {showOccupancy ? (
+                        occupancyByDay.total > 0 && occupancyOf(dateKey) > 0 && (
+                          <span className="text-[10px] sm:text-xs font-semibold relative z-10">{Math.round(occupancyOf(dateKey) * 100)}%</span>
+                        )
+                      ) : (
+                        dayData && dayData.revenue > 0 && (
+                          <span className="text-[10px] sm:text-xs font-semibold text-success relative z-10">
+                            {money(dayData.revenue)}
+                          </span>
+                        )
                       )}
                       
                       <div className="flex items-center gap-0.5 mt-auto relative z-10">
@@ -576,11 +573,8 @@ export const PricingCalendar = () => {
                             <p className="text-xs text-muted-foreground capitalize">{event.category}</p>
                           </div>
                           <div className="text-right flex-shrink-0">
-                            <Badge className={cn(
-                              "text-[10px]",
-                              event.impactScore >= 70 ? 'bg-warning/20 text-warning' : 'bg-muted'
-                            )}>
-                              Impact: {event.impactScore}
+                            <Badge variant="outline" className="text-[10px]">
+                              {EVIDENCE_LABELS[evidenceOf(event as unknown as ImpactEvent)]}
                             </Badge>
                             {event.attendance > 0 && (
                               <p className="text-[10px] text-muted-foreground mt-1">
