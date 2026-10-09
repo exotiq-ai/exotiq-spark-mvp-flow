@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.77.0';
 import { logTransfer } from "../_shared/transferGuard.ts";
+import { loadFleetTruth, recommendAll, sharePct } from "../_shared/motoriq/serverFacts.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -168,8 +169,14 @@ serve(async (req) => {
     const topVehicle = { name: topVehicleRaw.name, revenue: Math.round(topVehicleRaw.revenue) };
 
     // Utilization parity with MotorIQEnhanced: per-vehicle day-share across the week, then averaged
-    const currentUtil = weeklyUtilization(allVehicles, allBookings, weekStart, weekEnd);
-    const prevUtil = weeklyUtilization(allVehicles, allBookings, prevWeekStart, prevWeekEnd);
+    // The week is measured with the same facts MotorIQ shows (booked days over available days, in the tenant's
+    // time zone); the older ms-overlap figure is only the fallback when no team can be resolved.
+    let truth: Awaited<ReturnType<typeof loadFleetTruth>> | null = null;
+    if (teamId) {
+      try { truth = await loadFleetTruth(supabase as any, teamId); } catch (err) { console.error('Fleet facts failed:', err); }
+    }
+    const currentUtil = sharePct(truth?.facts.fleet.trailing7) ?? weeklyUtilization(allVehicles, allBookings, weekStart, weekEnd);
+    const prevUtil = sharePct(truth?.facts.fleet.prior7) ?? weeklyUtilization(allVehicles, allBookings, prevWeekStart, prevWeekEnd);
 
     // Next-week events: only fetch if we know the city
     const nextWeekStart = new Date();
@@ -205,10 +212,11 @@ serve(async (req) => {
       }
     }
 
-    // vehiclesRecommended = real count of vehicles where suggested_rate > current_rate
-    const vehiclesRecommended = allVehicles.filter(v =>
-      v.suggested_rate && Number(v.suggested_rate) > Number(v.current_rate)
-    ).length;
+    // vehiclesRecommended = cars where the MotorIQ engine recommends a base-rate change (the stored
+    // vehicles.suggested_rate column is not maintained by anything and is never read)
+    const vehiclesRecommended = truth
+      ? recommendAll(truth).filter((r) => r.action !== 'hold' && r.confidence !== 'low').length
+      : 0;
 
     // Build payload the LLM is allowed to cite (numbers only from here)
     const aiPayload = {
@@ -227,7 +235,8 @@ serve(async (req) => {
       city: resolvedCity,
     };
 
-    let topAction = `Review your fleet pricing — ${completedBookings.length} bookings active or completed this week with $${currentRevenue.toLocaleString()} in revenue.`;
+    // revenue is rental revenue for the week; the booking count is by creation date, so the two are not put in one sentence
+    let topAction = `Review your fleet pricing — rentals this week brought in $${currentRevenue.toLocaleString()}.`;
 
     if (LOVABLE_API_KEY) {
       try {

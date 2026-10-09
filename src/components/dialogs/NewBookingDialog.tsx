@@ -34,7 +34,8 @@ import { TablesInsert, Tables } from '@/integrations/supabase/types';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { validators, validateForm } from '@/lib/validation';
 import { toast } from '@/hooks/use-toast';
-import { useAIPricing } from '@/hooks/useAIPricing';
+import { useRateAdvice } from '@/hooks/useRateAdvice';
+import { niceRange } from '@/lib/motoriq/format';
 import { useTeam } from '@/contexts/TeamContext';
 import { useMoney } from '@/hooks/useMoney';
 import { supabase } from '@/integrations/supabase/client';
@@ -168,7 +169,7 @@ export const NewBookingDialog = ({
   const endDateTimeStr = combineDateAndTime(endDate, endTime);
 
   const selectedVehicle = vehicles.find(v => v.id === vehicleId);
-  const pricingSuggestion = useAIPricing(selectedVehicle || null, startDateTimeStr);
+  const rateAdvice = useRateAdvice(selectedVehicle?.id, startDateTimeStr, endDateTimeStr);
 
   // Unified availability: booking overlap + out-of-service work orders + vehicle status
   const vehicleAvailability = useMemo(() => {
@@ -428,19 +429,21 @@ export const NewBookingDialog = ({
               </div>
             )}
 
-            {/* AI Price Suggestion - Collapsible */}
-            {pricingSuggestion && vehicleId && (
+            {/* MotorIQ rate advice for these dates (advice only; the rate for this booking is set above) */}
+            {rateAdvice && vehicleId && (
               <Collapsible open={aiExpanded} onOpenChange={setAiExpanded}>
                 <CollapsibleTrigger asChild>
-                  <button className="w-full p-3 rounded-lg bg-primary/5 border border-primary/20 flex items-center justify-between hover:bg-primary/10 transition-colors">
-                    <div className="flex items-center gap-2">
+                  <button type="button" className="w-full p-3 rounded-lg bg-primary/5 border border-primary/20 flex items-center justify-between hover:bg-primary/10 transition-colors">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-left">
                       <Sparkles className="h-4 w-4 text-primary" />
                       <span className="text-sm font-medium">
-                        AI suggests {money(pricingSuggestion.suggestedRate)}/day
+                        {rateAdvice.action === 'hold'
+                          ? `MotorIQ: keep ${money(rateAdvice.listedRate)}/day`
+                          : `MotorIQ suggests ${money(rateAdvice.recommendedRate)}/day`}
                       </span>
-                      {pricingSuggestion.suggestedRate > (selectedVehicle?.current_rate || 0) && (
+                      {rateAdvice.eventQuotes.length > 0 && (
                         <span className="text-xs text-success font-semibold">
-                          +{money(pricingSuggestion.suggestedRate - (selectedVehicle?.current_rate || 0))}
+                          Event dates: {money(rateAdvice.eventQuotes[0].rate)}/day (+{Math.round(rateAdvice.eventQuotes[0].premiumPct)}%)
                         </span>
                       )}
                     </div>
@@ -452,37 +455,18 @@ export const NewBookingDialog = ({
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <div className="pt-3 space-y-3">
-                    <p className="text-sm text-muted-foreground">
-                      {pricingSuggestion.reasoning}
-                    </p>
-                    <div className="flex items-center gap-4 text-sm">
-                      <div>
-                        <span className="text-muted-foreground">Expected:</span>
-                        <span className="font-semibold text-success ml-2">{pricingSuggestion.expectedImpact}</span>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {pricingSuggestion.factors.map((factor, idx) => (
-                        <span key={idx} className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
-                          {factor}
-                        </span>
-                      ))}
-                    </div>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="w-full"
-                      onClick={() => {
-                        toast({
-                          title: "AI Rate Applied",
-                          description: `Daily rate set to ${money(pricingSuggestion.suggestedRate)}`,
-                        });
-                      }}
-                    >
-                      <Check className="h-4 w-4 mr-2" />
-                      Use AI Suggested Rate ({money(pricingSuggestion.suggestedRate)}/day)
-                    </Button>
+                    <p className="text-sm text-muted-foreground">{rateAdvice.summary}</p>
+                    {rateAdvice.reasons.length > 0 && (
+                      <ul className="list-disc pl-5 text-xs text-muted-foreground space-y-1">
+                        {rateAdvice.reasons.map((r, idx) => <li key={idx}>{r}</li>)}
+                      </ul>
+                    )}
+                    {rateAdvice.eventQuotes.map((e) => (
+                      <p key={`${e.from}-${e.to}`} className="text-xs text-muted-foreground">
+                        {niceRange(e.from, e.to)}: {e.names[0]}{e.names.length > 1 ? ` and ${e.names.length - 1} more` : ''}. A quote of {money(e.rate)}/day is about +{Math.round(e.premiumPct)}% (modeled, not yet measured on your results).
+                      </p>
+                    ))}
+                    <p className="text-xs text-muted-foreground">Advice from your own bookings. The rate for this booking is the one shown above.</p>
                   </div>
                 </CollapsibleContent>
               </Collapsible>

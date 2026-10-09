@@ -1,26 +1,16 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { useUserRole } from "@/hooks/useUserRole";
-import { motion } from "framer-motion";
+import { Calendar, Car, Check, Copy, DollarSign, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Slider } from "@/components/ui/slider";
 import { Separator } from "@/components/ui/separator";
-import {
-  DollarSign,
-  Sparkles,
-  TrendingUp,
-  Calendar,
-  Check,
-  Car,
-  Zap,
-  Target,
-  ArrowRight,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Slider } from "@/components/ui/slider";
+import { useTeam } from "@/contexts/TeamContext";
 import { useMoney } from "@/hooks/useMoney";
-import type { PricingContext } from "@/components/dashboard/DynamicPricingCard";
+import { useUserRole } from "@/hooks/useUserRole";
+import { niceRange } from "@/lib/motoriq/format";
+import type { PriceRecommendation } from "@/lib/motoriq/types";
+import { cn } from "@/lib/utils";
 
 interface Vehicle {
   id: string;
@@ -30,54 +20,44 @@ interface Vehicle {
   year: number;
   status: string;
   current_rate: number;
-  suggested_rate?: number | null;
-  utilization?: number;
   image_url?: string | null;
 }
 
 interface QuickPriceEditorContentProps {
   vehicle: Vehicle;
-  pricingContext?: PricingContext | null;
+  /** MotorIQ's recommendation for this car, when there is one (see lib/motoriq/pricingEngine). */
+  recommendation?: PriceRecommendation | null;
   onApplyRate: (vehicleId: string, newRate: number) => Promise<void>;
   onComplete?: () => void;
   /** If true, renders without the vehicle info header (for inline embedding) */
   compact?: boolean;
 }
 
-export const QuickPriceEditorContent = ({
-  vehicle,
-  pricingContext,
-  onApplyRate,
-  onComplete,
-  compact = false,
-}: QuickPriceEditorContentProps) => {
-  const [newRate, setNewRate] = useState<number>(0);
+export const QuickPriceEditorContent = ({ vehicle, recommendation, onApplyRate, onComplete, compact = false }: QuickPriceEditorContentProps) => {
+  const [newRate, setNewRate] = useState<number>(vehicle.current_rate);
   const [isSaving, setIsSaving] = useState(false);
   const { hasRoleOrHigher } = useUserRole();
   const { currency, money } = useMoney();
+  const { currentTeam } = useTeam();
+
+  const suggestion = recommendation && recommendation.action !== "hold" ? recommendation : null;
 
   useEffect(() => {
-    const suggestedRate = pricingContext
-      ? (vehicle.suggested_rate || vehicle.current_rate)
-      : vehicle.current_rate;
-    setNewRate(suggestedRate);
-  }, [vehicle, pricingContext]);
+    setNewRate(suggestion ? suggestion.recommendedRate : vehicle.current_rate);
+  }, [vehicle, suggestion]);
 
-  const suggestedRate = vehicle.suggested_rate || vehicle.current_rate;
-  const hasSuggestion = vehicle.suggested_rate && vehicle.suggested_rate > vehicle.current_rate;
-  const hasAIContext = !!pricingContext;
   const rateChange = newRate - vehicle.current_rate;
-  const monthlyImpact = rateChange * 30;
-
-  const handleApplyAIRate = () => {
-    if (vehicle.suggested_rate) {
-      setNewRate(vehicle.suggested_rate);
-    }
-  };
+  const teamMin = Number((currentTeam as any)?.min_rate) || 50;
+  const minRate = Math.max(teamMin, Math.floor(vehicle.current_rate * 0.5));
+  const maxRate = Math.ceil(vehicle.current_rate * 2);
 
   const handleSave = async () => {
-    if (!hasRoleOrHigher('manager')) {
+    if (!hasRoleOrHigher("manager")) {
       toast.error("You don't have permission to change pricing. Please contact your manager.");
+      return;
+    }
+    if (newRate < teamMin) {
+      toast.error(`The lowest rate your team allows is ${money(teamMin)}.`);
       return;
     }
     setIsSaving(true);
@@ -89,239 +69,106 @@ export const QuickPriceEditorContent = ({
     }
   };
 
-  const minRate = Math.max(50, Math.floor(vehicle.current_rate * 0.5));
-  const maxRate = Math.ceil(vehicle.current_rate * 2);
+  const copyQuote = async (text: string) => {
+    try { await navigator.clipboard.writeText(text); toast.success("Quote copied"); } catch { toast.error("Could not copy"); }
+  };
 
   return (
     <div className="space-y-5">
-      {/* Vehicle Info — only show if not compact */}
       {!compact && (
-        <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border">
-          <div className="h-12 w-16 bg-muted rounded-md flex items-center justify-center overflow-hidden flex-shrink-0">
-            {vehicle.image_url ? (
-              <img
-                src={vehicle.image_url}
-                alt={vehicle.name}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <Car className="h-5 w-5 text-muted-foreground" />
-            )}
+        <div className="flex items-center gap-3 rounded-lg border bg-muted/30 p-3">
+          <div className="flex h-12 w-16 flex-shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted">
+            {vehicle.image_url ? <img src={vehicle.image_url} alt={vehicle.name} className="h-full w-full object-cover" /> : <Car className="h-5 w-5 text-muted-foreground" />}
           </div>
-          <div className="flex-1 min-w-0">
-            <h4 className="font-semibold text-sm truncate">{vehicle.name}</h4>
-            <p className="text-xs text-muted-foreground truncate">
-              {vehicle.year} {vehicle.make} {vehicle.model}
-            </p>
+          <div className="min-w-0 flex-1">
+            <h4 className="truncate text-sm font-semibold">{vehicle.name}</h4>
+            <p className="truncate text-xs text-muted-foreground">{vehicle.year} {vehicle.make} {vehicle.model}</p>
           </div>
-          <div className="text-right flex-shrink-0">
+          <div className="flex-shrink-0 text-right">
             <div className="text-xs text-muted-foreground">Current</div>
             <div className="text-lg font-bold">{money(vehicle.current_rate)}/day</div>
           </div>
         </div>
       )}
 
-      {/* AI Reasoning Block */}
-      {hasAIContext && pricingContext && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="space-y-4"
-        >
-          <div className="p-4 rounded-lg bg-gradient-to-r from-primary/8 to-accent/8 border border-primary/15">
-            <div className="flex items-start gap-3">
-              <div className="p-1.5 bg-primary/15 rounded-md flex-shrink-0 mt-0.5">
-                <Zap className="h-3.5 w-3.5 text-primary" />
-              </div>
-              <div>
-                <div className="font-medium text-sm mb-1">Why this rate?</div>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  {pricingContext.reasoning}
-                </p>
-              </div>
-            </div>
+      {/* What MotorIQ says, and why */}
+      {recommendation && (
+        <div className="space-y-3 rounded-lg border border-primary/15 bg-gradient-to-r from-primary/8 to-accent/8 p-4">
+          <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-primary">
+            <Sparkles className="h-3.5 w-3.5" /> MotorIQ
           </div>
+          <p className="text-sm">{recommendation.speakable.split(" Confidence")[0]}</p>
 
-          <div className="space-y-2">
-            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">What's driving this</div>
-            <div className="flex flex-wrap gap-1.5">
-              {pricingContext.events.slice(0, 3).map((event) => (
-                <Badge key={event.id} variant="outline" className="text-xs gap-1 px-2 py-1">
-                  <Calendar className="h-3 w-3 text-accent" />
-                  {event.name}
-                </Badge>
+          {recommendation.drivers.filter((d) => d.effectPct !== 0 || d.id === "realization").length > 0 && (
+            <ul className="space-y-1.5 text-xs text-muted-foreground">
+              {recommendation.drivers.filter((d) => d.effectPct !== 0 || d.id === "realization").map((d) => (
+                <li key={d.id}><span className="font-medium text-foreground">{d.label}.</span> {d.detail} <span className="opacity-70">({d.provenance.source}, {d.provenance.n})</span></li>
               ))}
-              {vehicle.utilization !== undefined && vehicle.utilization > 0 && (
-                <Badge variant="outline" className="text-xs gap-1 px-2 py-1">
-                  <TrendingUp className="h-3 w-3 text-success" />
-                  {vehicle.utilization}% utilization
-                </Badge>
-              )}
-              {pricingContext.factors.map((f, i) => (
-                <Badge key={i} variant="outline" className="text-xs gap-1 px-2 py-1">
-                  {f.name}: {f.impact > 0 ? '+' : ''}{f.impact}%
-                </Badge>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="flex-1 p-3 rounded-lg bg-muted/40 border text-center">
-              <div className="text-xs text-muted-foreground mb-1">Current</div>
-              <div className="text-2xl font-bold">{money(vehicle.current_rate)}</div>
-              <div className="text-xs text-muted-foreground">/day</div>
-            </div>
-            <ArrowRight className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-            <div className="flex-1 p-3 rounded-lg bg-success/10 border border-success/20 text-center">
-              <div className="text-xs text-success mb-1">Suggested</div>
-              <div className="text-2xl font-bold text-success">{money(suggestedRate)}</div>
-              <div className="text-xs text-muted-foreground">/day</div>
-            </div>
-          </div>
-
-          <div className="flex gap-3">
-            <div className="flex-1 p-2.5 rounded-lg bg-muted/30 border flex items-center gap-2">
-              <Target className="h-4 w-4 text-primary flex-shrink-0" />
-              <div>
-                <div className="text-xs text-muted-foreground">Confidence</div>
-                <div className="text-sm font-semibold">{pricingContext.confidence}%</div>
-              </div>
-            </div>
-            <div className="flex-1 p-2.5 rounded-lg bg-success/5 border border-success/15 flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-success flex-shrink-0" />
-              <div>
-                <div className="text-xs text-muted-foreground">Monthly Impact</div>
-                <div className="text-sm font-bold text-success">
-                  +{money((suggestedRate - vehicle.current_rate) * 30)}
-                </div>
-              </div>
-            </div>
-          </div>
-        </motion.div>
+            </ul>
+          )}
+          {recommendation.action === "hold" && recommendation.holdReasons.length > 0 && (
+            <ul className="list-disc space-y-1 pl-4 text-xs text-muted-foreground">
+              {recommendation.holdReasons.map((r, i) => <li key={i}>{r}</li>)}
+            </ul>
+          )}
+          {suggestion?.estimate && (
+            <p className="text-xs text-muted-foreground"><span className="font-medium text-foreground">If it works:</span> about +{money(suggestion.estimate.extraRevenue)} this week. {suggestion.estimate.assumption}</p>
+          )}
+          <p className="text-[11px] text-muted-foreground">{recommendation.confidence[0].toUpperCase() + recommendation.confidence.slice(1)} confidence.</p>
+        </div>
       )}
 
-      {/* Legacy AI suggestion banner */}
-      {!hasAIContext && hasSuggestion && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="p-4 rounded-lg bg-gradient-to-r from-success/10 to-primary/10 border border-success/20"
-        >
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <div className="p-2 bg-success/20 rounded-lg">
-                <Sparkles className="h-4 w-4 text-success" />
-              </div>
-              <div>
-                <div className="font-medium text-sm flex items-center gap-2">
-                  AI Recommendation
-                  <Badge className="bg-success/20 text-success border-0 text-xs">
-                    +{money(suggestedRate - vehicle.current_rate)}
-                  </Badge>
+      {/* Event quotes for specific dates (not applied here) */}
+      {recommendation && recommendation.eventRates.length > 0 && (
+        <div className="space-y-2">
+          <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Quotes for event dates</div>
+          {recommendation.eventRates.map((e) => {
+            const text = `${niceRange(e.from, e.to)}: ${money(e.rate)}/day`;
+            return (
+              <div key={`${e.from}-${e.to}`} className="flex items-center justify-between gap-3 rounded-lg border p-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 text-sm font-medium"><Calendar className="h-3.5 w-3.5 text-accent" />{niceRange(e.from, e.to)}: {money(e.rate)}/day <span className="text-xs font-normal text-muted-foreground">(+{e.premiumPct}%)</span></div>
+                  <div className="truncate text-xs text-muted-foreground">{e.names.slice(0, 3).join(", ")}</div>
                 </div>
-                <div className="text-2xl font-bold text-success mt-1">
-                  {money(suggestedRate)}/day
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Based on demand, seasonality, and local events
-                </p>
+                <Button size="sm" variant="outline" className="min-h-9 shrink-0" onClick={() => copyQuote(text)}><Copy className="mr-1.5 h-3.5 w-3.5" />Copy</Button>
               </div>
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              className="border-success/30 text-success hover:bg-success/10 flex-shrink-0"
-              onClick={handleApplyAIRate}
-            >
-              <Check className="h-4 w-4 mr-1" />
-              Apply
-            </Button>
-          </div>
-        </motion.div>
+            );
+          })}
+          <p className="text-xs text-muted-foreground">Your base rate stays the same. Use these when you quote or edit bookings for those dates.</p>
+        </div>
       )}
 
       <Separator />
 
-      {/* Manual Adjustment */}
       <div className="space-y-4">
-        <h4 className="font-medium text-sm flex items-center gap-2">
+        <h4 className="flex items-center gap-2 text-sm font-medium">
           <DollarSign className="h-4 w-4 text-primary" />
-          {hasAIContext ? "Adjust Rate" : "Set New Rate"}
+          {suggestion ? "Adjust the base rate" : "Set a new base rate"}
         </h4>
-
         <div className="space-y-3">
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">{currency}</span>
-              <Input
-                type="number"
-                value={newRate}
-                onChange={(e) => setNewRate(Number(e.target.value))}
-                className="pl-14 pr-12 text-xl font-bold h-12"
-                min={minRate}
-                max={maxRate}
-              />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">/day</span>
-            </div>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">{currency}</span>
+            <Input type="number" inputMode="decimal" value={newRate} onChange={(e) => setNewRate(Number(e.target.value))} className="h-12 pl-14 pr-12 text-xl font-bold" min={minRate} max={maxRate} />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">/day</span>
           </div>
-
           <div className="px-1">
-            <Slider
-              value={[newRate]}
-              onValueChange={([value]) => setNewRate(value)}
-              min={minRate}
-              max={maxRate}
-              step={5}
-              className="w-full"
-            />
-            <div className="flex justify-between text-xs text-muted-foreground mt-1">
-              <span>{money(minRate)}</span>
-              <span>{money(maxRate)}</span>
-            </div>
+            <Slider value={[Math.min(maxRate, Math.max(minRate, newRate))]} onValueChange={([value]) => setNewRate(value)} min={minRate} max={maxRate} step={5} className="w-full" />
+            <div className="mt-1 flex justify-between text-xs text-muted-foreground"><span>{money(minRate)}</span><span>{money(maxRate)}</span></div>
           </div>
-
           {rateChange !== 0 && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              className="p-3 rounded-lg bg-muted/30 border"
-            >
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Rate change</span>
-                <span className={cn(
-                  "font-semibold",
-                  rateChange > 0 ? "text-success" : "text-destructive"
-                )}>
-                  {rateChange > 0 ? "+" : ""}{rateChange.toFixed(0)}/day
-                </span>
+            <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Each booked day</span>
+                <span className={cn("font-semibold", rateChange > 0 ? "text-success" : "text-destructive")}>{rateChange > 0 ? "+" : "-"}{money(Math.abs(rateChange))}</span>
               </div>
-              <div className="flex items-center justify-between text-sm mt-1">
-                <span className="text-muted-foreground flex items-center gap-1">
-                  <TrendingUp className="h-3 w-3" />
-                  Monthly impact (est.)
-                </span>
-                <span className={cn(
-                  "font-bold",
-                  monthlyImpact > 0 ? "text-success" : "text-destructive"
-                )}>
-                  {monthlyImpact > 0 ? "+" : ""}{money(Math.abs(monthlyImpact))}
-                </span>
-              </div>
-            </motion.div>
+              <p className="mt-1 text-xs text-muted-foreground">Applies to new bookings from now on. Guests who already booked keep the price they were given.</p>
+            </div>
           )}
         </div>
       </div>
 
-      {/* Save Button */}
-      <Button
-        onClick={handleSave}
-        disabled={isSaving || newRate === vehicle.current_rate}
-        className="w-full btn-premium min-h-[44px]"
-      >
-        {isSaving ? "Saving..." : hasAIContext
-          ? `Confirm $${newRate}/day ✓`
-          : "Save Changes"
-        }
+      <Button onClick={handleSave} disabled={isSaving || newRate === vehicle.current_rate} className="btn-premium min-h-[44px] w-full">
+        {isSaving ? "Saving..." : <><Check className="mr-1.5 h-4 w-4" />{suggestion ? `Confirm ${money(newRate)}/day` : "Save changes"}</>}
       </Button>
     </div>
   );

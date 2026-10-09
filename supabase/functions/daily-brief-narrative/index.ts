@@ -16,6 +16,9 @@ interface BriefCounts {
   pendingConfirmations?: number;
   openTasks?: number;
   overdueTasks?: number;
+  /** share of the fleet on rent right now (a snapshot; not 30-day utilization) */
+  fleetOnRentNowPct?: number;
+  /** legacy name sent by older clients for the same number */
   utilization?: number;
   /** Σ total_value of pickups today (leading indicator, not cash). */
   bookedToday?: number;
@@ -87,9 +90,9 @@ const deterministicNarrative = (counts: BriefCounts, role: string | null | undef
     : "Here's where to spend your morning.";
 
   if (parts.length === 0) {
-    return `${focus} ${counts.onRent ?? 0} vehicles on rent · ${counts.utilization ?? 0}% utilization. Nothing urgent flagged.`;
+    return `${focus} ${counts.onRent ?? 0} vehicles on rent (${counts.fleetOnRentNowPct ?? 0}% of the fleet right now). Nothing urgent flagged.`;
   }
-  return `${focus} ${parts.slice(0, 3).join(", ")}. Utilization ${counts.utilization ?? 0}%.`;
+  return `${focus} ${parts.slice(0, 3).join(", ")}. ${counts.fleetOnRentNowPct ?? 0}% of the fleet is on rent right now.`;
 };
 
 const deterministicActions = (counts: BriefCounts): string[] => {
@@ -110,6 +113,9 @@ serve(async (req) => {
     const raw = (await req.json().catch(() => ({}))) as BriefPayload;
     const role = typeof raw.role === "string" ? raw.role : null;
     const counts = sanitizeCounts(raw.counts);
+    // Older clients send the on-rent-now share as "utilization"; name it for what it is so no summary calls it utilization.
+    if (counts.fleetOnRentNowPct == null && counts.utilization != null) counts.fleetOnRentNowPct = counts.utilization;
+    delete counts.utilization;
     const issueTitles = sanitizeTitles(raw.issueTitles);
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -138,7 +144,8 @@ serve(async (req) => {
     const userPrompt = `You are FleetCopilot, narrating a luxury car-rental operator's morning brief.
 Tone: ${tone}.
 
-ONLY use these aggregate counts — do NOT invent numbers, vehicles, customers, or events:
+ONLY use these aggregate counts — do NOT invent numbers, vehicles, customers, or events.
+(fleetOnRentNowPct is the share of the fleet on rent right now; it is not a 30-day utilization figure. Do not call it utilization.)
 ${JSON.stringify(counts)}
 
 Top issue titles (already sanitized, no PII):
