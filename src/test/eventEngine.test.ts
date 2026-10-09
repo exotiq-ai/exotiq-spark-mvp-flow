@@ -22,7 +22,7 @@ import { MARKET_VENUES, matchVenue } from "../../supabase/functions/_shared/dema
 import { CALENDAR_ALIASES, impactTier } from "../../supabase/functions/_shared/eventTaxonomy.ts";
 import { calendarEvents, calendarNamesWithAliases, isDuplicateName, mergeSnapshotEvents, sanitizeAiEvent, looksSameEvent } from "../../supabase/functions/_shared/eventEngine.ts";
 import { resolveCity } from "../../supabase/functions/_shared/demandCities.ts";
-import { applyVerification, markScheduleConflicts, finalizeEvent } from "../../supabase/functions/_shared/eventEngine.ts";
+import { applyVerification, markScheduleConflicts, finalizeEvent, collapseSameEvents } from "../../supabase/functions/_shared/eventEngine.ts";
 import { dateVariants, isSafeUrl, pageConfirmsEvent, pageText, verifyEvents } from "../../supabase/functions/_shared/eventVerify.ts";
 import { CALENDAR_SOURCES, EVIDENCE_WEIGHT, MAX_UPLIFT, evidenceFor, weightImpact } from "../../supabase/functions/_shared/eventTaxonomy.ts";
 
@@ -432,4 +432,18 @@ test("curated events carry an official site, and a window check accepts any day 
   assert.ok(!pageConfirmsEvent(moved, "Art Basel Miami", ev.date, ev.endDate, true), "dates outside our window do not confirm");
   for (const name of Object.keys(CALENDAR_SOURCES)) assert.ok(PEAK_SEASONS.some((s) => s.name === name), `source without a calendar entry: ${name}`);
   for (const url of Object.values(CALENDAR_SOURCES)) assert.ok(isSafeUrl(url), url);
+});
+
+test("the venue search and the anchor search finding one event under two names collapse to one record", () => {
+  const miami = resolveCity("miami");
+  const mk = (name: string, venue: string, urls: string[], date = "2026-10-16", endDate = "2026-10-17") =>
+    sanitizeAiEvent({ name, venue, date, endDate, category: "festivals", attendance: 40000, sourceUrls: urls }, miami, "2026-10-01", "2027-01-07")!;
+  const a = mk("III Points Music Festival", "", ["https://a.com/x"]);
+  const b = mk("III Points 2026", "Mana Wynwood", ["https://iiipoints.com/", "https://b.com/y"]);
+  const other = mk("Miami Carnival Parade and Concert", "Central Broward Park", ["https://c.com/z"], "2026-10-11", "2026-10-11");
+  const out = collapseSameEvents([a, b, other], miami.promptName);
+  expect(out.map((e) => e.name).sort()).toEqual(["III Points 2026", "Miami Carnival Parade and Concert"]);
+  expect(out.find((e) => e.name === "III Points 2026")!.venueMatched).toBe(true);
+  // order does not matter and unrelated events on overlapping days are kept
+  expect(collapseSameEvents([b, a, other], miami.promptName)).toHaveLength(2);
 });

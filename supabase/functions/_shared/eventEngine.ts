@@ -293,6 +293,22 @@ ${DEFINITIONS}
 Every date must fall between ${start} and ${end}. Only include events you can confirm on an organizer or credible news page. Do not invent events.`;
 }
 
+/**
+ * The venue search and the anchor search can both find the same event under different names ("III Points Music
+ * Festival" / "III Points 2026"). Keep one per event: prefer the record at a known venue, then the one with more sources.
+ */
+export function collapseSameEvents(events: EngineEvent[], cityName = ''): EngineEvent[] {
+  const cityWords = new Set(cityName.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean));
+  const score = (e: EngineEvent) => (e.venueMatched ? 2 : 0) + Math.min(e.sourceUrls.length, 2);
+  const kept: EngineEvent[] = [];
+  for (const e of events) {
+    const i = kept.findIndex((k) => looksSameEvent(k, e, cityWords));
+    if (i < 0) kept.push(e);
+    else if (score(e) > score(kept[i])) kept[i] = e;
+  }
+  return kept;
+}
+
 export interface SearchOutcome {
   events: EngineEvent[];
   /** Number of raw items returned by the model across both searches. */
@@ -335,7 +351,7 @@ export async function searchCityEvents(
       seen.add(evt.name);
     }
   }
-  return { events, rawCount, failedSearches: failed, totalSearches: results.length };
+  return { events: collapseSameEvents(events, city.promptName), rawCount, failedSearches: failed, totalSearches: results.length };
 }
 
 /** Assemble the response the card and the pricing function read. */
