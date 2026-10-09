@@ -103,6 +103,14 @@ export const PEAK_SEASONS: PeakSeason[] = [
   { name: 'Spring Training Baseball', start: '02-22', end: '03-25', city: 'scottsdale', category: 'sports', attendance: 200000, surge: 1.20, description: '15 MLB teams train in the Cactus League' },
   { name: 'Scottsdale Arts Festival', start: '03-07', end: '03-09', city: 'scottsdale', category: 'festivals', attendance: 40000, surge: 1.15, description: 'Juried fine art show in downtown Scottsdale' },
 
+  // ---- Denver ----
+  { name: 'National Western Stock Show', start: '01-10', end: '01-25', city: 'denver', category: 'expos', attendance: 700000, surge: 1.20, description: 'Sixteen-day stock show and rodeo at the National Western Complex' },
+  { name: 'Denver Ski Season Peak', start: '12-15', end: '03-31', city: 'denver', category: 'community', attendance: 0, surge: 1.20, description: 'Winter resort travel through Denver; AWD and SUV demand' },
+  { name: 'Red Rocks Concert Season', start: '05-01', end: '10-15', city: 'denver', category: 'concerts', attendance: 0, surge: 1.10, description: 'Red Rocks Amphitheatre season; individual headliner nights can be much larger' },
+  { name: 'Broncos Home Season', start: '09-07', end: '01-04', city: 'denver', category: 'sports', attendance: 76000, surge: 1.12, description: 'NFL home games at Empower Field at Mile High' },
+  { name: 'Rockies Home Season', start: '03-27', end: '09-28', city: 'denver', category: 'sports', attendance: 30000, surge: 1.05, description: 'MLB home games at Coors Field' },
+  { name: 'Cherry Creek Arts Festival', start: '07-04', end: '07-06', city: 'denver', category: 'festivals', attendance: 350000, surge: 1.15, description: 'Fine-art festival in Cherry Creek over the July 4 weekend' },
+
   // ---- National (all markets) ----
   { name: 'Christmas & New Years', start: '12-20', end: '01-03', city: 'all', category: 'community', attendance: 0, surge: 1.45, description: 'Peak holiday travel season' },
   { name: 'Super Bowl Weekend', start: '02-05', end: '02-12', city: 'all', category: 'sports', attendance: 100000, surge: 1.50, description: 'Biggest single sporting event in the US' },

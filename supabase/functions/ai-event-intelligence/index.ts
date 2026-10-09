@@ -1,12 +1,19 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.77.0';
 import { logTransfer } from "../_shared/transferGuard.ts";
+import { aiModel, aiProviderLabel } from "../_shared/aiProvider.ts";
+import { EVENT_CATEGORIES, resolveCity, type EventCategory } from "../_shared/demandCities.ts";
 import {
-  EVENT_CATEGORIES,
-  getRelevantPeakSeasons,
-  resolveCity,
-  type EventCategory,
-} from "../_shared/demandCities.ts";
+  RESULT_VERSION,
+  applyCalendarChecks,
+  buildResult,
+  calendarEvents,
+  calendarNamesWithAliases,
+  searchCityEvents,
+  sliceEvents,
+  type EngineEvent,
+  type EngineResult,
+} from "../_shared/eventEngine.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,13 +23,15 @@ const corsHeaders = {
 const MAX_RANGE_DAYS = 120;
 const DAY_MS = 86_400_000;
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6h — events shift intraday
+const FAILURE_CACHE_TTL_MS = 5 * 60 * 1000; // if a search failed, retry soon instead of caching a thin result for 6h
+const SNAPSHOT_MAX_AGE_MS = 36 * 60 * 60 * 1000; // nightly precompute; tolerate one missed night
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 const toIso = (d: Date) => d.toISOString().slice(0, 10);
 
 /** Validate + clamp the requested window. Never trust client input. */
-function normalizeRange(startInput: unknown, endInput: unknown) {
+function normalizeRange(startInput: unknown, endInput: unknown, maxDays = MAX_RANGE_DAYS) {
   const today = new Date();
   const defaultStart = toIso(today);
   const defaultEnd = toIso(new Date(today.getTime() + 14 * DAY_MS));
@@ -37,8 +46,8 @@ function normalizeRange(startInput: unknown, endInput: unknown) {
 
   // Clamp the window so a hostile/buggy client can't request years of data
   const spanDays = Math.round((Date.parse(end) - Date.parse(start)) / DAY_MS);
-  if (spanDays > MAX_RANGE_DAYS) {
-    end = toIso(new Date(Date.parse(start) + MAX_RANGE_DAYS * DAY_MS));
+  if (spanDays > maxDays) {
+    end = toIso(new Date(Date.parse(start) + maxDays * DAY_MS));
   }
 
   return { start, end };
@@ -52,105 +61,8 @@ function normalizeCategories(input: unknown): EventCategory[] {
   return [...new Set(valid)];
 }
 
-const clampScore = (n: unknown, fallback = 50) => {
-  const v = Number(n);
-  if (!Number.isFinite(v)) return fallback;
-  return Math.min(100, Math.max(0, Math.round(v)));
-};
-
-const clampAttendance = (n: unknown) => {
-  const v = Number(n);
-  if (!Number.isFinite(v) || v < 0) return 0;
-  return Math.min(2_000_000, Math.round(v));
-};
-
-interface NormalizedEvent {
-  id: string;
-  name: string;
-  date: string;
-  endDate: string;
-  category: EventCategory;
-  attendance: number;
-  impactScore: number;
-  description: string;
-  source: 'calendar' | 'ai';
-  confidence: 'high' | 'medium';
-}
-
-/** Reject anything the model returns that is malformed or out of window. */
-function sanitizeAiEvent(raw: unknown, start: string, end: string): NormalizedEvent | null {
-  if (!raw || typeof raw !== 'object') return null;
-  const e = raw as Record<string, unknown>;
-
-  const name = typeof e.name === 'string' ? e.name.trim().slice(0, 120) : '';
-  if (!name) return null;
-
-  const date = typeof e.date === 'string' && ISO_DATE.test(e.date) ? e.date : null;
-  if (!date) return null;
-
-  const endDate =
-    typeof e.endDate === 'string' && ISO_DATE.test(e.endDate) && e.endDate >= date ? e.endDate : date;
-
-  // Drop hallucinated events that fall completely outside the requested window
-  if (endDate < start || date > end) return null;
-
-  const category = (EVENT_CATEGORIES as readonly string[]).includes(String(e.category))
-    ? (e.category as EventCategory)
-    : 'community';
-
-  return {
-    id: `ai-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40)}-${date}`,
-    name,
-    date,
-    endDate,
-    category,
-    attendance: clampAttendance(e.attendance),
-    impactScore: clampScore(e.impactScore),
-    description: typeof e.description === 'string' ? e.description.slice(0, 240) : '',
-    source: 'ai',
-    confidence: 'medium',
-  };
-}
-
-/** Token-overlap dedupe — safer than the old substring check that ate valid events. */
-function isDuplicate(candidate: string, existing: Set<string>): boolean {
-  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((w) => w.length > 3);
-  const candTokens = new Set(norm(candidate));
-  if (candTokens.size === 0) return false;
-
-  for (const other of existing) {
-    const otherTokens = norm(other);
-    if (otherTokens.length === 0) continue;
-    const shared = otherTokens.filter((t) => candTokens.has(t)).length;
-    const ratio = shared / Math.min(candTokens.size, otherTokens.length);
-    if (ratio >= 0.6) return true;
-  }
-  return false;
-}
-
-function buildResult(events: NormalizedEvent[], peakSurge: number) {
-  const sorted = [...events].sort((a, b) => b.impactScore - a.impactScore || a.date.localeCompare(b.date));
-  const avgImpact = sorted.length
-    ? sorted.reduce((sum, e) => sum + e.impactScore, 0) / sorted.length
-    : 0;
-
-  const demandMultiplier = Math.min(2, Math.max(peakSurge, 1 + avgImpact / 200));
-
-  return {
-    events: sorted,
-    demandMultiplier: Math.round(demandMultiplier * 100) / 100,
-    summary: {
-      peakDate: sorted[0]?.date ?? null,
-      totalEvents: sorted.length,
-      avgImpact: Math.round(avgImpact),
-      totalAttendance: sorted.reduce((sum, e) => sum + (e.attendance || 0), 0),
-      sources: {
-        calendar: sorted.filter((e) => e.source === 'calendar').length,
-        ai: sorted.filter((e) => e.source === 'ai').length,
-      },
-    },
-  };
-}
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -159,15 +71,11 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
+    if (!authHeader?.startsWith('Bearer ')) return json({ error: 'Unauthorized' }, 401);
     const authSupabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: authHeader } } });
     const token = authHeader.replace('Bearer ', '');
     const { data: claimsData, error: claimsError } = await authSupabase.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
+    if (claimsError || !claimsData?.claims) return json({ error: 'Unauthorized' }, 401);
 
     let body: Record<string, unknown> = {};
     try {
@@ -177,6 +85,15 @@ serve(async (req) => {
     }
 
     const city = resolveCity(body.city);
+
+    // Curated calendar only, for any window (up to ~2.5 years): no AI, no cache. The app uses it to look up past
+    // occurrences of recurring events and measure what the tenant's own bookings did around them.
+    if (body.calendarOnly === true) {
+      const range = normalizeRange(body.startDate, body.endDate, 900);
+      const events = calendarEvents(city.value, range.start, range.end);
+      return json({ ...buildResult(events, range.start, range.end), city: city.value, cityLabel: city.label, cached: false, origin: 'calendar' });
+    }
+
     const { start, end } = normalizeRange(body.startDate, body.endDate);
     const categories = normalizeCategories(body.categories);
 
@@ -185,22 +102,33 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
 
-    // Category filtering happens AFTER the cache read, so the cache always
-    // stores the full unfiltered event set for a (city, window) pair.
-    const applyFilter = (result: ReturnType<typeof buildResult>) => {
-      const events = Array.isArray(result?.events) ? result.events : [];
-      const filtered = categories.length
-        ? events.filter((e) => categories.includes(e.category))
-        : events;
-      // Surge comes only from high-confidence calendar events still in scope.
-      const surge = filtered
-        .filter((e) => e.source === 'calendar')
-        .reduce((max, e) => Math.max(max, e.impactScore / 60), 1);
-      return { ...buildResult(filtered, surge), city: city.value, cityLabel: city.label };
+    // Category filtering happens AFTER the data is assembled, so the cache and the
+    // snapshot always hold the full unfiltered event set.
+    const respond = (events: EngineEvent[], extra: Record<string, unknown>) => {
+      const filtered = categories.length ? events.filter((e) => categories.includes(e.category)) : events;
+      return json({ ...buildResult(filtered, start, end), city: city.value, cityLabel: city.label, ...extra });
     };
 
+    // ---- 1. Nightly snapshot (instant; no web search while the user waits) ----
+    const calendar = calendarEvents(city.value, start, end);
+    const { data: snap, error: snapError } = await supabase
+      .from('demand_event_snapshots')
+      .select('events, generated_at, window_start, window_end, ai_event_count, calendar_checks')
+      .eq('city', city.value)
+      .maybeSingle();
+    if (snapError) console.error('Snapshot read failed (continuing):', snapError.message);
 
-    // ---- Cache ----
+    if (
+      snap &&
+      Array.isArray(snap.events) &&
+      snap.window_start <= start && snap.window_end >= end &&
+      Date.now() - Date.parse(snap.generated_at) < SNAPSHOT_MAX_AGE_MS
+    ) {
+      const aiEvents = sliceEvents(snap.events as EngineEvent[], start, end);
+      return respond([...applyCalendarChecks(calendar, snap.calendar_checks as never), ...aiEvents], { cached: true, origin: 'snapshot', snapshotAt: snap.generated_at });
+    }
+
+    // ---- 2. Short-lived cache of a previous live search ----
     const { data: cached, error: cacheError } = await supabase
       .from('demand_intelligence_cache')
       .select('response, expires_at')
@@ -208,179 +136,60 @@ serve(async (req) => {
       .eq('start_date', start)
       .eq('end_date', end)
       .maybeSingle();
-
     if (cacheError) console.error('Cache read failed (continuing):', cacheError.message);
 
-    if (cached?.response && cached.expires_at && new Date(cached.expires_at) > new Date()) {
-      const payload = applyFilter(cached.response as ReturnType<typeof buildResult>);
-      return new Response(JSON.stringify({ ...payload, cached: true }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    const cachedResult = cached?.response as EngineResult | undefined;
+    if (
+      cachedResult?.version === RESULT_VERSION && Array.isArray(cachedResult.events) &&
+      cached?.expires_at && new Date(cached.expires_at) > new Date()
+    ) {
+      return respond(cachedResult.events, { cached: true, origin: 'cache' });
+    }
+
+    // ---- 3. Live search (fallback when no fresh snapshot covers this window) ----
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 100_000);
+    let outcome;
+    try {
+      outcome = await searchCityEvents(city, start, end, {
+        signal: controller.signal,
+        existingNames: calendarNamesWithAliases(calendar),
       });
+    } finally {
+      clearTimeout(timeout);
     }
 
-    // ---- Ground-truth seasonal calendar ----
-    const peakSeasonEvents = getRelevantPeakSeasons(city.value, start, end);
-
-    const allEvents: NormalizedEvent[] = peakSeasonEvents.map((season) => ({
-      id: `peak-${season.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${season.startDate}`,
-      name: season.name,
-      date: season.startDate,
-      endDate: season.endDate,
-      category: season.category,
-      attendance: season.attendance,
-      impactScore: clampScore(Math.round(season.surge * 60)),
-      description: season.description,
-      source: 'calendar',
-      confidence: 'high',
-    }));
-
-    const addedNames = new Set(allEvents.map((e) => e.name));
-
-    // ---- AI enrichment (best effort — never fatal) ----
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (LOVABLE_API_KEY) {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 20_000);
-      try {
-        const prompt = `You are an event intelligence analyst for the luxury car rental industry. List real, confirmed events happening in or near ${city.promptName} (within roughly ${city.radiusKm} km of the city center) between ${start} and ${end}.
-
-Focus on events that drive demand for luxury/exotic car rentals:
-- Sports events (F1, IndyCar, NASCAR, golf, tennis, NFL, NBA, MLB)
-- Music festivals and major concerts
-- Art fairs and cultural events
-- Business conferences and trade shows
-- Fashion events
-- Boat shows and automotive events
-- Major holiday weekends
-
-Every date must fall inside ${start} to ${end}. Only include REAL events that actually happen in this market and time period. Do NOT invent events. If you are unsure an event is real, omit it.`;
-
-        const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-          method: 'POST',
-          signal: controller.signal,
-          headers: {
-            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'google/gemini-3-flash-preview',
-            messages: [
-              { role: 'system', content: 'You are an event data provider. Return structured event data only.' },
-              { role: 'user', content: prompt },
-            ],
-            tools: [{
-              type: 'function',
-              function: {
-                name: 'return_events',
-                description: 'Return structured event data for the requested city and date range',
-                parameters: {
-                  type: 'object',
-                  properties: {
-                    events: {
-                      type: 'array',
-                      items: {
-                        type: 'object',
-                        properties: {
-                          name: { type: 'string', description: 'Official event name' },
-                          date: { type: 'string', description: 'Start date YYYY-MM-DD' },
-                          endDate: { type: 'string', description: 'End date YYYY-MM-DD' },
-                          category: { type: 'string', enum: [...EVENT_CATEGORIES] },
-                          attendance: { type: 'number', description: 'Estimated total attendance' },
-                          impactScore: { type: 'number', description: 'Demand impact score 0-100 for luxury car rentals' },
-                          description: { type: 'string', description: 'One-line description' },
-                        },
-                        required: ['name', 'date', 'category', 'attendance', 'impactScore'],
-                        additionalProperties: false,
-                      },
-                    },
-                  },
-                  required: ['events'],
-                  additionalProperties: false,
-                },
-              },
-            }],
-            tool_choice: { type: 'function', function: { name: 'return_events' } },
-          }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-          let rawEvents: unknown[] = [];
-          if (toolCall?.function?.arguments) {
-            try {
-              rawEvents = JSON.parse(toolCall.function.arguments)?.events ?? [];
-            } catch (parseErr) {
-              console.error('Failed to parse AI tool arguments:', parseErr);
-            }
-          }
-
-          for (const raw of rawEvents.slice(0, 60)) {
-            const evt = sanitizeAiEvent(raw, start, end);
-            if (!evt) continue;
-            if (isDuplicate(evt.name, addedNames)) continue;
-            allEvents.push(evt);
-            addedNames.add(evt.name);
-          }
-          console.log(`[${city.value}] calendar=${peakSeasonEvents.length} ai_kept=${allEvents.length - peakSeasonEvents.length}/${rawEvents.length}`);
-
-          logTransfer({
-            team_id: ((claimsData.claims as any).team_id as string) ?? null,
-            user_id: ((claimsData.claims as any).sub as string) ?? null,
-            caller: "ai-event-intelligence",
-            model: "google/gemini-3-flash-preview",
-            provider: "Google (Gemini via Lovable AI Gateway)",
-            provider_region: "United States / Global",
-            response_bytes: JSON.stringify(data).length,
-            status: "ok",
-          }).catch(() => {});
-        } else {
-          console.error('AI gateway error:', response.status, await response.text());
-          logTransfer({
-            team_id: ((claimsData.claims as any).team_id as string) ?? null,
-            user_id: ((claimsData.claims as any).sub as string) ?? null,
-            caller: "ai-event-intelligence",
-            model: "google/gemini-3-flash-preview",
-            provider: "Google (Gemini via Lovable AI Gateway)",
-            provider_region: "United States / Global",
-            status: "error",
-          }).catch(() => {});
-        }
-      } catch (aiErr) {
-        console.error('AI enrichment failed, serving calendar events only:', aiErr);
-      } finally {
-        clearTimeout(timeout);
-      }
+    const searchFailed = outcome.failedSearches > 0;
+    if (outcome.totalSearches > 0) {
+      logTransfer({
+        team_id: ((claimsData.claims as any).team_id as string) ?? null,
+        user_id: ((claimsData.claims as any).sub as string) ?? null,
+        caller: "ai-event-intelligence",
+        model: aiModel("text"),
+        provider: aiProviderLabel() + ' + web search',
+        provider_region: "United States / Global",
+        status: outcome.failedSearches === outcome.totalSearches ? "error" : "ok",
+      }).catch(() => {});
     }
+    console.log(`[${city.value}] live calendar=${calendar.length} ai_kept=${outcome.events.length}/${outcome.rawCount} failed=${outcome.failedSearches}/${outcome.totalSearches}`);
 
-    const peakSurge = peakSeasonEvents.length
-      ? Math.max(...peakSeasonEvents.map((s) => s.surge))
-      : 1.0;
+    const all = [...calendar, ...outcome.events];
 
-    const fullResult = buildResult(allEvents, peakSurge);
-
-    // Cache the UNFILTERED result so category toggles never poison the cache.
+    // Cache the UNFILTERED result; never cache a failed run for long.
     const { error: upsertError } = await supabase
       .from('demand_intelligence_cache')
       .upsert({
         city: city.value,
         start_date: start,
         end_date: end,
-        response: fullResult,
-        expires_at: new Date(Date.now() + CACHE_TTL_MS).toISOString(),
+        response: buildResult(all, start, end),
+        expires_at: new Date(Date.now() + (searchFailed ? FAILURE_CACHE_TTL_MS : CACHE_TTL_MS)).toISOString(),
       }, { onConflict: 'city,start_date,end_date' });
-
     if (upsertError) console.error('Cache write failed (non-fatal):', upsertError.message);
 
-    return new Response(JSON.stringify({ ...applyFilter(fullResult), cached: false }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-
+    return respond(all, { cached: false, origin: 'live', aiEnrichmentFailed: searchFailed });
   } catch (error) {
     console.error('Event intelligence error:', error);
-    return new Response(JSON.stringify({ error: (error as Error)?.message || 'Unknown error' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return json({ error: (error as Error)?.message || 'Unknown error' }, 500);
   }
 });
