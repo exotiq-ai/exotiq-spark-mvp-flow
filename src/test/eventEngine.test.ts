@@ -442,8 +442,8 @@ test("the venue search and the anchor search finding one event under two names c
   const b = mk("III Points 2026", "Mana Wynwood", ["https://iiipoints.com/", "https://b.com/y"]);
   const other = mk("Miami Carnival Parade and Concert", "Central Broward Park", ["https://c.com/z"], "2026-10-11", "2026-10-11");
   const out = collapseSameEvents([a, b, other], miami.promptName);
-  expect(out.map((e) => e.name).sort()).toEqual(["III Points 2026", "Miami Carnival Parade and Concert"]);
-  expect(out.find((e) => e.name === "III Points 2026")!.venueMatched).toBe(true);
+  assert.deepEqual(out.map((e) => e.name).sort(), ["III Points 2026", "Miami Carnival Parade and Concert"]);
+  assert.equal(out.find((e) => e.name === "III Points 2026")!.venueMatched, true);
   // order does not matter and unrelated events on overlapping days are kept
-  expect(collapseSameEvents([b, a, other], miami.promptName)).toHaveLength(2);
+  assert.equal(collapseSameEvents([b, a, other], miami.promptName).length, 2);
 });
