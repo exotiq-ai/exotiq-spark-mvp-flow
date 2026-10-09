@@ -112,6 +112,8 @@ export interface CohortPace {
 
 export interface FleetFacts {
   asOf: string;
+  /** the tenant's IANA time zone every day in these facts is counted in */
+  timeZone: string;
   vehicles: VehicleFacts[];
   fleet: {
     vehicles: number;
@@ -224,6 +226,7 @@ export interface Insight {
 /** Everything a screen or the voice agent needs, in one object. */
 export interface MotorIQSnapshot {
   asOf: string;
+  timeZone: string;
   scope: string;
   summary: string;
   facts: FleetFacts;

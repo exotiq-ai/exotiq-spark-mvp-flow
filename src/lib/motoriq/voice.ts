@@ -7,6 +7,15 @@
  */
 import type { MotorIQSnapshot } from "./types";
 
+/** "America/New_York" becomes "New York". */
+export const placeName = (tz: string) => (tz.split("/").pop() ?? tz).replace(/_/g, " ");
+
+/** "Saturday, October 10 at 6:42 PM, Phoenix time", in the tenant's own zone. */
+export function spokenNow(nowMs: number, tz: string): string {
+  const when = new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "long", month: "long", day: "numeric", hour: "numeric", minute: "2-digit" }).format(nowMs);
+  return `${when}, ${placeName(tz)} time`;
+}
+
 /** Make a sentence safe for text-to-speech: dollars, percents, signs and arrows spoken the way people say them. */
 export function forVoice(text: string): string {
   return text
@@ -33,6 +42,14 @@ export interface VoiceItem {
 
 export interface VoiceBrief {
   asOf: string;
+  /** the tenant's IANA time zone: every day, date and time the agent says is in this zone */
+  timeZone: string;
+  /** who the agent is when it speaks about this data */
+  persona: string;
+  /** hard rules for what it may talk about and how */
+  rules: string[];
+  /** the current local date and time, in words (only when the caller supplies the clock) */
+  spokenNow: string | null;
   opening: string;
   items: VoiceItem[];
   /** direct answers to common questions, keyed by topic */
@@ -43,7 +60,24 @@ export interface VoiceBrief {
 
 const pc = (x: number | null | undefined) => (x == null ? "not available" : `${Math.round(x * 100)}%`);
 
-export function buildVoiceBrief(snapshot: MotorIQSnapshot, maxItems = 3): VoiceBrief {
+export const RARI_PERSONA =
+  "Rari is the tenant's always-on business partner: it knows this operation as well as the owner does and knows how exotic car rental really works " +
+  "(pickup pace, utilization, rate integrity, event weekends, turnarounds, deposits, damage and downtime), and it speaks like the best operator in the business: " +
+  "short, specific, in plain language, with a clear recommendation.";
+
+export function rariRules(timeZone: string): string[] {
+  return [
+    "Talk only about this tenant's own data (their cars, bookings, customers, rates, finances, documents, team and events in their markets), across every module, and only to help them run and improve the business.",
+    "Never present generic market statistics, other companies' data or numbers you were not given. If you do not have it, say so.",
+    `Say every date and time in the tenant's time zone (${placeName(timeZone)}), never UTC.`,
+    "Say numbers exactly as given in these strings; do not recalculate or round differently.",
+    "Say when data is missing or thin, and how sure the recommendation is.",
+    "Never change a rate, booking or any record without an explicit spoken confirmation, and only for people whose role allows it.",
+  ];
+}
+
+export function buildVoiceBrief(snapshot: MotorIQSnapshot, opts: { maxItems?: number; nowMs?: number } = {}): VoiceBrief {
+  const maxItems = opts.maxItems ?? 3;
   const f = snapshot.facts.fleet;
   const facts: Record<string, string> = {
     utilization: forVoice(`Over the last 30 days your fleet was ${pc(f.trailing30.share)} utilized, ${f.trailing30.booked} booked days out of ${f.trailing30.available} available.`),
@@ -61,9 +95,15 @@ export function buildVoiceBrief(snapshot: MotorIQSnapshot, maxItems = 3): VoiceB
     "When there is not enough data I say so and suggest holding the rate.",
   ];
 
+  const now = opts.nowMs != null ? spokenNow(opts.nowMs, snapshot.timeZone) : null;
+
   return {
     asOf: snapshot.asOf,
-    opening: forVoice(snapshot.summary),
+    timeZone: snapshot.timeZone,
+    persona: RARI_PERSONA,
+    rules: rariRules(snapshot.timeZone),
+    spokenNow: now,
+    opening: forVoice(`${now ? `It is ${now}. ` : ""}${snapshot.summary}`),
     items: snapshot.insights.slice(0, maxItems).map((i) => ({
       id: i.id,
       say: forVoice(i.speakable),

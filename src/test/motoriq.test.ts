@@ -1,6 +1,6 @@
 // Tests for the MotorIQ truth layer: facts from bookings, the pricing engine, the insights, and the formatting.
 import { describe, expect, it } from "vitest";
-import { addDays, bookingDayRate, computeFleetFacts, occupiedDays } from "../lib/motoriq/facts";
+import { addDays, bookingDayRate, computeFleetFacts, dayKey, endOfLocalDay, occupiedDays, safeTimeZone, tzOffsetMs } from "../lib/motoriq/facts";
 import {
   EVENT_APPLY_SHARE, HOLD_BAND, MAX_LOWER, MAX_RAISE, PACE_RAISE_MAX, recommendRate, recommendRates,
   type EngineContext, type EventWindow,
@@ -8,7 +8,7 @@ import {
 import { eventWindowsFor } from "../lib/motoriq/eventSignal";
 import { MAX_INSIGHTS, buildInsights, buildSnapshot } from "../lib/motoriq/insights";
 import { niceRange } from "../lib/motoriq/format";
-import { buildVoiceBrief, forVoice } from "../lib/motoriq/voice";
+import { buildVoiceBrief, forVoice, placeName, rariRules, spokenNow } from "../lib/motoriq/voice";
 import type { BookingRow, VehicleRow } from "../lib/motoriq/types";
 import type { ImpactEvent } from "../lib/eventImpact";
 
@@ -377,5 +377,80 @@ describe("voice layer (for the Rari agent)", () => {
     expect(brief.facts.utilization).toMatch(/percent utilized/);
     expect(Object.keys(brief.facts).filter((k) => k.startsWith("car:"))).toHaveLength(4);
     expect(brief.caveats.join(" ")).toMatch(/modeled estimates/);
+  });
+});
+
+describe("time zones: days are the tenant's days", () => {
+  it("puts a late-evening booking on the evening's date, not tomorrow's UTC date", () => {
+    // 10:00 pm on Oct 10 in New York is 02:00 UTC on Oct 11
+    const b = { start_date: "2026-10-11T02:00:00Z", end_date: "2026-10-13T02:00:00Z" };
+    expect(occupiedDays(b, "UTC")).toEqual(["2026-10-11", "2026-10-12"]);
+    expect(occupiedDays(b, "America/New_York")).toEqual(["2026-10-10", "2026-10-11"]);
+    expect(dayKey(Date.parse("2026-10-11T02:00:00Z"), "America/Phoenix")).toBe("2026-10-10"); // 7 pm, no daylight saving
+  });
+
+  it("finds local midnight correctly, including a daylight-saving day", () => {
+    expect(tzOffsetMs(Date.parse("2026-10-10T12:00:00Z"), "America/New_York")).toBe(-4 * 3_600_000); // EDT
+    expect(tzOffsetMs(Date.parse("2026-12-10T12:00:00Z"), "America/New_York")).toBe(-5 * 3_600_000); // EST
+    expect(new Date(endOfLocalDay("2026-10-10", "America/New_York")).toISOString()).toBe("2026-10-11T03:59:59.999Z");
+    expect(new Date(endOfLocalDay("2026-10-10", "UTC")).toISOString()).toBe("2026-10-10T23:59:59.999Z");
+    // US clocks go back on Nov 1 2026: that day has 25 hours, so its end is 05:00 UTC the next day, minus 1 ms
+    expect(new Date(endOfLocalDay("2026-11-01", "America/New_York")).toISOString()).toBe("2026-11-02T04:59:59.999Z");
+  });
+
+  it("falls back to UTC for a missing or invalid zone instead of crashing", () => {
+    expect(safeTimeZone(null)).toBe("UTC");
+    expect(safeTimeZone("Not/AZone")).toBe("UTC");
+    expect(safeTimeZone("America/Denver")).toBe("America/Denver");
+  });
+
+  it("counts a car as booked on the local day it is on the road, in the facts", () => {
+    const vehicles = [car("a")];
+    // the rental starts 9 pm local on TODAY (Phoenix, UTC-7) = 04:00 UTC the next day, and runs two days
+    const startUtc = `${addDays(TODAY, 1)}T04:00:00Z`;
+    const endUtc = `${addDays(TODAY, 3)}T04:00:00Z`;
+    const bookings = [{ vehicle_id: "a", start_date: startUtc, end_date: endUtc, daily_rate: 1000, status: "confirmed", created_at: at(addDays(TODAY, -3)) }];
+    const utc = computeFleetFacts({ vehicles, bookings, today: TODAY, tz: "UTC" }).vehicles[0];
+    const phx = computeFleetFacts({ vehicles, bookings, today: TODAY, tz: "America/Phoenix" }).vehicles[0];
+    // a 48-hour rental starting 9 pm Phoenix time on day 0 occupies local days 0 and +1
+    expect(phx.openDates14.includes(TODAY)).toBe(false);
+    expect(phx.openDates14.includes(addDays(TODAY, 1))).toBe(false);
+    expect(phx.openDates14.includes(addDays(TODAY, 2))).toBe(true);
+    // read in UTC the same booking looks like days +1 and +2: today looks free and day +2 looks taken (the old mistake)
+    expect(utc.openDates14.includes(TODAY)).toBe(true);
+    expect(utc.openDates14.includes(addDays(TODAY, 2))).toBe(false);
+    expect(computeFleetFacts({ vehicles, bookings, today: TODAY, tz: "America/Phoenix" }).timeZone).toBe("America/Phoenix");
+  });
+});
+
+describe("Rari: speaks in the tenant's zone and only about the tenant's business", () => {
+  const snap = () => {
+    const { vehicles, bookings } = cohortFixture(3);
+    const facts = computeFleetFacts({ vehicles, bookings, today: TODAY, tz: "America/Phoenix" });
+    return buildSnapshot({ facts, recommendations: recommendRates(ctx(facts)), eventsByMarket: {}, scope: "all locations" });
+  };
+
+  it("says the local time in words and names the zone", () => {
+    expect(placeName("America/New_York")).toBe("New York");
+    // 01:42 UTC on Oct 11 is 6:42 pm on Saturday Oct 10 in Phoenix
+    const said = spokenNow(Date.parse("2026-10-11T01:42:00Z"), "America/Phoenix");
+    expect(said).toMatch(/Saturday, October 10/);
+    expect(said).toMatch(/6:42\s?PM/);
+    expect(said).toMatch(/Phoenix time/);
+    const brief = buildVoiceBrief(snap(), { nowMs: Date.parse("2026-10-11T01:42:00Z") });
+    expect(brief.timeZone).toBe("America/Phoenix");
+    expect(brief.opening).toMatch(/^It is Saturday, October 10/);
+    expect(brief.spokenNow).toMatch(/Phoenix time/);
+  });
+
+  it("carries the persona and hard rules the agent must follow", () => {
+    const brief = buildVoiceBrief(snap());
+    expect(brief.persona).toMatch(/best operator/);
+    const rules = brief.rules.join(" ");
+    expect(rules).toMatch(/only about this tenant's own data/i);
+    expect(rules).toMatch(/Phoenix/);
+    expect(rules).toMatch(/never UTC/i);
+    expect(rules).toMatch(/explicit spoken confirmation/i);
+    expect(rariRules("UTC").length).toBe(6);
   });
 });

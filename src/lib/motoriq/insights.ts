@@ -289,6 +289,7 @@ export function buildSnapshot(input: {
   const insights = buildInsights({ facts: input.facts, recommendations: input.recommendations, eventsByMarket: input.eventsByMarket, today: input.facts.asOf });
   return {
     asOf: input.facts.asOf,
+    timeZone: input.facts.timeZone,
     scope: input.scope,
     summary: buildSummary(input.facts, input.recommendations, input.scope),
     facts: input.facts,

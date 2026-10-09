@@ -41,6 +41,7 @@ import { useMoney } from "@/hooks/useMoney";
 import { matchDemandCity } from "@/lib/demandCities";
 import { evidenceOf, EVIDENCE_LABELS, type ImpactEvent } from "@/lib/eventImpact";
 import { COUNTED_STATUSES, occupiedDays } from "@/lib/motoriq/facts";
+import { useTenantTimeZone } from "@/hooks/useTenantTimeZone";
 
 interface DayData {
   date: Date;
@@ -102,6 +103,7 @@ const getCategoryConfig = (category: string) => {
 export const PricingCalendar = () => {
   const { vehicles, bookings, maintenance, damageClaims } = useLocationFilteredFleet();
   const { money } = useMoney();
+  const tz = useTenantTimeZone();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [vehicleFilter, setVehicleFilter] = useState<string>("all");
@@ -208,7 +210,7 @@ export const PricingCalendar = () => {
       const vehicle = vehicles.find(v => v.id === booking.vehicle_id);
       if (vehicleFilter !== "all" && booking.vehicle_id !== vehicleFilter) return;
 
-      occupiedDays(booking).forEach(dateKey => {
+      occupiedDays(booking, tz).forEach(dateKey => {
         const dayData = dataMap.get(dateKey);
         if (!dayData) return;
         dayData.revenue += Number(booking.daily_rate) || 0;
@@ -256,7 +258,7 @@ export const PricingCalendar = () => {
     });
 
     return dataMap;
-  }, [daysInMonth, bookings, vehicles, maintenance, damageClaims, vehicleFilter]);
+  }, [daysInMonth, bookings, vehicles, maintenance, damageClaims, vehicleFilter, tz]);
 
   const maxRevenue = useMemo(() => {
     let max = 0;
@@ -272,13 +274,13 @@ export const PricingCalendar = () => {
     const booked = new Map<string, Set<string>>();
     bookings.forEach(b => {
       if (!b.vehicle_id || !ids.has(b.vehicle_id) || !COUNTED_STATUSES.has(String(b.status ?? 'completed'))) return;
-      occupiedDays(b).forEach(d => {
+      occupiedDays(b, tz).forEach(d => {
         if (!booked.has(d)) booked.set(d, new Set());
         booked.get(d)!.add(b.vehicle_id!);
       });
     });
     return { total, booked };
-  }, [vehicles, bookings, vehicleFilter]);
+  }, [vehicles, bookings, vehicleFilter, tz]);
 
   const occupancyOf = (dateKey: string) =>
     occupancyByDay.total > 0 ? (occupancyByDay.booked.get(dateKey)?.size ?? 0) / occupancyByDay.total : 0;

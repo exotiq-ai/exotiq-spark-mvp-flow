@@ -6,6 +6,7 @@ import { useMoney } from "@/hooks/useMoney";
 import type { MotorIQState } from "@/hooks/useMotorIQ";
 import { SEGMENT_LABELS } from "@/lib/eventImpact";
 import { niceRange } from "@/lib/motoriq/format";
+import { placeName } from "@/lib/motoriq/voice";
 import type { InsightAction, PriceRecommendation, VehicleFacts } from "@/lib/motoriq/types";
 import { cn } from "@/lib/utils";
 import { InsightCard } from "./InsightCard";
@@ -74,7 +75,7 @@ export const MotorIQOverview = ({ state, canApply, onApplyRates, onOpenVehicle, 
           <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-primary">
             <Sparkles className="h-3.5 w-3.5" /> MotorIQ read
           </div>
-          <div className="text-[11px] text-muted-foreground">{snapshot.scope} · as of {niceRange(snapshot.asOf, snapshot.asOf)}</div>
+          <div className="text-[11px] text-muted-foreground">{snapshot.scope} · as of {niceRange(snapshot.asOf, snapshot.asOf)} ({placeName(snapshot.timeZone)} time)</div>
         </div>
         <p className="mt-1.5 text-base font-semibold leading-snug sm:text-lg">{snapshot.summary}</p>
         {(!state.eventsReady || state.blockedUnavailable) && (

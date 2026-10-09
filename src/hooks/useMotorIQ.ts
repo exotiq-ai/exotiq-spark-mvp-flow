@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { useTeam } from "@/contexts/TeamContext";
+import { useTenantTimeZone } from "@/hooks/useTenantTimeZone";
 import type { ImpactEvent } from "@/lib/eventImpact";
-import { addDays, computeFleetFacts } from "@/lib/motoriq/facts";
+import { addDays, computeFleetFacts, dayKey } from "@/lib/motoriq/facts";
 import { buildSnapshot } from "@/lib/motoriq/insights";
 import { buildVoiceBrief, type VoiceBrief } from "@/lib/motoriq/voice";
 import { eventWindowsFor, EVENT_HORIZON_DAYS } from "@/lib/motoriq/eventSignal";
@@ -24,6 +25,8 @@ export interface MotorIQState {
   /** true when blocked dates could not be read (utilization then ignores blocked days) */
   blockedUnavailable: boolean;
   today: string;
+  /** the tenant's time zone everything here is counted and spoken in */
+  timeZone: string;
 }
 
 // One request per market per day, shared by every component that asks.
@@ -44,7 +47,8 @@ function loadEvents(city: string, today: string): Promise<ImpactEvent[]> {
 export function useMotorIQ(): MotorIQState {
   const { vehicles, bookings, loading } = useLocationFilteredFleet();
   const { currentTeam, currentLocation, selectedLocationId } = useTeam();
-  const today = new Date().toISOString().slice(0, 10);
+  const timeZone = useTenantTimeZone();
+  const today = dayKey(Date.now(), timeZone);
 
   const [blocked, setBlocked] = useState<BlockedRow[]>([]);
   const [blockedUnavailable, setBlockedUnavailable] = useState(false);
@@ -66,8 +70,8 @@ export function useMotorIQ(): MotorIQState {
   }, [today, currentTeam?.id]);
 
   const facts = useMemo(
-    () => computeFleetFacts({ vehicles: vehicles as any[], bookings: bookings as any[], blocked, today }),
-    [vehicles, bookings, blocked, today],
+    () => computeFleetFacts({ vehicles: vehicles as any[], bookings: bookings as any[], blocked, today, tz: timeZone }),
+    [vehicles, bookings, blocked, today, timeZone],
   );
 
   // events for each market the tenant's cars are in
@@ -98,7 +102,7 @@ export function useMotorIQ(): MotorIQState {
     return buildSnapshot({ facts, recommendations, eventsByMarket, scope: selectedLocationId !== "all" && currentLocation?.name ? currentLocation.name : "all locations" });
   }, [loading, facts, eventsByMarket, currentTeam, currentLocation, selectedLocationId, today]);
 
-  const voice = useMemo(() => (snapshot ? buildVoiceBrief(snapshot) : null), [snapshot]);
+  const voice = useMemo(() => (snapshot ? buildVoiceBrief(snapshot, { nowMs: Date.now() }) : null), [snapshot]);
 
-  return { snapshot, voice, loading, eventsReady, blockedUnavailable, today };
+  return { snapshot, voice, loading, eventsReady, blockedUnavailable, today, timeZone };
 }
