@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
+import { useMotorIQ } from "@/hooks/useMotorIQ";
 import { differenceInDays, differenceInHours, isBefore, addDays } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -47,7 +48,9 @@ const generateAlertsFromData = (
   bookings: any[],
   customers: any[],
   documents: any[],
-  damageClaims: any[]
+  damageClaims: any[],
+  /** measured utilization per car (last 30 days, from bookings); the stored vehicles.utilization column is never read */
+  measured: Map<string, { booked: number; available: number }>
 ): AIAlert[] => {
   const alerts: AIAlert[] = [];
   const now = new Date();
@@ -75,26 +78,8 @@ const generateAlertsFromData = (
     }
   });
 
-  // HIGH: Pricing optimization opportunities
-  vehicles.forEach(vehicle => {
-    if (vehicle.utilization && vehicle.utilization > 75) {
-      const marketRate = vehicle.suggested_rate || vehicle.current_rate * 1.15;
-      const rateDifference = ((marketRate - vehicle.current_rate) / vehicle.current_rate) * 100;
-      
-      if (rateDifference > 10) {
-        const potentialIncrease = (marketRate - vehicle.current_rate) * 30; // Monthly estimate
-        alerts.push({
-          id: `pricing-${vehicle.id}`,
-          type: 'high',
-          category: 'revenue',
-          title: 'Pricing Opportunity Detected',
-          description: `${vehicle.name} has ${vehicle.utilization}% utilization but rate is ${rateDifference.toFixed(0)}% below market. Potential +${formatCurrency(potentialIncrease)}/mo.`,
-          action: { label: 'Optimize Price', moduleId: 'motoriq' },
-          timestamp: new Date(vehicle.updated_at)
-        });
-      }
-    }
-  });
+  // Pricing opportunities live in MotorIQ now: they are computed from real bookings there. This feed used to guess a
+  // "market rate" (current rate x 1.15) from a stored utilization value that nothing maintains.
 
   // HIGH: Upcoming bookings concentration
   const upcomingBookings = bookings.filter(b => {
@@ -142,15 +127,17 @@ const generateAlertsFromData = (
     });
   }
 
-  // MEDIUM: Low utilization vehicles
+  // MEDIUM: Low utilization vehicles (measured from bookings; needs at least 10 available days to say anything)
   vehicles.forEach(vehicle => {
-    if (vehicle.status === 'available' && vehicle.utilization !== null && vehicle.utilization < 30) {
+    const m = measured.get(vehicle.id);
+    const share = m && m.available >= 10 ? m.booked / m.available : null;
+    if (vehicle.status === 'available' && share !== null && share < 0.3) {
       alerts.push({
         id: `low-util-${vehicle.id}`,
         type: 'medium',
         category: 'performance',
         title: 'Low Utilization Alert',
-        description: `${vehicle.name} only ${vehicle.utilization}% utilized. Consider marketing or pricing adjustment.`,
+        description: `${vehicle.name} was booked only ${Math.round(share * 100)}% of the last 30 days. Consider marketing or pricing adjustment.`,
         action: { label: 'View Analytics', moduleId: 'motoriq' },
         timestamp: new Date(vehicle.updated_at)
       });
@@ -175,6 +162,7 @@ export const AIAlertsFeed = ({ onNavigate, className }: AIAlertsFeedProps) => {
     damageClaims
   } = useLocationFilteredFleet();
   const { toast } = useToast();
+  const { snapshot } = useMotorIQ();
   
   const [collapsed, setCollapsed] = useState(true); // Start collapsed by default
   const [dismissedAlertIds, setDismissedAlertIds] = useState<Set<string>>(new Set());
@@ -189,14 +177,18 @@ export const AIAlertsFeed = ({ onNavigate, className }: AIAlertsFeedProps) => {
 
   // Generate alerts from real data
   const generatedAlerts = useMemo(() => {
+    const measured = new Map<string, { booked: number; available: number }>(
+      (snapshot?.facts.vehicles ?? []).map((v) => [v.id, { booked: v.trailing30.booked, available: v.trailing30.available }]),
+    );
     return generateAlertsFromData(
       vehicles,
       bookings,
       customers,
       documents,
-      damageClaims
+      damageClaims,
+      measured
     );
-  }, [vehicles, bookings, customers, documents, damageClaims]);
+  }, [vehicles, bookings, customers, documents, damageClaims, snapshot]);
 
   // Filter out dismissed alerts
   const alerts = useMemo(() => {

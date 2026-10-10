@@ -254,8 +254,6 @@ export const BookEnhanced = () => {
         year: vehicle.year,
         status: vehicle.status,
         dailyRate: Number(vehicle.current_rate),
-        utilization: vehicle.utilization || 0,
-        revenue: Number(vehicle.revenue || 0),
         returnDate,
         maintenanceAlerts: [],
       });
@@ -269,8 +267,6 @@ export const BookEnhanced = () => {
         year: 2017,
         status: 'rented',
         dailyRate: 450,
-        utilization: 85,
-        revenue: 12500,
         returnDate,
         maintenanceAlerts: [],
       });

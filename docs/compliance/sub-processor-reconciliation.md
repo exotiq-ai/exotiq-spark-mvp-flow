@@ -9,7 +9,7 @@
 |---|---|---|---|
 | Lovable Cloud (Supabase) | everywhere | ✅ active | none |
 | Stripe | `stripe-*` edge functions, Settings | ✅ active | none |
-| Google Gemini (via Lovable AI Gateway) | `ai-pricing`, `ai-demand-forecast`, `identify-vehicle`, `parse-expense-receipt`, etc. | ✅ active | none |
+| Google Gemini (via Lovable AI Gateway) | `ai-demand-forecast`, `identify-vehicle`, `parse-expense-receipt`, etc. | ✅ active | none |
 | OpenAI | `rari-*` paths | ✅ active | none |
 | Anthropic | `rari-*` paths | ✅ active | none |
 | ElevenLabs | `rari-agent-admin`, `rari-mcp-server`, voice agent | ✅ active | none |

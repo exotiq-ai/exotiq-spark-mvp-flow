@@ -39,6 +39,16 @@ export const resolveCity = (value?: unknown): DemandCity => {
     ?? DEMAND_CITIES.find((c) => c.value === DEFAULT_CITY)!;
 };
 
+/** Maps a free-text location ("Scottsdale, AZ") to a supported market; same rule as the client registry. */
+export const matchDemandCity = (input?: string | null): DemandCity | undefined => {
+  if (!input) return undefined;
+  const haystack = input.toLowerCase();
+  return DEMAND_CITIES.find((c) => {
+    const cityName = c.label.split(',')[0].toLowerCase();
+    return haystack.includes(cityName) || haystack.includes(c.value.replace('-', ' '));
+  });
+};
+
 export const EVENT_CATEGORIES = [
   'concerts',
   'sports',

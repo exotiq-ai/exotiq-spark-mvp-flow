@@ -8,7 +8,9 @@ import { cn, formatCurrency } from "@/lib/utils";
 interface CompactAIInsightBannerProps {
   vehicleName: string;
   suggestedIncrease: number;
-  potentialRevenue: number;
+  /** rough extra revenue over the open days in the next week, if they fill as usual */
+  estimatedExtraRevenue: number;
+  openDays: number;
   onApply: () => void;
   onViewAnalysis: () => void;
   hasFleetData: boolean;
@@ -17,7 +19,8 @@ interface CompactAIInsightBannerProps {
 export const CompactAIInsightBanner = ({
   vehicleName,
   suggestedIncrease,
-  potentialRevenue,
+  estimatedExtraRevenue,
+  openDays,
   onApply,
   onViewAnalysis,
   hasFleetData,
@@ -80,9 +83,9 @@ export const CompactAIInsightBanner = ({
             <span className="font-medium text-foreground truncate">
               {vehicleName}
             </span>
-            {potentialRevenue > 0 && (
+            {estimatedExtraRevenue > 0 && (
               <span className="text-success font-semibold ml-1">
-                — +{formatCurrency(potentialRevenue)}/mo potential
+                — about +{formatCurrency(estimatedExtraRevenue)} over {openDays} open {openDays === 1 ? "day" : "days"} this week
               </span>
             )}
           </div>

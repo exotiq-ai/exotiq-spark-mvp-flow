@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { useMotorIQ } from '@/hooks/useMotorIQ';
 import { useAuth } from '@/contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/card';
@@ -78,6 +79,11 @@ export const FleetPageEnhanced = () => {
   const { activeOrders: activeWorkOrders } = useWorkOrders();
   const { blocks: blockedDates, refresh: refreshBlockedDates } = useVehicleBlockedDates();
   const { updateOpsStatus } = useVehicleOpsStatus();
+  const { snapshot: motoriq } = useMotorIQ();
+  const rateSuggestionIds = useMemo(
+    () => new Set((motoriq?.recommendations ?? []).filter((r) => r.action !== 'hold').map((r) => r.vehicleId)),
+    [motoriq],
+  );
   const { photoCountByVehicle } = useVehiclePhotos({ realtime: false });
   const { currentTeam } = useTeam();
   const { data: readiness, refetch: refetchReadiness } = useMarketplaceReadiness(currentTeam?.id);
@@ -688,6 +694,7 @@ export const FleetPageEnhanced = () => {
                   <FleetVehicleCard
                     key={vehicle.id}
                     vehicle={vehicle as any}
+                    hasRateSuggestion={rateSuggestionIds.has(vehicle.id)}
                     activeBooking={getActiveBooking(vehicle.id) as any}
                     nextBooking={getNextBooking(vehicle.id) as any}
                     taskCount={taskCountMap[vehicle.id] || 0}
@@ -846,7 +853,6 @@ export const FleetPageEnhanced = () => {
 
           vin: detailsVehicle?.vin,
           ops_status: detailsVehicle?.ops_status,
-          suggested_rate: detailsVehicle?.suggested_rate,
         }}
         onApplyRate={applyPriceOptimization}
         onCreateTask={(v) => { setDetailsVehicle(null); setTaskVehicle(v); }}
