@@ -274,3 +274,21 @@ verify_jwt = true
 
 [functions.rent-log-assent]
 verify_jwt = false
+
+# Declared explicitly so every function directory has an entry (see src/lib/security/__tests__/edgeFunctionConfig.test.ts).
+# All five authenticate the caller themselves (a user or super-admin JWT, or the cron token), and "true" is what Supabase
+# applied when no entry existed, so this records today's behaviour rather than changing it.
+[functions.billing-reconcile]
+verify_jwt = true
+
+[functions.rari-selftest]
+verify_jwt = true
+
+[functions.render-studio-hero]
+verify_jwt = true
+
+[functions.super-admin-set-team-role]
+verify_jwt = true
+
+[functions.super-admin-tenant-lifecycle]
+verify_jwt = true
