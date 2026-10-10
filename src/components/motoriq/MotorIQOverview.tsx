@@ -10,6 +10,7 @@ import { placeName } from "@/lib/motoriq/voice";
 import type { InsightAction, PriceRecommendation, VehicleFacts } from "@/lib/motoriq/types";
 import { cn } from "@/lib/utils";
 import { InsightCard } from "./InsightCard";
+import { OutcomesCard } from "./OutcomesCard";
 import { UtilizationRateChart } from "./UtilizationRateChart";
 
 interface Props {
@@ -122,6 +123,9 @@ export const MotorIQOverview = ({ state, canApply, onApplyRates, onOpenVehicle, 
           </div>
         )}
       </section>
+
+      {/* What the tenant's own rate changes did (only once there is something to report) */}
+      {snapshot.outcomes && <OutcomesCard outcomes={snapshot.outcomes} />}
 
       {/* Cars */}
       <section aria-label="Your cars" className="rounded-xl border">
