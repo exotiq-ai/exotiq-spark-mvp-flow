@@ -332,7 +332,17 @@ export function computeOutcomes(input: {
     const n = nights.reduce((s, d) => s + d.nights, 0);
     headline = `${plural(liveRates, "date rate")} ${liveRates === 1 ? "is" : "are"} live or coming up: ${b} of ${plural(n, "night")} booked so far. I will have results once they finish.`;
   } else if (baseChanges.length > 0) {
-    headline = `${plural(baseChanges.length, "base-rate change")} recorded in the last months; results below.`;
+    const readable = baseChanges.filter((c) => c.verdict === "more-bookings" || c.verdict === "fewer-bookings" || c.verdict === "similar");
+    const measuring = baseChanges.filter((c) => c.verdict === "too-early").length;
+    if (readable.length > 0) {
+      const more = readable.filter((c) => c.verdict === "more-bookings").length;
+      const fewer = readable.filter((c) => c.verdict === "fewer-bookings").length;
+      const same = readable.length - more - fewer;
+      const parts = [more > 0 ? `${more} drew more bookings` : null, fewer > 0 ? `${fewer} drew fewer` : null, same > 0 ? `${same} about the same` : null].filter(Boolean);
+      headline = `Of your base-rate changes I could compare ${readable.length} with similar cars: ${parts.join(", ")}.`;
+    } else if (measuring > 0) {
+      headline = `${plural(measuring, "recent base-rate change")} ${measuring === 1 ? "is" : "are"} still being measured; I need ${OUTCOME_WINDOW_DAYS} days of bookings after a change.`;
+    }
   }
   const caveat = compared.length > 0
     ? " This is your own data, compared with similar cars; you chose which cars and dates, so it is evidence rather than proof, and nights that booked after the rate was set might also have booked at the base rate."

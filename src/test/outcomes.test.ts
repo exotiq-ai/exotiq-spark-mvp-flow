@@ -173,3 +173,19 @@ describe("base-rate changes: bookings in the 14 days after versus before, agains
     expect(r.baseChanges[0].sentence).toMatch(/lowered the base rate from \$1,200 to \$1,000/);
   });
 });
+
+describe("the headline says something useful or nothing", () => {
+  it("has no headline when every base-rate change was unreadable (so the card stays off the screen)", () => {
+    const changes: RateChangeRow[] = [{ vehicle_id: "a", old_value: "1000", new_value: "1200", change_source: "ai_pricing", created_at: at("2026-10-01") }];
+    const r = run(cars(), [], [], changes)!;
+    expect(r.baseChanges[0].verdict).toBe("no-comparison");
+    expect(r.headline).toBeNull();
+  });
+
+  it("summarises the readable base-rate changes in counts", () => {
+    const made = (id: string, day: string, n: number) => Array.from({ length: n }, (_, i) => booking(id, addDays(day, 30 + i * 2), 1, { created_at: at(day, 9 + (i % 12)) }));
+    const bookings = [...made("a", "2026-09-25", 1), ...made("a", "2026-10-05", 8), ...["b", "c", "d", "e", "f", "g"].flatMap((id) => [...made(id, "2026-09-26", 2), ...made(id, "2026-10-06", 2)])];
+    const r = run(cars(), bookings, [], [{ vehicle_id: "a", old_value: "1000", new_value: "1200", change_source: "ai_pricing", created_at: at("2026-10-01") }])!;
+    expect(r.headline).toBe("Of your base-rate changes I could compare 1 with similar cars: 1 drew more bookings.");
+  });
+});
