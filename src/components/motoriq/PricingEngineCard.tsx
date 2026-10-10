@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Calendar, Copy, Pencil, Sparkles, TrendingDown, TrendingUp } from "lucide-react";
+import { Calendar, Check, Copy, Pencil, Sparkles, Tag, TrendingDown, TrendingUp, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,9 @@ import { useMoney } from "@/hooks/useMoney";
 import type { MotorIQState } from "@/hooks/useMotorIQ";
 import { SEGMENT_LABELS } from "@/lib/eventImpact";
 import { niceRange } from "@/lib/motoriq/format";
-import type { PriceRecommendation, VehicleFacts } from "@/lib/motoriq/types";
+import type { EventRate, PriceRecommendation, VehicleFacts } from "@/lib/motoriq/types";
+import { quoteState, type RateOverride } from "@/lib/motoriq/dateRates";
+import { useRateOverrideActions } from "@/hooks/useRateOverrideActions";
 import { cn } from "@/lib/utils";
 
 type Filter = "all" | "changes" | "quotes" | "holds";
@@ -26,6 +28,25 @@ export const PricingEngineCard = ({ state, canApply, onApplyRates, onEditRate }:
   const { money } = useMoney();
   const [filter, setFilter] = useState<Filter>("all");
   const { snapshot } = state;
+  const { apply, revoke } = useRateOverrideActions();
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const overridesByCar = useMemo(() => {
+    const m = new Map<string, RateOverride[]>();
+    for (const o of state.activeRateOverrides) m.set(o.vehicle_id, [...(m.get(o.vehicle_id) ?? []), o]);
+    return m;
+  }, [state.activeRateOverrides]);
+
+  const run = async (key: string, work: () => Promise<void>, done: string) => {
+    setBusy(key);
+    try { await work(); toast.success(done); } catch (e) { toast.error(e instanceof Error ? e.message : "Could not save the date rate."); } finally { setBusy(null); }
+  };
+  const applyQuote = (r: PriceRecommendation, e: EventRate) =>
+    run(`${r.vehicleId}|${e.from}`, () => apply({
+      vehicleId: r.vehicleId, from: e.from, to: e.to, rate: e.rate, source: "motoriq",
+      reason: e.names.slice(0, 2).join(", "), eventRef: `${e.names[0] ?? "event"}|${e.from}`,
+    }).then(() => undefined), `Applied for ${niceRange(e.from, e.to)}`);
+  const revert = (id: string) => run(id, () => revoke(id), "Date rate removed");
 
   const rows = useMemo(() => {
     if (!snapshot) return [];
@@ -61,7 +82,7 @@ export const PricingEngineCard = ({ state, canApply, onApplyRates, onEditRate }:
         <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-primary"><Sparkles className="h-3.5 w-3.5" /> Rates for the next 7 days</div>
         <p className="mt-1.5 text-base font-semibold leading-snug sm:text-lg">{snapshot.summary}</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Every suggestion below shows what it rests on. Base-rate changes come from how fast the week is filling compared with your usual pace; event premiums are quotes for specific dates and never change your base rate.
+          Every suggestion below shows what it rests on. Base-rate changes come from how fast the week is filling compared with your usual pace; event premiums are quotes for specific dates. Apply one and it prices only those dates; your base rate never changes.
         </p>
         {canApply && counts.changes > 0 && (
           <Button className="mt-3 min-h-10" onClick={() => onApplyRates(undefined)}><TrendingUp className="mr-1.5 h-4 w-4" />Review {counts.changes} rate {counts.changes === 1 ? "change" : "changes"}</Button>
@@ -93,7 +114,12 @@ export const PricingEngineCard = ({ state, canApply, onApplyRates, onEditRate }:
       ) : (
         <ul className="space-y-2.5">
           {shown.map(({ r, v }) => (
-            <Row key={r.vehicleId} r={r} v={v} money={money} canApply={canApply} onApply={() => onApplyRates([r.vehicleId])} onEdit={() => onEditRate(r.vehicleId)} onCopy={copy} />
+            <Row
+              key={r.vehicleId} r={r} v={v} money={money} canApply={canApply}
+              overrides={overridesByCar.get(r.vehicleId) ?? []} busy={busy}
+              onApply={() => onApplyRates([r.vehicleId])} onEdit={() => onEditRate(r.vehicleId)} onCopy={copy}
+              onApplyQuote={(e) => applyQuote(r, e)} onRevert={revert}
+            />
           ))}
         </ul>
       )}
@@ -101,10 +127,16 @@ export const PricingEngineCard = ({ state, canApply, onApplyRates, onEditRate }:
   );
 };
 
-const Row = ({ r, v, money, canApply, onApply, onEdit, onCopy }: {
-  r: PriceRecommendation; v: VehicleFacts; money: (n: number) => string; canApply: boolean; onApply: () => void; onEdit: () => void; onCopy: (t: string) => void;
+const Row = ({ r, v, money, canApply, overrides, busy, onApply, onEdit, onCopy, onApplyQuote, onRevert }: {
+  r: PriceRecommendation; v: VehicleFacts; money: (n: number) => string; canApply: boolean;
+  overrides: RateOverride[]; busy: string | null;
+  onApply: () => void; onEdit: () => void; onCopy: (t: string) => void;
+  onApplyQuote: (e: EventRate) => void; onRevert: (id: string) => void;
 }) => {
   const change = r.action !== "hold";
+  // Which of this car's active date rates are an exact applied quote (shown on the quote itself); the rest are listed below.
+  const shownIds = new Set(r.eventRates.map((e) => quoteState(overrides, e).applied?.id).filter(Boolean));
+  const others = overrides.filter((o) => !shownIds.has(o.id));
   return (
     <li className="rounded-xl border bg-card p-3.5">
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
@@ -127,15 +159,39 @@ const Row = ({ r, v, money, canApply, onApply, onEdit, onCopy }: {
         </div>
       </div>
 
-      {r.eventRates.length > 0 && (
+      {(r.eventRates.length > 0 || others.length > 0) && (
         <ul className="mt-2.5 space-y-1.5">
-          {r.eventRates.map((e) => (
-            <li key={`${e.from}-${e.to}`} className="flex items-center justify-between gap-2 rounded-lg bg-accent/10 px-3 py-2 text-sm">
+          {r.eventRates.map((e) => {
+            const { applied, manual, stale } = quoteState(overrides, e);
+            const key = `${r.vehicleId}|${e.from}`;
+            return (
+              <li key={`${e.from}-${e.to}`} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-accent/10 px-3 py-2 text-sm">
+                <span className="min-w-0">
+                  <Calendar className="mr-1.5 inline h-3.5 w-3.5 text-accent" />
+                  <strong>{niceRange(e.from, e.to)}</strong>: quote {money(e.rate)} <span className="text-xs text-muted-foreground">(+{e.premiumPct}% · {e.names.slice(0, 2).join(", ")})</span>
+                  {applied && !stale && <span className="ml-2 inline-flex items-center gap-1 text-xs font-medium text-success"><Check className="h-3 w-3" />Applied</span>}
+                  {stale && <span className="ml-2 text-xs text-warning">Applied at {money(Number(applied!.daily_rate))}; the quote has moved</span>}
+                  {manual && <span className="ml-2 text-xs text-muted-foreground">You set {money(Number(manual.daily_rate))} by hand for these dates, which takes priority.</span>}
+                </span>
+                <span className="flex shrink-0 items-center gap-1">
+                  {canApply && applied && (
+                    <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" disabled={busy === applied.id} onClick={() => onRevert(applied.id)}><Undo2 className="mr-1 h-3.5 w-3.5" />Revert</Button>
+                  )}
+                  {canApply && (!applied || stale) && !manual && (
+                    <Button size="sm" variant="outline" className="h-8 px-2.5 text-xs" disabled={busy === key} onClick={() => onApplyQuote(e)}>{stale ? "Update" : "Apply quote"}</Button>
+                  )}
+                  <Button size="sm" variant="ghost" className="h-8 px-2" onClick={() => onCopy(`${niceRange(e.from, e.to)}: ${money(e.rate)}/day`)} aria-label={`Copy quote for ${niceRange(e.from, e.to)}`}><Copy className="h-3.5 w-3.5" /></Button>
+                </span>
+              </li>
+            );
+          })}
+          {others.map((o) => (
+            <li key={o.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm">
               <span className="min-w-0">
-                <Calendar className="mr-1.5 inline h-3.5 w-3.5 text-accent" />
-                <strong>{niceRange(e.from, e.to)}</strong>: quote {money(e.rate)} <span className="text-xs text-muted-foreground">(+{e.premiumPct}% · {e.names.slice(0, 2).join(", ")})</span>
+                <Tag className="mr-1.5 inline h-3.5 w-3.5 text-warning" />
+                <strong>{niceRange(o.start_date, o.end_date)}</strong>: {money(Number(o.daily_rate))}/day <span className="text-xs text-muted-foreground">({o.source === "manual" ? "set by hand" : "MotorIQ quote"}{o.reason ? ` · ${o.reason}` : ""})</span>
               </span>
-              <Button size="sm" variant="ghost" className="h-8 shrink-0 px-2" onClick={() => onCopy(`${niceRange(e.from, e.to)}: ${money(e.rate)}/day`)} aria-label={`Copy quote for ${niceRange(e.from, e.to)}`}><Copy className="h-3.5 w-3.5" /></Button>
+              {canApply && <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" disabled={busy === o.id} onClick={() => onRevert(o.id)}><Undo2 className="mr-1 h-3.5 w-3.5" />Revert</Button>}
             </li>
           ))}
         </ul>

@@ -2168,6 +2168,9 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
             ? { amount: `$${Math.round(rec.estimate.extraRevenue)}`, openDays: rec.estimate.openDays, assumption: rec.estimate.assumption }
             : null,
           basedOn: 'your own bookings: how booked the next week is compared with normal, what guests recently paid against your listed rate, and your minimum rate',
+          dateRatesInForce: (truth?.overrides ?? [])
+            .filter((o: any) => o.vehicle_id === vehicle.id && !o.revoked_at && o.end_date >= truth!.today)
+            .map((o: any) => `${formatDateRange(o.start_date, o.end_date, tz)} at ${dollars0(Number(o.daily_rate))} a day (${o.source === 'manual' ? 'set by hand' : 'from a MotorIQ quote'}${o.reason ? `: ${o.reason}` : ''})`),
           eventNote: 'Event-date premiums are separate quotes; ask about events for your market.',
           summary: rec.speakable,
         };

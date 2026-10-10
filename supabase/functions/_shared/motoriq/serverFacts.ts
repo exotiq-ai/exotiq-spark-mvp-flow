@@ -8,6 +8,7 @@
  */
 import { computeFleetFacts, dayKey, addDays, safeTimeZone } from "./facts.ts";
 import { recommendRate, recommendRates } from "./pricingEngine.ts";
+import type { RateOverride } from "./dateRates.ts";
 import type { BlockedRow, BookingRow, FleetFacts, Occupancy, PriceRecommendation, VehicleFacts, VehicleRow } from "./types.ts";
 
 // Structural type so this file does not depend on a particular supabase-js version.
@@ -28,6 +29,8 @@ export interface FleetTruth {
   byId: Map<string, VehicleFacts>;
   /** the raw vehicle rows behind the facts (name, location, status), by id */
   rows: Map<string, VehicleRow>;
+  /** date-specific rates (active and recently revoked) */
+  overrides: RateOverride[];
   /** true when blocked dates could not be read (utilization then ignores blocked days) */
   blockedUnavailable: boolean;
   /** true when bookings hit the row limit and older ones may be missing */
@@ -78,9 +81,10 @@ export async function loadFleetTruth(
   let bookingsTruncated = false;
   let blocked: BlockedRow[] = [];
   let blockedUnavailable = false;
+  let overrides: RateOverride[] = [];
 
   if (ids.length > 0) {
-    const [{ data: bk }, { data: bl, error: blErr }] = await Promise.all([
+    const [{ data: bk }, { data: bl, error: blErr }, { data: ov }] = await Promise.all([
       supabase
         .from("bookings")
         .select("id,vehicle_id,start_date,end_date,daily_rate,total_value,status,created_at")
@@ -93,7 +97,13 @@ export async function loadFleetTruth(
         .select("vehicle_id,start_date,end_date")
         .eq("team_id", teamId)
         .gte("end_date", addDays(today, -35)),
+      supabase
+        .from("vehicle_rate_overrides")
+        .select("id,vehicle_id,start_date,end_date,daily_rate,source,reason,event_ref,created_at,revoked_at")
+        .eq("team_id", teamId)
+        .gte("end_date", addDays(today, -45)),
     ]);
+    overrides = ((ov ?? []) as RateOverride[]).filter((o) => new Set(ids).has(o.vehicle_id));
     const idSet = new Set(ids);
     bookings = ((bk ?? []) as BookingRow[]).filter((b) => b.vehicle_id && idSet.has(b.vehicle_id));
     bookingsTruncated = (bk ?? []).length >= BOOKING_LIMIT;
@@ -101,7 +111,7 @@ export async function loadFleetTruth(
     else blocked = ((bl ?? []) as BlockedRow[]).filter((b) => idSet.has(b.vehicle_id));
   }
 
-  const facts = computeFleetFacts({ vehicles, bookings, blocked, today, tz: timeZone });
+  const facts = computeFleetFacts({ vehicles, bookings, blocked, overrides, today, tz: timeZone });
   return {
     facts,
     today,
@@ -110,6 +120,7 @@ export async function loadFleetTruth(
     scope: wanted || null,
     byId: new Map(facts.vehicles.map((v) => [v.id, v])),
     rows: new Map(vehicles.map((v) => [v.id, v])),
+    overrides,
     blockedUnavailable,
     bookingsTruncated,
   };
