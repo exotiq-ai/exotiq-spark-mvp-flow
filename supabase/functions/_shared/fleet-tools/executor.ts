@@ -3196,8 +3196,33 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
 
 
         const ms = new Date(end_date).getTime() - new Date(start_date).getTime();
-        const days = Math.max(1, Math.ceil(ms / 86400000));
-        const total = days * Number(veh.current_rate || 0);
+        let days = Math.max(1, Math.ceil(ms / 86400000));
+        let total = days * Number(veh.current_rate || 0);
+        let dailyRate = Number(veh.current_rate || 0);
+        let rateBreakdown: any = null;
+        let specialNights = 0;
+        // The price comes from the database's nightly quote, so a hold made by voice is priced like a booking made on
+        // screen: date-specific rates on the nights they apply, the base rate on the rest. If the quote cannot be read
+        // the hold falls back to days x base rate, as before.
+        try {
+          const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(String(start_date));
+          const { data: quote, error: quoteErr } = await supabase.rpc('quote_nightly', {
+            p_vehicle_id: vehicle_id,
+            p_start: new Date(start_date).toISOString(),
+            p_end: new Date(end_date).toISOString(),
+            p_tz: dateOnly ? 'UTC' : null,
+            p_base_rate: null,
+          });
+          if (!quoteErr && quote && !quote.error && Number(quote.nights) > 0) {
+            days = Number(quote.nights);
+            total = Number(quote.total);
+            dailyRate = Number(quote.average);
+            specialNights = (quote.breakdown || []).filter((n: any) => n.source !== 'base').length;
+            rateBreakdown = { version: 1, origin: 'rari_voice', time_zone: quote.time_zone, nights: quote.breakdown };
+          }
+        } catch (quoteCrash) {
+          console.error('[create_booking_hold] nightly quote failed, using the base rate:', quoteCrash);
+        }
         const holdNote = `[Rari hold ${new Date().toISOString()}] ${notes || ''}`.trim();
 
         const insert: any = {
@@ -3210,8 +3235,9 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
           start_date,
           end_date,
           pickup_location: veh.location || 'Unassigned',
-          daily_rate: veh.current_rate || 0,
+          daily_rate: dailyRate,
           total_value: total,
+          rate_breakdown: rateBreakdown,
           status: 'pending',
           payment_status: 'unpaid',
           booking_source: 'rari_voice',
@@ -3225,7 +3251,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
           success: true,
           booking_id: created.id,
           booking_ref: created.booking_ref,
-          summary: `Hold created — reference ${created.booking_ref}. ${vehicleDisplayName(veh)} for ${customer_name}, ${days} day${days===1?'':'s'}, total $${total.toLocaleString()}. It's pending until you confirm or cancel.`,
+          summary: `Hold created — reference ${created.booking_ref}. ${vehicleDisplayName(veh)} for ${customer_name}, ${days} day${days===1?'':'s'}, total $${Math.round(total).toLocaleString()}${specialNights > 0 ? `, which includes special rates on ${specialNights} night${specialNights === 1 ? '' : 's'}` : ''}. It's pending until you confirm or cancel.`,
         };
       }
 

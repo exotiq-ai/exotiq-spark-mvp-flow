@@ -258,3 +258,33 @@ describe("Rari's rate advice matches the engine's numbers", () => {
     expect(out.summary).toBe(rec.speakable);
   });
 });
+
+describe("Rari's booking hold is priced like a booking made on screen", () => {
+  const hold = (db: any) => executeFunction("create_booking_hold", { vehicle_id: "a", customer_name: "Ana Test", start_date: "2026-10-16T17:00:00Z", end_date: "2026-10-19T17:00:00Z" }, db, "user-1", TEAM) as Promise<Row>;
+
+  it("uses the database's nightly quote and records the breakdown", async () => {
+    const t = tables();
+    t.bookings = []; // each test gets its own bookings
+    const quote = { nights: 3, total: 5500, average: 5500 / 3, time_zone: "America/Phoenix", has_overrides: true,
+      breakdown: [{ date: "2026-10-16", rate: 2000, source: "motoriq" }, { date: "2026-10-17", rate: 2500, source: "manual" }, { date: "2026-10-18", rate: 1000, source: "base" }] };
+    const out = await hold(fakeDb(t, { quote_nightly: quote }));
+    expect(out.success).toBe(true);
+    const saved = (t.bookings as Row[]).find((b) => b.customer_name === "Ana Test")!;
+    expect(saved.total_value).toBe(5500);
+    expect(saved.daily_rate).toBeCloseTo(5500 / 3);
+    expect(saved.rate_breakdown.nights).toHaveLength(3);
+    expect(saved.rate_breakdown.origin).toBe("rari_voice");
+    expect(String(out.summary)).toMatch(/\$5,500.*special rates on 2 nights/);
+  });
+
+  it("falls back to days x the base rate if the quote cannot be read", async () => {
+    const t = tables();
+    t.bookings = [];
+    const out = await hold(fakeDb(t, { quote_nightly: { __error: "boom" } }));
+    expect(out.success).toBe(true);
+    const saved = (t.bookings as Row[]).find((b) => b.customer_name === "Ana Test")!;
+    expect(saved.total_value).toBe(1000 * 3);
+    expect(saved.daily_rate).toBe(1000);
+    expect(saved.rate_breakdown).toBeNull();
+  });
+});

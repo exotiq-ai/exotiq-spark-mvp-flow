@@ -8,8 +8,12 @@ class Query implements PromiseLike<{ data: any; error: any }> {
   private lim: number | null = null;
   private rng: [number, number] | null = null;
   private embed: string[] = [];
-  private single: "maybe" | "one" | null = null;
+  private singleMode: "maybe" | "one" | null = null;
+  private inserting: Row[] | null = null;
   constructor(private rows: Row[], private all: Record<string, Row[]>) {}
+
+  insert(row: Row | Row[]) { this.inserting = Array.isArray(row) ? row : [row]; return this; }
+  single() { this.singleMode = "one"; return this; }
 
   select(cols?: string) {
     for (const m of String(cols ?? "").matchAll(/(\w+)\(([^)]*)\)/g)) this.embed.push(m[1]);
@@ -35,11 +39,16 @@ class Query implements PromiseLike<{ data: any; error: any }> {
   order(c: string, o?: { ascending?: boolean }) { this.orderBy = { col: c, asc: o?.ascending !== false }; return this; }
   limit(n: number) { this.lim = n; return this; }
   range(a: number, b: number) { this.rng = [a, b]; return this; }
-  maybeSingle() { this.single = "maybe"; return this; }
+  maybeSingle() { this.singleMode = "maybe"; return this; }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   then<T1, T2>(ok?: any, bad?: any): PromiseLike<T1 | T2> { return Promise.resolve(this.run()).then(ok, bad); }
 
   private run() {
+    if (this.inserting) {
+      const made = this.inserting.map((r, i) => ({ id: `new-${this.rows.length + i + 1}`, booking_ref: `BK-TEST-${this.rows.length + i + 1}`, ...r }));
+      this.rows.push(...made);
+      return this.singleMode ? { data: made[0], error: null } : { data: made, error: null };
+    }
     let out = this.rows.filter((r) => this.filters.every((f) => f(r)));
     if (this.orderBy) {
       const { col, asc } = this.orderBy;
@@ -48,10 +57,21 @@ class Query implements PromiseLike<{ data: any; error: any }> {
     if (this.rng) out = out.slice(this.rng[0], this.rng[1] + 1);
     if (this.lim != null) out = out.slice(0, this.lim);
     if (this.embed.includes("vehicles")) out = out.map((r) => ({ ...r, vehicles: (this.all.vehicles ?? []).find((v) => v.id === r.vehicle_id) ?? null }));
-    if (this.single) return { data: out[0] ?? null, error: null };
+    if (this.singleMode) return { data: out[0] ?? null, error: null };
     return { data: out, error: null };
   }
 }
 
-export const fakeDb = (tables: Record<string, Row[]>) => ({ from: (t: string) => new Query(tables[t] ?? [], tables) }) as any;
+/** `rpcs` maps a function name to what it returns (a value, or a function of the arguments); a thrown or `{ error }` result is an error. */
+export const fakeDb = (tables: Record<string, Row[]>, rpcs: Record<string, any> = {}) => ({
+  from: (t: string) => new Query((tables[t] ??= []), tables),
+  rpc: async (name: string, args: Row) => {
+    const h = rpcs[name];
+    if (h === undefined) return { data: null, error: { message: `unknown function ${name}` } };
+    try {
+      const out = typeof h === "function" ? await h(args) : h;
+      return out && out.__error ? { data: null, error: { message: out.__error } } : { data: out, error: null };
+    } catch (e) { return { data: null, error: { message: String(e) } }; }
+  },
+}) as any;
 
