@@ -6,7 +6,7 @@
 // Every handler is team-scoped through the `teamId` argument. Handlers must
 // never accept a team id from tool input.
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.77.0';
-import { loadFleetTruth, recommendationFor, recommendAll, sharePct, rankByUtilization, methodNote, type FleetTruth } from '../motoriq/serverFacts.ts';
+import { loadFleetTruth, recommendationFor, recommendAll, outcomesFor, sharePct, rankByUtilization, methodNote, type FleetTruth } from '../motoriq/serverFacts.ts';
 import { matchDemandCity } from '../demandCities.ts';
 import { addDays, dayKey, endOfLocalDay, safeTimeZone } from '../motoriq/facts.ts';
 import { calendarEvents, applyCalendarChecks, sliceEvents } from '../eventEngine.ts';
@@ -2171,6 +2171,10 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
           dateRatesInForce: (truth?.overrides ?? [])
             .filter((o: any) => o.vehicle_id === vehicle.id && !o.revoked_at && o.end_date >= truth!.today)
             .map((o: any) => `${formatDateRange(o.start_date, o.end_date, tz)} at ${dollars0(Number(o.daily_rate))} a day (${o.source === 'manual' ? 'set by hand' : 'from a MotorIQ quote'}${o.reason ? `: ${o.reason}` : ''})`),
+          recentResults: (() => {
+            const o = truth ? outcomesFor(truth) : null;
+            return o ? [...o.dateRates, ...o.baseChanges].filter((x) => x.vehicleId === vehicle.id).slice(0, 3).map((x) => x.sentence) : [];
+          })(),
           eventNote: 'Event-date premiums are separate quotes; ask about events for your market.',
           summary: rec.speakable,
         };
@@ -2248,10 +2252,11 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
             utilization: pctLabel(sharePct(f.trailing30)),
             rate: `$${f.currentRate}`
           })),
+          rateResults: outcomesFor(truth)?.speakable ?? null,
           recommendations: toRaise.length + toLower.length > 0
             ? `MotorIQ suggests a base-rate change on ${toRaise.length + toLower.length} of ${recs.length} cars (${toRaise.length} to raise, ${toLower.length} to lower); the rest hold.`
             : 'No base-rate changes are suggested right now; the booking data supports the current rates.',
-          summary: `Your fleet${location ? ` in ${location}` : ''} has ${totalVehicles} vehicles at an average listed rate of ${dollars0(avgRate)}. ${utilPct == null ? 'There is not enough booking data to measure utilization.' : `Over the last 30 days ${utilPct}% of available days were booked`}${earned != null ? ` and bookings brought in ${formatUsdWords(earned)}` : ''}. ${toRaise.length + toLower.length > 0 ? `MotorIQ suggests raising ${toRaise.length} and lowering ${toLower.length}; the rest hold.` : 'No base-rate changes are suggested right now.'}`
+          summary: `Your fleet${location ? ` in ${location}` : ''} has ${totalVehicles} vehicles at an average listed rate of ${dollars0(avgRate)}. ${utilPct == null ? 'There is not enough booking data to measure utilization.' : `Over the last 30 days ${utilPct}% of available days were booked`}${earned != null ? ` and bookings brought in ${formatUsdWords(earned)}` : ''}. ${toRaise.length + toLower.length > 0 ? `MotorIQ suggests raising ${toRaise.length} and lowering ${toLower.length}; the rest hold.` : 'No base-rate changes are suggested right now.'}${(() => { const r = outcomesFor(truth)?.speakable; return r ? ` ${r}` : ''; })()}`
         };
       }
 
@@ -2970,6 +2975,16 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
               title: `${changes.length} ${changes.length === 1 ? 'car has' : 'cars have'} a base-rate change worth making`,
               description: changes.slice(0, 2).map((r) => r.speakable).join(' '),
               action: 'Review these in the MotorIQ pricing tab'
+            });
+          }
+          const results = outcomesFor(insightTruth);
+          if (results && results.summary.comparedRates > 0 && results.headline) {
+            insights.push({
+              type: 'results',
+              priority: 'low',
+              title: `Your date rates: demand held on ${results.summary.held} of ${results.summary.comparedRates}`,
+              description: results.headline,
+              action: 'See the results card in MotorIQ'
             });
           }
           const pk = insightTruth.facts.fleet.pickups;

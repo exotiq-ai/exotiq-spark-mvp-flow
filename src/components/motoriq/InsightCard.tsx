@@ -11,6 +11,7 @@ const KIND: Record<InsightKind, { icon: typeof Zap; tone: string; label: string 
   realization: { icon: TrendingDown, tone: "bg-destructive/10 text-destructive", label: "Price accepted" },
   idle: { icon: CircleHelp, tone: "bg-muted text-muted-foreground", label: "Idle cars" },
   revenue: { icon: DollarSign, tone: "bg-success/15 text-success", label: "Booked revenue" },
+  results: { icon: Sparkles, tone: "bg-primary/15 text-primary", label: "Your results" },
   data: { icon: Info, tone: "bg-muted text-muted-foreground", label: "About the data" },
 };
 

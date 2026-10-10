@@ -89,11 +89,22 @@ export function buildVoiceBrief(snapshot: MotorIQSnapshot, opts: { maxItems?: nu
   };
   for (const r of snapshot.recommendations) facts[`car:${r.vehicleId}`] = forVoice(r.speakable);
 
+  // What the rates the tenant applied actually did, overall and per car (always with the caveat that it is evidence, not proof)
+  const o = snapshot.outcomes;
+  if (o?.speakable) {
+    facts.results = forVoice(o.speakable);
+    const perCar = new Map<string, string[]>();
+    for (const x of [...o.dateRates, ...o.baseChanges]) perCar.set(x.vehicleId, [...(perCar.get(x.vehicleId) ?? []), x.sentence]);
+    for (const [id, lines] of perCar) facts[`results:${id}`] = forVoice(lines.slice(0, 3).join(" "));
+  }
+
   const caveats = [
     "Everything comes from your own bookings, vehicles and blocked dates.",
     "Event effects are modeled estimates and are not yet measured on your results, so I treat them with care.",
     "When there is not enough data I say so and suggest holding the rate.",
   ];
+
+  if (o?.speakable) caveats.push("My read on what your applied rates earned compares them with similar cars of yours; it is evidence, not proof, and I say how many cars and nights it rests on.");
 
   const now = opts.nowMs != null ? spokenNow(opts.nowMs, snapshot.timeZone) : null;
 
