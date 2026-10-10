@@ -84,11 +84,17 @@ describe("LEGAL_DOCS catalog", () => {
     }
   });
 
-  it("uses the June 14, 2026 effective date for the current core revisions", () => {
-    const core = ["terms", "privacy", "aup", "dpa", "sms", "cookies", "dmca"] as const;
+  it("uses the June 14, 2026 effective date for the core revisions that have not changed since", () => {
+    const core = ["privacy", "aup", "dpa", "sms", "cookies", "dmca"] as const;
     for (const t of core) {
       expect(LEGAL_DOCS[t].effectiveDate).toBe("June 14, 2026");
     }
+  });
+
+  it("uses the September 16, 2026 effective date for the current Terms, and keeps the June 14 and January 1 versions as prior versions", () => {
+    expect(LEGAL_DOCS.terms.version).toBe("2026-09-16");
+    expect(LEGAL_DOCS.terms.effectiveDate).toBe("September 16, 2026");
+    expect(LEGAL_DOCS.terms.priorVersions?.map((p) => p.version)).toEqual(["2026-01-01", "2026-06-14"]);
   });
 });
 

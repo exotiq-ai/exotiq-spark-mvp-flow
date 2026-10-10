@@ -9,6 +9,9 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    // CI runs in UTC. Pinning it here means a test (for example the daylight-saving one) gives the same answer on a
+    // developer's laptop in any time zone instead of passing in CI and failing locally.
+    env: { TZ: "UTC" },
   },
   resolve: {
     alias: { "@": path.resolve(__dirname, "./src") },
