@@ -265,7 +265,7 @@ export interface DateRateOutcome {
   diffPts: number | null;
   /** on nights booked after it was set: what guests paid minus the base rate, summed; null when there were none */
   extraRevenue: number | null;
-  verdict: "held" | "softer" | "too-early" | "no-comparison";
+  verdict: "held" | "softer" | "unclear" | "too-early" | "no-comparison";
   confidence: Confidence;
   sentence: string;
 }
@@ -304,6 +304,8 @@ export interface OutcomeReport {
     comparedRates: number;
     held: number;
     softer: number;
+    /** trailed similar cars, but by no more than the ordinary spread between cars */
+    unclear: number;
     /** summed over finished date rates */
     extraRevenue: number;
     liveRates: number;

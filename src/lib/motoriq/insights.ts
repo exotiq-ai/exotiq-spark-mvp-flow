@@ -222,7 +222,7 @@ export function buildInsights(input: {
   // 7b. RESULTS of the rates the tenant applied (only once at least one finished date rate could be compared)
   if (outcomes && outcomes.summary.comparedRates > 0 && outcomes.headline) {
     const s = outcomes.summary;
-    const compared = outcomes.dateRates.filter((d) => d.verdict === "held" || d.verdict === "softer");
+    const compared = outcomes.dateRates.filter((d) => d.verdict === "held" || d.verdict === "softer" || d.verdict === "unclear");
     out.push({
       id: "results-date-rates",
       kind: "results",

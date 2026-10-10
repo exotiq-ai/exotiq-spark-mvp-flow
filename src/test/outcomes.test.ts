@@ -55,6 +55,19 @@ describe("date rates: did demand hold, and what did the premium bring in?", () =
     expect(r.summary).toMatchObject({ held: 0, softer: 1 });
   });
 
+  it("trailing similar cars by no more than the ordinary spread between cars is 'unclear', not 'held' and not 'softer'", () => {
+    // similar cars: two booked all three nights, one booked one night, three booked none (a wide spread); the car booked none
+    const bookings = [booking("b", "2026-10-16", 3), booking("c", "2026-10-16", 3), booking("f", "2026-10-16", 1)];
+    const d = run(cars(), bookings, [rateRow()])!.dateRates[0];
+    expect(d.bookedNights).toBe(0);
+    expect(d.diffPts).toBeLessThan(-30);
+    expect(d.verdict).toBe("unclear");
+    expect(d.sentence).toMatch(/cannot say the rate cost bookings/);
+    const r = run(cars(), bookings, [rateRow()])!;
+    expect(r.summary).toMatchObject({ comparedRates: 1, held: 0, softer: 0, unclear: 1 });
+    expect(r.headline).toMatch(/demand held on 0, was unclear on 1/);
+  });
+
   it("a rate that has not finished is 'too early' and reports nights booked so far", () => {
     const running = run(cars(), controlsHalfBooked(), [rateRow({ start_date: "2026-10-29", end_date: "2026-11-02" })])!.dateRates[0];
     expect(running).toMatchObject({ status: "running", verdict: "too-early" });

@@ -12,6 +12,7 @@ interface Props {
 const VERDICT: Record<DateRateOutcome["verdict"] | BaseChangeOutcome["verdict"], { label: string; tone: string }> = {
   held: { label: "Demand held", tone: "border-success/40 text-success" },
   softer: { label: "Softer than similar cars", tone: "border-warning/40 text-warning" },
+  unclear: { label: "No clear difference", tone: "text-muted-foreground" },
   "more-bookings": { label: "More bookings than similar cars", tone: "border-success/40 text-success" },
   "fewer-bookings": { label: "Fewer bookings than similar cars", tone: "border-warning/40 text-warning" },
   similar: { label: "About the same as similar cars", tone: "text-muted-foreground" },

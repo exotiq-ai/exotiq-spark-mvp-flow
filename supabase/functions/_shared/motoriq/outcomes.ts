@@ -158,7 +158,8 @@ function measureDateRate(
   let verdict: DateRateOutcome["verdict"];
   if (status !== "finished") verdict = "too-early";
   else if (diffPts == null) verdict = "no-comparison";
-  else verdict = diffPts > -softerBy ? "held" : "softer";
+  else if (diffPts >= -HELD_TOLERANCE_PTS) verdict = "held";
+  else verdict = diffPts <= -softerBy ? "softer" : "unclear";
 
   const confidence: Confidence = status === "finished" && diffPts != null && controlCars >= MEDIUM_CONTROL_CARS && nights >= 2 ? "medium" : "low";
   const extraRevenue = extraNights > 0 ? Math.round(extra) : null;
@@ -171,7 +172,11 @@ function measureDateRate(
   else if (status === "running") sentence = `${where}: ${bookedText} so far${cmp}. It is still running.`;
   else if (verdict === "no-comparison") sentence = `${where}: ${bookedText}. There were too few similar cars to compare with.`;
   else {
-    const held = verdict === "held" ? "Demand held." : "Demand was softer than for similar cars.";
+    const held = verdict === "held"
+      ? "Demand held."
+      : verdict === "softer"
+        ? "Demand was softer than for similar cars."
+        : "It trailed similar cars, but by no more than cars normally differ from each other, so I cannot say the rate cost bookings.";
     const pay = extraRevenue != null && extraRevenue > 0
       ? ` Nights booked after you set it paid about ${money(extraRevenue)} more than the base rate.`
       : "";
@@ -315,17 +320,19 @@ export function computeOutcomes(input: {
   if (dateRates.length === 0 && baseChanges.length === 0) return null;
 
   const finished = dateRates.filter((d) => d.status === "finished");
-  const compared = finished.filter((d) => d.verdict === "held" || d.verdict === "softer");
+  const compared = finished.filter((d) => d.verdict === "held" || d.verdict === "softer" || d.verdict === "unclear");
   const held = compared.filter((d) => d.verdict === "held").length;
-  const softer = compared.length - held;
+  const softer = compared.filter((d) => d.verdict === "softer").length;
+  const unclear = compared.length - held - softer;
   const extraRevenue = Math.round(finished.reduce((s, d) => s + (d.extraRevenue ?? 0), 0));
   const liveRates = dateRates.filter((d) => d.status !== "finished").length;
 
   let headline: string | null = null;
   if (compared.length > 0) {
-    const softText = softer > 0 ? ` and was softer on ${softer}` : "";
+    const softText = [softer > 0 ? `was softer on ${softer}` : null, unclear > 0 ? `was unclear on ${unclear}` : null].filter(Boolean).join(" and ");
+    const softJoin = softText ? `, ${softText}` : "";
     const extraText = extraRevenue > 0 ? ` Nights booked after you set the rates paid about ${money(extraRevenue)} more than your base rates.` : "";
-    headline = `Of ${plural(compared.length, "finished date rate")} I could compare with similar cars, demand held on ${held}${softText}.${extraText}`;
+    headline = `Of ${plural(compared.length, "finished date rate")} I could compare with similar cars, demand held on ${held}${softJoin}.${extraText}`;
   } else if (liveRates > 0) {
     const nights = dateRates.filter((d) => d.status !== "finished");
     const b = nights.reduce((s, d) => s + d.bookedNights, 0);
@@ -352,7 +359,7 @@ export function computeOutcomes(input: {
     asOf: today,
     dateRates,
     baseChanges,
-    summary: { comparedRates: compared.length, held, softer, extraRevenue, liveRates },
+    summary: { comparedRates: compared.length, held, softer, unclear, extraRevenue, liveRates },
     headline,
     speakable: headline ? `${headline}${caveat}` : null,
     provenance: {
