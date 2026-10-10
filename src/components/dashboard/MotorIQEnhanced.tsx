@@ -530,7 +530,7 @@ export const MotorIQEnhanced = () => {
 
           <TabsContent value="forecast" className="space-y-6">
             <DemandForecastErrorBoundary>
-              <DemandForecastCard bookings={bookings} />
+              <DemandForecastCard bookings={bookings} vehicles={vehicles} />
             </DemandForecastErrorBoundary>
           </TabsContent>
 
