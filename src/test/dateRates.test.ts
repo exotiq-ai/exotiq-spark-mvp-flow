@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 import { overrideForDay, rateForDay, type RateOverride } from "../lib/motoriq/dateRates";
 import { quoteNightly, stayNights } from "../lib/motoriq/quote";
+import { priceExtensionNights } from "../lib/motoriq/extensionPricing";
 import { addDays, computeFleetFacts, occupiedDays } from "../lib/motoriq/facts";
 import type { BookingRow, VehicleRow } from "../lib/motoriq/types";
 
@@ -109,5 +110,38 @@ describe("pricing engine: bookings are compared with the rate that was listed wh
     const overrides: RateOverride[] = [ov({ start_date: addDays(TODAY, 5), end_date: addDays(TODAY, 12), daily_rate: 1500, source: "motoriq", created_at: at(addDays(TODAY, -9)), revoked_at: at(addDays(TODAY, -6)) })];
     const f = computeFleetFacts({ vehicles: [car], bookings, overrides, today: TODAY });
     expect(f.vehicles[0].rateRealization.value).toBeCloseTo(1.5);
+  });
+});
+
+describe("extension pricing: each added night is the date rate in force, else the rate entered", () => {
+  const rows = [
+    { night: "2026-10-16", rate: "1500.00", source: "motoriq" },
+    { night: "2026-10-17", rate: "1000.00", source: "base" },
+    { night: "2026-10-18", rate: 2000, source: "manual" },
+  ];
+
+  it("sums the nights and says whether date rates applied", () => {
+    const p = priceExtensionNights(rows, 100000, 3, "2026-10-16");
+    expect(p.nights.map((n) => [n.date, n.rateCents, n.source])).toEqual([["2026-10-16", 150000, "motoriq"], ["2026-10-17", 100000, "base"], ["2026-10-18", 200000, "manual"]]);
+    expect(p.subtotalCents).toBe(450000);
+    expect(p.averageRateCents).toBe(150000);
+    expect(p.hasDateRates).toBe(true);
+  });
+
+  it("prices a night the database did not return at the entered rate (never zero)", () => {
+    const p = priceExtensionNights(rows.slice(0, 1), 90000, 3, "2026-10-16");
+    expect(p.nights.map((n) => n.rateCents)).toEqual([150000, 90000, 90000]);
+  });
+
+  it("falls back to a flat charge when the lookup failed", () => {
+    const p = priceExtensionNights(null, 90000, 2, "2026-10-16");
+    expect(p).toMatchObject({ subtotalCents: 180000, averageRateCents: 90000, hasDateRates: false });
+  });
+
+  it("rounds the average to a cent and handles zero nights", () => {
+    const p = priceExtensionNights([{ night: "2026-10-16", rate: 1000, source: "base" }, { night: "2026-10-17", rate: 1000, source: "base" }, { night: "2026-10-18", rate: 1000.01, source: "manual" }], 100000, 3, "2026-10-16");
+    expect(p.subtotalCents).toBe(300001);
+    expect(p.averageRateCents).toBe(100000);
+    expect(priceExtensionNights([], 100000, 0, "2026-10-16")).toMatchObject({ subtotalCents: 0, averageRateCents: 0, nights: [] });
   });
 });

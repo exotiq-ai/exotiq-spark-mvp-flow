@@ -191,6 +191,18 @@ export const NewBookingDialog = ({
     return () => { alive = false; };
   }, [selectedVehicle?.id, startDateTimeStr, endDateTimeStr, quotable, tierRateForQuote]);
 
+  /** The nightly rates this booking was priced with, for the record; null when there is no quote for these nights. */
+  const buildRateBreakdown = (billedDays: number) => {
+    if (!quotable || !dateQuote || dateQuote.nights !== billedDays) return null;
+    const applied = useDateRates && dateQuote.has_overrides;
+    return {
+      version: 1,
+      origin: 'command_center',
+      applied_date_rates: applied,
+      nights: dateQuote.breakdown.map((d) => (applied ? { date: d.date, rate: Number(d.rate), source: d.source } : { date: d.date, rate: Number(tierRateForQuote), source: 'base' })),
+    };
+  };
+
   /** The daily rate this booking is priced at: date rates (spread over the days billed) when they apply, else the tier or base rate. */
   const resolveBookingRate = (): number => {
     const tier = getRateForDuration(durationType, Number(selectedVehicle?.current_rate), (selectedVehicle as any)?.rate_3hr, (selectedVehicle as any)?.rate_6hr, (selectedVehicle as any)?.rate_multiday);
@@ -295,6 +307,7 @@ export const NewBookingDialog = ({
         pickup_location_id: effectivePickupLocationId || null,
         dropoff_location: dropoffLocation || null,
         daily_rate: effectiveRate,
+        rate_breakdown: buildRateBreakdown(pricing.rentalDays),
         total_value: pricing.grandTotal,
         discount_amount: pricing.discountAmount > 0 ? pricing.discountAmount : 0,
         discount_reason: pricing.discountAmount > 0 ? discountReason || null : null,
