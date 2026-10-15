@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useMoney } from "@/hooks/useMoney";
 import { niceDay } from "@/lib/motoriq/format";
+import { supportsExtensionPreview } from "@/lib/extensionPreview";
 import { cn } from "@/lib/utils";
 
 interface ExtendBookingDialogProps {
@@ -117,6 +118,9 @@ export function ExtendBookingDialog({
     if (!open || !booking || !newEndDate || addedDays < 1 || rateNum <= 0) return;
     let alive = true;
     const timer = setTimeout(async () => {
+      // Never send a preview unless the server has said it can preview without charging (see extensionPreview.ts).
+      if (!(await supportsExtensionPreview((name, opts) => supabase.functions.invoke(name, opts as any)))) return;
+      if (!alive) return;
       const { data, error } = await supabase.functions.invoke("rent-extend-booking", {
         body: { booking_id: booking.id, new_end_date: newEndDate.toISOString(), rate_cents_per_day: Math.round(rateNum * 100), charge_method: chargeMethod, dry_run: true },
       });
