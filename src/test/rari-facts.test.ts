@@ -39,6 +39,8 @@ const tables = () => ({
   vehicle_blocked_dates: [],
   demand_event_snapshots: [],
   maintenance_schedules: [],
+  vehicle_rate_overrides: [] as Row[],
+  vehicle_change_log: [] as Row[],
 });
 
 // The tools read the clock themselves; pin it so the fixtures' dates line up.
@@ -286,5 +288,29 @@ describe("Rari's booking hold is priced like a booking made on screen", () => {
     expect(saved.total_value).toBe(1000 * 3);
     expect(saved.daily_rate).toBe(1000);
     expect(saved.rate_breakdown).toBeNull();
+  });
+});
+
+describe("Rari knows what the tenant's applied rates earned", () => {
+  const day = (n: number) => addDays(TODAY, n);
+  it("reports a finished date rate against similar cars, overall and for that car", async () => {
+    const t = tables();
+    t.bookings = [
+      // the car with the date rate booked all three nights; two of its three similar cars booked them too
+      { id: "x1", team_id: TEAM, vehicle_id: "a", start_date: at(day(-12)), end_date: at(day(-9)), status: "confirmed", total_value: 4500, daily_rate: 1500, created_at: at(day(-15)) },
+      { id: "x2", team_id: TEAM, vehicle_id: "b", start_date: at(day(-12)), end_date: at(day(-9)), status: "confirmed", total_value: 3000, daily_rate: 1000, created_at: at(day(-30)) },
+      { id: "x3", team_id: TEAM, vehicle_id: "c", start_date: at(day(-12)), end_date: at(day(-9)), status: "confirmed", total_value: 3000, daily_rate: 1000, created_at: at(day(-30)) },
+    ];
+    t.vehicle_rate_overrides = [{ id: "o1", team_id: TEAM, vehicle_id: "a", start_date: day(-12), end_date: day(-10), daily_rate: 1500, source: "motoriq", reason: "Test Rally", created_at: at(day(-20)), revoked_at: null }];
+    const db = fakeDb(t);
+    const overview = await executeFunction("getFleetPricingOverview", {}, db, "user-1", TEAM) as Row;
+    expect(String(overview.rateResults)).toMatch(/demand held on 1/);
+    expect(String(overview.rateResults)).toMatch(/\$1,500 more/); // 3 nights x ($1,500 - $1,000), all booked after the rate was set
+    expect(String(overview.rateResults)).toMatch(/evidence rather than proof/);
+    expect(String(overview.summary)).toMatch(/demand held on 1/);
+    const car = await executeFunction("getPricingRecommendation", { vehicleName: "488 Spider" }, db, "user-1", TEAM) as Row;
+    expect((car.recentResults as string[]).join(" ")).toMatch(/3 of 3 nights booked/);
+    const insights = await executeFunction("getRariInsights", {}, db, "user-1", TEAM) as Row;
+    expect((insights.insights as Row[]).some((i) => i.type === "results")).toBe(true);
   });
 });

@@ -6,7 +6,7 @@
 import { SEGMENT_PHRASE, evidenceOf, pctRange, pct as impactPct, type ImpactEvent, type SegmentKey } from "../eventImpact";
 import { addDays } from "./facts";
 import { niceRange } from "./format";
-import type { FleetFacts, Insight, MotorIQSnapshot, PriceRecommendation, Provenance } from "./types";
+import type { FleetFacts, Insight, MotorIQSnapshot, OutcomeReport, PriceRecommendation, Provenance } from "./types";
 
 const money = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
 const pc = (x: number | null | undefined) => (x == null ? "n/a" : `${Math.round(x * 100)}%`);
@@ -27,8 +27,10 @@ export function buildInsights(input: {
   recommendations: PriceRecommendation[];
   eventsByMarket: Record<string, ImpactEvent[]>;
   today: string;
+  /** what the tenant's own applied rates did (see outcomes.ts) */
+  outcomes?: OutcomeReport | null;
 }): Insight[] {
-  const { facts, recommendations, eventsByMarket, today } = input;
+  const { facts, recommendations, eventsByMarket, today, outcomes } = input;
   const out: Insight[] = [];
   const marketOf = new Map(facts.vehicles.map((v) => [v.id, v.market]));
 
@@ -217,6 +219,28 @@ export function buildInsights(input: {
     });
   }
 
+  // 7b. RESULTS of the rates the tenant applied (only once at least one finished date rate could be compared)
+  if (outcomes && outcomes.summary.comparedRates > 0 && outcomes.headline) {
+    const s = outcomes.summary;
+    const compared = outcomes.dateRates.filter((d) => d.verdict === "held" || d.verdict === "softer" || d.verdict === "unclear");
+    out.push({
+      id: "results-date-rates",
+      kind: "results",
+      priority: 55,
+      headline: `Your date rates: demand held on ${s.held} of ${s.comparedRates}`,
+      body: outcomes.headline,
+      metrics: [
+        { label: "Compared with similar cars", value: String(s.comparedRates) },
+        { label: "Demand held", value: String(s.held) },
+        ...(s.extraRevenue > 0 ? [{ label: "Paid above base rate", value: `about ${money(s.extraRevenue)}` }] : []),
+      ],
+      provenance: [outcomes.provenance],
+      confidence: compared.some((d) => d.confidence === "medium") ? "medium" : "low",
+      actions: [],
+      speakable: outcomes.speakable ?? outcomes.headline,
+    });
+  }
+
   // 8. DATA the engine cannot use -------------------------------------------------------------------------------------------
   if (facts.fleet.pickups.last7 + facts.fleet.pickups.prev7 === 0 && facts.vehicles.length > 0) {
     out.push({
@@ -285,8 +309,9 @@ export function buildSnapshot(input: {
   recommendations: PriceRecommendation[];
   eventsByMarket: Record<string, ImpactEvent[]>;
   scope: string;
+  outcomes?: OutcomeReport | null;
 }): MotorIQSnapshot {
-  const insights = buildInsights({ facts: input.facts, recommendations: input.recommendations, eventsByMarket: input.eventsByMarket, today: input.facts.asOf });
+  const insights = buildInsights({ facts: input.facts, recommendations: input.recommendations, eventsByMarket: input.eventsByMarket, today: input.facts.asOf, outcomes: input.outcomes });
   return {
     asOf: input.facts.asOf,
     timeZone: input.facts.timeZone,
@@ -295,6 +320,7 @@ export function buildSnapshot(input: {
     facts: input.facts,
     recommendations: input.recommendations,
     insights,
+    outcomes: input.outcomes ?? null,
   };
 }
 

@@ -11,7 +11,8 @@ import { eventWindowsFor, EVENT_HORIZON_DAYS } from "@/lib/motoriq/eventSignal";
 import { recommendRates } from "@/lib/motoriq/pricingEngine";
 import type { BlockedRow, MotorIQSnapshot } from "@/lib/motoriq/types";
 import type { RateOverride } from "@/lib/motoriq/dateRates";
-import { loadRateOverrides, subscribeRateOverrides } from "@/lib/rateOverridesStore";
+import { loadRateChanges, loadRateOverrides, subscribeRateOverrides } from "@/lib/rateOverridesStore";
+import { computeOutcomes, type RateChangeRow } from "@/lib/motoriq/outcomes";
 
 /**
  * The single source of MotorIQ truth for the screens (and, later, the voice agent): facts from the tenant's own
@@ -79,6 +80,7 @@ export function useMotorIQ(): MotorIQState {
   const [blocked, setBlocked] = useState<BlockedRow[]>([]);
   const [blockedUnavailable, setBlockedUnavailable] = useState(false);
   const [rateOverrides, setRateOverrides] = useState<RateOverride[]>([]);
+  const [rateChanges, setRateChanges] = useState<RateChangeRow[]>([]);
   const [overridesVersion, setOverridesVersion] = useState(0);
   const [eventsByMarket, setEventsByMarket] = useState<Record<string, ImpactEvent[]>>({});
   const [eventsReady, setEventsReady] = useState(false);
@@ -99,6 +101,7 @@ export function useMotorIQ(): MotorIQState {
   useEffect(() => {
     let alive = true;
     loadRateOverrides(currentTeam?.id ?? "none", today).then(({ rows }) => { if (alive) setRateOverrides(rows); });
+    loadRateChanges(currentTeam?.id ?? "none", today).then(({ rows }) => { if (alive) setRateChanges(rows); });
     return () => { alive = false; };
   }, [today, currentTeam?.id, overridesVersion]);
 
@@ -136,8 +139,10 @@ export function useMotorIQ(): MotorIQState {
       facts, today, minRate,
       eventWindows: (market, segment) => eventWindowsFor(eventsByMarket[market] ?? [], segment, today),
     });
-    return buildSnapshot({ facts, recommendations, eventsByMarket, scope: selectedLocationId !== "all" && currentLocation?.name ? currentLocation.name : "all locations" });
-  }, [loading, facts, eventsByMarket, currentTeam, currentLocation, selectedLocationId, today]);
+    // What the rates the tenant applied actually did (date rates and base-rate changes), against similar cars.
+    const outcomes = computeOutcomes({ facts, bookings: bookings as any[], overrides: rateOverrides, rateChanges, today, tz: timeZone });
+    return buildSnapshot({ facts, recommendations, eventsByMarket, outcomes, scope: selectedLocationId !== "all" && currentLocation?.name ? currentLocation.name : "all locations" });
+  }, [loading, facts, eventsByMarket, currentTeam, currentLocation, selectedLocationId, today, bookings, rateOverrides, rateChanges, timeZone]);
 
   const voice = useMemo(() => (snapshot ? buildVoiceBrief(snapshot, { nowMs: Date.now() }) : null), [snapshot]);
 

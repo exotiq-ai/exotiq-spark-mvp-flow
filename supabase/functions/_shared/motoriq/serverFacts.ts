@@ -8,8 +8,9 @@
  */
 import { computeFleetFacts, dayKey, addDays, safeTimeZone } from "./facts.ts";
 import { recommendRate, recommendRates } from "./pricingEngine.ts";
+import { computeOutcomes, type RateChangeRow } from "./outcomes.ts";
 import type { RateOverride } from "./dateRates.ts";
-import type { BlockedRow, BookingRow, FleetFacts, Occupancy, PriceRecommendation, VehicleFacts, VehicleRow } from "./types.ts";
+import type { BlockedRow, BookingRow, FleetFacts, Occupancy, OutcomeReport, PriceRecommendation, VehicleFacts, VehicleRow } from "./types.ts";
 
 // Structural type so this file does not depend on a particular supabase-js version.
 type Db = { from: (table: string) => any };
@@ -31,6 +32,10 @@ export interface FleetTruth {
   rows: Map<string, VehicleRow>;
   /** date-specific rates (active and recently revoked) */
   overrides: RateOverride[];
+  /** base-rate changes from the vehicle change history (last 120 days) */
+  rateChanges: RateChangeRow[];
+  /** the bookings behind the facts (last 90 days), for measuring results */
+  bookings: BookingRow[];
   /** true when blocked dates could not be read (utilization then ignores blocked days) */
   blockedUnavailable: boolean;
   /** true when bookings hit the row limit and older ones may be missing */
@@ -82,9 +87,10 @@ export async function loadFleetTruth(
   let blocked: BlockedRow[] = [];
   let blockedUnavailable = false;
   let overrides: RateOverride[] = [];
+  let rateChanges: RateChangeRow[] = [];
 
   if (ids.length > 0) {
-    const [{ data: bk }, { data: bl, error: blErr }, { data: ov }] = await Promise.all([
+    const [{ data: bk }, { data: bl, error: blErr }, { data: ov }, { data: rc }] = await Promise.all([
       supabase
         .from("bookings")
         .select("id,vehicle_id,start_date,end_date,daily_rate,total_value,status,created_at")
@@ -101,8 +107,17 @@ export async function loadFleetTruth(
         .from("vehicle_rate_overrides")
         .select("id,vehicle_id,start_date,end_date,daily_rate,source,reason,event_ref,created_at,revoked_at")
         .eq("team_id", teamId)
-        .gte("end_date", addDays(today, -45)),
+        .gte("end_date", addDays(today, -90)),
+      supabase
+        .from("vehicle_change_log")
+        .select("vehicle_id,old_value,new_value,change_source,created_at")
+        .eq("team_id", teamId)
+        .eq("field_name", "current_rate")
+        .gte("created_at", `${addDays(today, -120)}T00:00:00Z`)
+        .order("created_at", { ascending: false })
+        .limit(500),
     ]);
+    rateChanges = ((rc ?? []) as RateChangeRow[]).filter((r) => new Set(ids).has(r.vehicle_id));
     overrides = ((ov ?? []) as RateOverride[]).filter((o) => new Set(ids).has(o.vehicle_id));
     const idSet = new Set(ids);
     bookings = ((bk ?? []) as BookingRow[]).filter((b) => b.vehicle_id && idSet.has(b.vehicle_id));
@@ -121,9 +136,18 @@ export async function loadFleetTruth(
     byId: new Map(facts.vehicles.map((v) => [v.id, v])),
     rows: new Map(vehicles.map((v) => [v.id, v])),
     overrides,
+    rateChanges,
+    bookings,
     blockedUnavailable,
     bookingsTruncated,
   };
+}
+
+/** What the rates the tenant applied did, measured against similar cars (null when nothing has been changed yet). */
+export function outcomesFor(truth: FleetTruth): OutcomeReport | null {
+  return computeOutcomes({
+    facts: truth.facts, bookings: truth.bookings, overrides: truth.overrides, rateChanges: truth.rateChanges, today: truth.today, tz: truth.timeZone,
+  });
 }
 
 /** The base-rate recommendation for one car (no event premiums; those come from the event tools). */

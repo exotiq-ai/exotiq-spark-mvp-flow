@@ -202,6 +202,7 @@ export type InsightKind =
   | "realization"
   | "idle"
   | "revenue"
+  | "results"
   | "data";
 
 export interface InsightAction {
@@ -230,6 +231,91 @@ export interface Insight {
   speakable: string;
 }
 
+// ---------------------------------------------------------------------------
+// Results: what the tenant's own rate changes did (see outcomes.ts)
+// ---------------------------------------------------------------------------
+
+/** One date-specific rate (set by hand or applied from a quote) and what happened on its nights. */
+export interface DateRateOutcome {
+  kind: "date-rate";
+  id: string;
+  vehicleId: string;
+  name: string;
+  /** local calendar days, inclusive */
+  from: string;
+  to: string;
+  rate: number;
+  /** the car's base rate now */
+  baseRate: number;
+  source: "manual" | "motoriq";
+  reason: string | null;
+  /** upcoming: not started; running: some nights left; finished: all nights have passed */
+  status: "upcoming" | "running" | "finished";
+  nights: number;
+  /** nights with a booking (made before or after the rate was set) */
+  bookedNights: number;
+  /** nights whose booking was made after the rate was set (the ones that could have paid the premium) */
+  bookedAfter: number;
+  /** bookedNights / nights */
+  share: number;
+  /** how booked similar cars were on the same nights (average), null when there were too few to compare */
+  controlShare: number | null;
+  controlCars: number;
+  /** share minus controlShare, in percentage points */
+  diffPts: number | null;
+  /** on nights booked after it was set: what guests paid minus the base rate, summed; null when there were none */
+  extraRevenue: number | null;
+  verdict: "held" | "softer" | "unclear" | "too-early" | "no-comparison";
+  confidence: Confidence;
+  sentence: string;
+}
+
+/** A base-rate change from the vehicle's history and the bookings made in the 14 days either side of it. */
+export interface BaseChangeOutcome {
+  kind: "base-rate";
+  id: string;
+  vehicleId: string;
+  name: string;
+  /** local day of the change */
+  at: string;
+  from: number;
+  to: number;
+  changePct: number;
+  source: string | null;
+  daysSince: number;
+  /** bookings made by this car in the 14 days before and after (after counts so far while measuring) */
+  before: number;
+  after: number;
+  /** average per similar car that did not change its rate nearby */
+  controlCars: number;
+  controlBefore: number | null;
+  controlAfter: number | null;
+  verdict: "more-bookings" | "fewer-bookings" | "similar" | "too-early" | "no-comparison";
+  confidence: Confidence;
+  sentence: string;
+}
+
+export interface OutcomeReport {
+  asOf: string;
+  dateRates: DateRateOutcome[];
+  baseChanges: BaseChangeOutcome[];
+  summary: {
+    /** date rates whose nights have all passed and that could be compared with similar cars */
+    comparedRates: number;
+    held: number;
+    softer: number;
+    /** trailed similar cars, but by no more than the ordinary spread between cars */
+    unclear: number;
+    /** summed over finished date rates */
+    extraRevenue: number;
+    liveRates: number;
+  };
+  /** one plain sentence for the screen, or null when there is nothing to report yet */
+  headline: string | null;
+  speakable: string | null;
+  provenance: Provenance;
+}
+
 /** Everything a screen or the voice agent needs, in one object. */
 export interface MotorIQSnapshot {
   asOf: string;
@@ -239,4 +325,6 @@ export interface MotorIQSnapshot {
   facts: FleetFacts;
   recommendations: PriceRecommendation[];
   insights: Insight[];
+  /** what the tenant's own applied rates did, or null when no date rate or base-rate change has been recorded */
+  outcomes: OutcomeReport | null;
 }
