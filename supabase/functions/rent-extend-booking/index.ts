@@ -103,6 +103,14 @@ serve(async (req) => {
     const user = userData.user;
 
     const body = await req.json();
+
+    // Capability probe: lets the app ask "do you support a no-charge preview?" before it ever sends one. An OLDER version
+    // of this function does not know the flag and rejects the request (400, missing booking_id), which the app reads as
+    // "not supported". Nothing is read, written or charged here.
+    if (body?.probe === "capabilities") {
+      return json({ capabilities: { dry_run: true } });
+    }
+
     const {
       booking_id,
       new_end_date,
