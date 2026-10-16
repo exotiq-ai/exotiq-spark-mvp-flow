@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.77.0';
 import { logTransfer } from "../_shared/transferGuard.ts";
 import { loadFleetTruth, recommendAll, sharePct } from "../_shared/motoriq/serverFacts.ts";
 
+import { aiChatUrl, aiModel, aiProviderLabel, aiRequestParams } from "../_shared/aiProvider.ts";
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
@@ -70,7 +71,7 @@ serve(async (req) => {
 
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // Get user's team
@@ -238,7 +239,7 @@ serve(async (req) => {
     // revenue is rental revenue for the week; the booking count is by creation date, so the two are not put in one sentence
     let topAction = `Review your fleet pricing — rentals this week brought in $${currentRevenue.toLocaleString()}.`;
 
-    if (LOVABLE_API_KEY) {
+    if (OPENAI_API_KEY) {
       try {
         // Human-readable brief for the LLM (no snake_case, pre-formatted units)
         const fmtMoney = (n: number) => `$${Math.round(n).toLocaleString()}`;
@@ -254,14 +255,14 @@ serve(async (req) => {
           resolvedCity ? `Market: ${resolvedCity}` : null,
         ].filter(Boolean).join('\n');
 
-        const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        const aiResponse = await fetch(aiChatUrl(), {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+            'Authorization': `Bearer ${OPENAI_API_KEY}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'google/gemini-3-flash-preview',
+            ...aiRequestParams("text"),
             messages: [
               {
                 role: 'system',
@@ -321,8 +322,8 @@ serve(async (req) => {
             team_id: teamId ?? null,
             user_id: userId ?? null,
             caller: "weekly-intelligence-digest",
-            model: "google/gemini-3-flash-preview",
-            provider: "Google (Gemini via Lovable AI Gateway)",
+            model: aiModel("text"),
+            provider: aiProviderLabel(),
             provider_region: "United States / Global",
             response_bytes: content ? content.length : 0,
             status: "ok",

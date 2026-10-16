@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.77.0';
 import { logTransfer } from "../_shared/transferGuard.ts";
 
+import { aiChatUrl, aiModel, aiProviderLabel, aiRequestParams } from "../_shared/aiProvider.ts";
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -92,9 +93,9 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      console.error("LOVABLE_API_KEY is not configured");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    if (!OPENAI_API_KEY) {
+      console.error("OPENAI_API_KEY is not configured");
       return new Response(JSON.stringify(getFallbackForecast()), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -108,14 +109,14 @@ serve(async (req) => {
     // Build the AI prompt
     const prompt = buildForecastPrompt(location, dateRange, fleetData, historicalBookings, events);
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch(aiChatUrl(), {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        ...aiRequestParams("text"),
         messages: [
           {
             role: "system",
@@ -234,8 +235,8 @@ High-end vehicles (supercars, exotics) see even larger demand spikes during even
       team_id: ((claimsData.claims as any).team_id as string) ?? null,
       user_id: ((claimsData.claims as any).sub as string) ?? null,
       caller: "ai-demand-forecast",
-      model: "google/gemini-2.5-flash",
-      provider: "Google (Gemini via Lovable AI Gateway)",
+      model: aiModel("text"),
+      provider: aiProviderLabel(),
       provider_region: "United States / Global",
       response_bytes: JSON.stringify(aiResponse).length,
       status: "ok",

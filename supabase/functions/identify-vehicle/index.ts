@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { logTransfer } from "../_shared/transferGuard.ts";
 
+import { aiChatUrl, aiModel, aiProviderLabel, aiRequestParams } from "../_shared/aiProvider.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
@@ -47,9 +48,9 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      console.error("LOVABLE_API_KEY is not configured");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    if (!OPENAI_API_KEY) {
+      console.error("OPENAI_API_KEY is not configured");
       return new Response(
         JSON.stringify({ error: "AI service not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -59,14 +60,14 @@ serve(async (req) => {
     console.log(`Analyzing vehicle image: ${filename || imageUrl.substring(0, 50)}...`);
 
     // Call Gemini 2.5 Flash for vehicle identification
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch(aiChatUrl(), {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        ...aiRequestParams("vision"),
         messages: [
           {
             role: "user",
@@ -107,7 +108,7 @@ If this is not a vehicle, set isVehicle to false and leave other fields empty or
             ]
           }
         ],
-        max_tokens: 1000,
+        max_completion_tokens: 1000,
       }),
     });
 
@@ -140,8 +141,8 @@ If this is not a vehicle, set isVehicle to false and leave other fields empty or
       team_id: null,
       user_id: null,
       caller: "identify-vehicle",
-      model: "google/gemini-2.5-flash",
-      provider: "Google (Gemini Vision via Lovable AI Gateway)",
+      model: aiModel("vision"),
+      provider: aiProviderLabel(),
       provider_region: "United States / Global",
       response_bytes: content ? content.length : 0,
       status: "ok",

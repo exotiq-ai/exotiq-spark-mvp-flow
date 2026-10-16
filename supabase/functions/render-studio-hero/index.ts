@@ -2,6 +2,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@4.0.0";
 import { logTransfer } from "../_shared/transferGuard.ts";
+import { geminiImageModel, geminiImageResponse } from "../_shared/geminiImage.ts";
+import { aiChatUrl, aiModel, aiProviderLabel, aiRequestParams } from "../_shared/aiProvider.ts";
 import {
   STUDIO_HERO_PROMPT_VERSION,
   STUDIO_HERO_MASTER_PROMPT,
@@ -17,9 +19,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const RENDER_MODEL = "google/gemini-2.5-flash-image"; // Nano Banana
-const QC_MODEL = "google/gemini-2.5-flash";
-const AI_GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
+const RENDER_MODEL = geminiImageModel(); // Nano Banana
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -104,11 +104,11 @@ async function runQc(
   sourceDataUrl: string,
   renderDataUrl: string
 ): Promise<QcResult> {
-  const res = await fetch(AI_GATEWAY, {
+  const res = await fetch(aiChatUrl(), {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: QC_MODEL,
+      ...aiRequestParams("vision"),
       messages: [
         {
           role: "user",
@@ -152,11 +152,12 @@ serve(async (req) => {
     }
     if (!vehicleId) return json({ success: false, error: "vehicleId is required" }, 400);
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
-    if (!LOVABLE_API_KEY || !SUPABASE_URL || !SERVICE_KEY || !ANON_KEY) {
+    if (!GEMINI_API_KEY || !OPENAI_API_KEY || !SUPABASE_URL || !SERVICE_KEY || !ANON_KEY) {
       return json({ success: false, error: "Service not configured" }, 500);
     }
 
@@ -302,29 +303,13 @@ serve(async (req) => {
     if (padRes.padded) console.log("source padded to landscape", { jobId: job.id });
 
     // Render via Nano Banana (edit-style: source photo as reference)
-    const renderRes = await fetch(AI_GATEWAY, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: RENDER_MODEL,
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: prompt },
-              { type: "image_url", image_url: { url: sourceDataUrl } },
-            ],
-          },
-        ],
-        modalities: ["image", "text"],
-      }),
-    });
+    const renderRes = await geminiImageResponse({ prompt, sourceDataUrl });
 
     if (!renderRes.ok) {
       const errText = await renderRes.text();
       console.error("render error:", renderRes.status, errText);
       await supabase.from("hero_render_jobs").update({ status: "failed", error: `render_${renderRes.status}` }).eq("id", job.id);
-      logTransfer({ team_id: teamId, user_id: userId, caller: "render-studio-hero", model: RENDER_MODEL, provider: "Google (Gemini Image via Lovable AI Gateway)", provider_region: "United States / Global", response_bytes: 0, status: "error" }).catch(() => {});
+      logTransfer({ team_id: teamId, user_id: userId, caller: "render-studio-hero", model: RENDER_MODEL, provider: "Google (Gemini API)", provider_region: "United States / Global", response_bytes: 0, status: "error" }).catch(() => {});
       if (renderRes.status === 429) return json({ success: false, error: "Rate limit exceeded. Please try again later." }, 429);
       if (renderRes.status === 402) return json({ success: false, error: "AI credits exhausted. Please add funds." }, 402);
       return json({ success: false, error: "Studio render failed" }, 500);
@@ -333,7 +318,7 @@ serve(async (req) => {
     const renderData = await renderRes.json();
     const images = renderData.choices?.[0]?.message?.images;
     const renderImageUrl: string | undefined = images?.[0]?.image_url?.url;
-    logTransfer({ team_id: teamId, user_id: userId, caller: "render-studio-hero", model: RENDER_MODEL, provider: "Google (Gemini Image via Lovable AI Gateway)", provider_region: "United States / Global", response_bytes: renderImageUrl?.length ?? 0, status: "ok" }).catch(() => {});
+    logTransfer({ team_id: teamId, user_id: userId, caller: "render-studio-hero", model: RENDER_MODEL, provider: "Google (Gemini API)", provider_region: "United States / Global", response_bytes: renderImageUrl?.length ?? 0, status: "ok" }).catch(() => {});
 
     if (!renderImageUrl?.startsWith("data:image")) {
       await supabase.from("hero_render_jobs").update({ status: "failed", error: "no_image_returned" }).eq("id", job.id);
@@ -393,14 +378,14 @@ serve(async (req) => {
 
     // QC gate
     await supabase.from("hero_render_jobs").update({ status: "qc", render_photo_id: photoRecord.id }).eq("id", job.id);
-    const qc = await runQc(LOVABLE_API_KEY, sourceDataUrl, renderImageUrl);
+    const qc = await runQc(OPENAI_API_KEY, sourceDataUrl, renderImageUrl);
     // Deterministic orientation gate — the vision reviewer can miss portrait output.
     const dims = imageDims(renderImageUrl);
     if (dims && dims.h >= dims.w) {
       qc.pass = false;
       qc.failures = Array.from(new Set([...(qc.failures ?? []), "wrong_orientation"]));
     }
-    logTransfer({ team_id: teamId, user_id: userId, caller: "render-studio-hero-qc", model: QC_MODEL, provider: "Google (Gemini via Lovable AI Gateway)", provider_region: "United States / Global", response_bytes: 0, status: "ok" }).catch(() => {});
+    logTransfer({ team_id: teamId, user_id: userId, caller: "render-studio-hero-qc", model: aiModel("vision"), provider: aiProviderLabel(), provider_region: "United States / Global", response_bytes: 0, status: "ok" }).catch(() => {});
 
     if (!qc.pass) {
       const finalAttempt = attempt >= STUDIO_HERO_MAX_ATTEMPTS;
