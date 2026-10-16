@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { logTransfer } from "../_shared/transferGuard.ts";
 
+import { geminiImageModel, geminiImageResponse } from "../_shared/geminiImage.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
@@ -53,13 +54,13 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
 
-    if (!LOVABLE_API_KEY) {
-      console.error("LOVABLE_API_KEY is not configured");
+    if (!GEMINI_API_KEY) {
+      console.error("GEMINI_API_KEY is not configured");
       return new Response(
         JSON.stringify({ success: false, error: "AI service not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -110,23 +111,7 @@ serve(async (req) => {
     console.log(`Prompt: ${prompt}`);
 
     // Call Gemini 2.5 Flash Image (Nano Banana) for image generation
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash-image",
-        messages: [
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        modalities: ["image", "text"]
-      }),
-    });
+    const response = await geminiImageResponse({ prompt });
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -157,8 +142,8 @@ serve(async (req) => {
       team_id: teamId ?? null,
       user_id: userId ?? null,
       caller: "generate-hero-image",
-      model: "google/gemini-2.5-flash-image",
-      provider: "Google (Gemini Image via Lovable AI Gateway)",
+      model: geminiImageModel(),
+      provider: "Google (Gemini API)",
       provider_region: "United States / Global",
       response_bytes: images?.[0]?.image_url?.url?.length ?? 0,
       status: "ok",

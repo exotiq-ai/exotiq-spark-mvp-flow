@@ -4,6 +4,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { logTransfer } from "../_shared/transferGuard.ts";
 
+import { aiChatUrl, aiModel, aiProviderLabel, aiRequestParams } from "../_shared/aiProvider.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -72,22 +73,22 @@ Deno.serve(async (req) => {
     const b64 = btoa(bin);
     const dataUrl = `data:${mime};base64,${b64}`;
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) return json({ error: "AI not configured" }, 500);
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    if (!OPENAI_API_KEY) return json({ error: "AI not configured" }, 500);
 
     // Call AI
     let parsed: any = { confidence: 0 };
     let parseFailed = false;
     let parseFailReason = "";
     try {
-      const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      const aiResp = await fetch(aiChatUrl(), {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
+          ...aiRequestParams("vision"),
           messages: [
             {
               role: "system",
@@ -166,8 +167,8 @@ Deno.serve(async (req) => {
       team_id,
       user_id: userId,
       caller: "parse-expense-receipt",
-      model: "google/gemini-3-flash-preview",
-      provider: "Google (Gemini Vision via Lovable AI Gateway)",
+      model: aiModel("vision"),
+      provider: aiProviderLabel(),
       provider_region: "United States / Global",
       status: parseFailed ? "error" : "ok",
     }).catch(() => {});

@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { logTransfer } from "../_shared/transferGuard.ts";
 
+import { aiChatUrl, aiModel, aiProviderLabel, aiRequestParams } from "../_shared/aiProvider.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -118,7 +119,7 @@ serve(async (req) => {
     delete counts.utilization;
     const issueTitles = sanitizeTitles(raw.issueTitles);
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 
     // Deterministic fallback (used when no API key, on AI failure, or on any error).
     const fallback = {
@@ -126,7 +127,7 @@ serve(async (req) => {
       topActions: deterministicActions(counts),
     };
 
-    if (!LOVABLE_API_KEY) {
+    if (!OPENAI_API_KEY) {
       return new Response(JSON.stringify(fallback), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -155,14 +156,14 @@ Write a 2–4 sentence punch list narrative the operator should read first thing
 Return STRICT JSON: {"narrative": string, "topActions": string[] }`;
 
     try {
-      const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      const aiResponse = await fetch(aiChatUrl(), {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
+          ...aiRequestParams("text"),
           messages: [
             {
               role: "system",
@@ -187,8 +188,8 @@ Return STRICT JSON: {"narrative": string, "topActions": string[] }`;
         team_id: null,
         user_id: null,
         caller: "daily-brief-narrative",
-        model: "google/gemini-3-flash-preview",
-        provider: "Google (Gemini via Lovable AI Gateway)",
+        model: aiModel("text"),
+        provider: aiProviderLabel(),
         provider_region: "United States / Global",
         response_bytes: content ? content.length : 0,
         status: "ok",

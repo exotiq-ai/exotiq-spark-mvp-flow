@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.77.0';
 import { logTransfer } from "../_shared/transferGuard.ts";
 import { COUNTED_STATUSES, occupiedDays, addDays, safeTimeZone } from "../_shared/motoriq/facts.ts";
 
+import { aiChatUrl, aiModel, aiProviderLabel, aiRequestParams } from "../_shared/aiProvider.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -72,19 +73,19 @@ serve(async (req) => {
     }
 
     // If AI insights are requested, generate them
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
     let aiInsights = null;
 
-    if (LOVABLE_API_KEY && data) {
+    if (OPENAI_API_KEY && data) {
       try {
-        const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const aiResponse = await fetch(aiChatUrl(), {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            Authorization: `Bearer ${OPENAI_API_KEY}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
+            ...aiRequestParams("text"),
             messages: [
               {
                 role: "system",
@@ -105,8 +106,8 @@ serve(async (req) => {
             team_id: ((claimsData.claims as any).team_id as string) ?? null,
             user_id: ((claimsData.claims as any).sub as string) ?? null,
             caller: "generate-report",
-            model: "google/gemini-2.5-flash",
-            provider: "Google (Gemini via Lovable AI Gateway)",
+            model: aiModel("text"),
+            provider: aiProviderLabel(),
             provider_region: "United States / Global",
             response_bytes: aiInsights ? aiInsights.length : 0,
             status: "ok",
