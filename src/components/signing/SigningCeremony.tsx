@@ -213,7 +213,8 @@ export const SigningCeremony = ({
       // Upload signature image
       const sigBase64 = signatureDataUrl.split(",")[1];
       const sigBytes = Uint8Array.from(atob(sigBase64), (c) => c.charCodeAt(0));
-      const sigFileName = `signatures/${user.id}/${booking.id}-${Date.now()}.png`;
+      // First folder must be the user's id: the storage policy (harden_tenant_rls_policies) rejects any other first folder.
+      const sigFileName = `${user.id}/signatures/${booking.id}-${Date.now()}.png`;
 
       const { error: sigUploadError } = await supabase.storage
         .from("customer-documents")
