@@ -2,7 +2,7 @@
 // Single source of truth for the ARK-style studio render pipeline.
 // Bump STUDIO_HERO_PROMPT_VERSION whenever the prompt or checklist changes.
 
-export const STUDIO_HERO_PROMPT_VERSION = "v1.3";
+export const STUDIO_HERO_PROMPT_VERSION = "v1.4";
 
 export const STUDIO_HERO_MASTER_PROMPT = `Create a photorealistic premium automotive studio photograph of this EXACT vehicle. Replace the source environment and lighting, not the vehicle's identity. Every output must look photographed in the same fixed ARK studio, with the same neutral charcoal backdrop, polished floor, exposure and broad soft lighting. Vehicle paint must NEVER tint the studio background or floor.
 
@@ -32,7 +32,18 @@ export const STUDIO_HERO_CORRECTIONS: Record<string, string> = {
     "CRITICAL: the car must fill 75-80% of the frame width, centered lower-middle, fully visible with padding around it.",
   detail_mismatch:
     "CRITICAL: preserve the exact wheels, badges, grille, body kit, paint color, calipers and interior from the source photo. Do not invent or restyle any vehicle detail.",
+  paint_mismatch:
+    "CRITICAL: the exterior paint color must exactly match the car's body paint in the SOURCE photo. Do not take color from the interior, upholstery, trim or surroundings.",
 };
+
+// Pre-render source check (no attempt consumed). Rejects interior/detail/rear shots.
+export const STUDIO_HERO_SOURCE_CLASSIFIER = `Classify this vehicle photo for use as a studio hero render source. Respond ONLY with JSON:
+{"kind": "exterior_front_quarter"|"exterior_other"|"interior"|"detail"|"rear"|"collage"|"other", "facing": "left"|"right"|null, "paint": "the car's exterior body paint color in one or two words, or null", "matches_listed_color": true|false|null}
+- exterior_front_quarter: the whole car exterior is visible from a front three-quarter angle.
+- exterior_other: the whole car exterior is visible from the front or side (not mainly the rear).
+- interior: seats, dashboard or cabin. detail: close-up of wheels, badges or parts. rear: mainly the back of the car. collage: multiple images combined.
+- facing: which edge of the frame the FRONT of the car points toward, or null.
+- matches_listed_color: whether the exterior paint is the same color family as the listed color; null if no listed color or no exterior visible. Ignore interior/upholstery color.`;
 
 export const STUDIO_HERO_QC_CHECKLIST = `You are an automotive photography QC reviewer. Compare the RENDERED image against the SOURCE photo for vehicle fidelity; assess the rendered environment against the fixed ARK studio standard below, NOT against the source environment. Answer in JSON only. A broad subtle charcoal tonal transition is acceptable; a concentrated spotlight halo is not. Judge obvious visual defects, not tiny pixel differences.
 
@@ -46,8 +57,10 @@ Check each item:
 7. floor: polished neutral charcoal with a subtle soft reflection beneath the car and realistic tire contact shadows. FAIL for a clearly matte floor with no reflection, a sharp mirror duplicate, wet-floor appearance or a bright localized floor pool. Do not demand an equally bright reflection from every paint color.
 8. roof state: the rendered convertible roof must match the SOURCE's open or closed state; an obvious change is detail_mismatch.
 
+9. paint: the rendered exterior paint color matches the SOURCE car's exterior paint (ignore interior color). An obvious color change is paint_mismatch.
+
 Use wrong_lighting for lighting defects and wrong_floor for floor/reflection defects. pass must be false whenever any checklist item fails, with every failed item's code included.
-Respond ONLY with JSON: {"pass": boolean, "failures": ["wrong_direction"|"wrong_backdrop"|"wrong_orientation"|"wrong_framing"|"detail_mismatch"|"wrong_lighting"|"wrong_floor"], "notes": "one short sentence"}`;
+Respond ONLY with JSON: {"pass": boolean, "failures": ["wrong_direction"|"wrong_backdrop"|"wrong_orientation"|"wrong_framing"|"detail_mismatch"|"wrong_lighting"|"wrong_floor"|"paint_mismatch"], "notes": "one short sentence"}`;
 
 export const STUDIO_HERO_MAX_ATTEMPTS = 3;
 export const STUDIO_HERO_ESCALATION_EMAIL = "hello@exotiq.ai";
