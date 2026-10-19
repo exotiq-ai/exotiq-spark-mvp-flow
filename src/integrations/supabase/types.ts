@@ -1568,6 +1568,8 @@ export type Database = {
           prompt_version: string
           qc_failure_reasons: string[] | null
           qc_passed: boolean | null
+          recipe_version: string | null
+          render_model: string | null
           render_photo_id: string | null
           source_photo_id: string | null
           status: string
@@ -1586,6 +1588,8 @@ export type Database = {
           prompt_version: string
           qc_failure_reasons?: string[] | null
           qc_passed?: boolean | null
+          recipe_version?: string | null
+          render_model?: string | null
           render_photo_id?: string | null
           source_photo_id?: string | null
           status?: string
@@ -1604,6 +1608,8 @@ export type Database = {
           prompt_version?: string
           qc_failure_reasons?: string[] | null
           qc_passed?: boolean | null
+          recipe_version?: string | null
+          render_model?: string | null
           render_photo_id?: string | null
           source_photo_id?: string | null
           status?: string
@@ -3664,6 +3670,60 @@ export type Database = {
         }
         Relationships: []
       }
+      studio_hero_benchmark_results: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          error: string | null
+          fidelity_score: number | null
+          id: string
+          model: string
+          qc_failures: string[]
+          qc_notes: string | null
+          qc_pass: boolean | null
+          recipe_version: string
+          render_url: string | null
+          run_label: string
+          studio_score: number | null
+          team_id: string
+          vehicle_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          error?: string | null
+          fidelity_score?: number | null
+          id?: string
+          model: string
+          qc_failures?: string[]
+          qc_notes?: string | null
+          qc_pass?: boolean | null
+          recipe_version: string
+          render_url?: string | null
+          run_label: string
+          studio_score?: number | null
+          team_id: string
+          vehicle_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          error?: string | null
+          fidelity_score?: number | null
+          id?: string
+          model?: string
+          qc_failures?: string[]
+          qc_notes?: string | null
+          qc_pass?: boolean | null
+          recipe_version?: string
+          render_url?: string | null
+          run_label?: string
+          studio_score?: number | null
+          team_id?: string
+          vehicle_id?: string
+        }
+        Relationships: []
+      }
       sub_processors: {
         Row: {
           created_at: string
@@ -5210,6 +5270,53 @@ export type Database = {
           vendor?: string | null
         }
         Relationships: []
+      }
+      vehicle_identity_sheets: {
+        Row: {
+          created_at: string
+          edited_at: string | null
+          edited_by: string | null
+          id: string
+          model: string | null
+          sheet: Json
+          source_photo_ids: string[]
+          team_id: string
+          updated_at: string
+          vehicle_id: string
+        }
+        Insert: {
+          created_at?: string
+          edited_at?: string | null
+          edited_by?: string | null
+          id?: string
+          model?: string | null
+          sheet?: Json
+          source_photo_ids?: string[]
+          team_id: string
+          updated_at?: string
+          vehicle_id: string
+        }
+        Update: {
+          created_at?: string
+          edited_at?: string | null
+          edited_by?: string | null
+          id?: string
+          model?: string | null
+          sheet?: Json
+          source_photo_ids?: string[]
+          team_id?: string
+          updated_at?: string
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_identity_sheets_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: true
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       vehicle_inspections: {
         Row: {
