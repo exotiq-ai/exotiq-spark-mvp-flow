@@ -99,6 +99,50 @@ interface QcResult {
   notes?: string;
 }
 
+interface SourceClass {
+  kind: string;
+  facing: string | null;
+  paint: string | null;
+  matches_listed_color: boolean | null;
+}
+
+// Classify a candidate source photo. Returns null on any failure (candidate skipped).
+async function classifySource(apiKey: string, url: string, listedColor: string | null): Promise<SourceClass | null> {
+  const dataUrl = await fetchAsDataUrl(url);
+  if (!dataUrl) return null;
+  try {
+    const res = await fetch(AI_GATEWAY, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: QC_MODEL,
+        messages: [{
+          role: "user",
+          content: [
+            { type: "text", text: STUDIO_HERO_SOURCE_CLASSIFIER + (listedColor ? `\nListed exterior paint color: ${listedColor}` : "\nListed exterior paint color: none") },
+            { type: "image_url", image_url: { url: dataUrl } },
+          ],
+        }],
+      }),
+    });
+    if (!res.ok) { console.error("classify failed:", res.status); return null; }
+    const data = await res.json();
+    const text: string = data.choices?.[0]?.message?.content ?? "";
+    const m = text.match(/\{[\s\S]*\}/);
+    if (!m) return null;
+    const p = JSON.parse(m[0]);
+    return {
+      kind: String(p.kind ?? ""),
+      facing: typeof p.facing === "string" ? p.facing : null,
+      paint: typeof p.paint === "string" ? p.paint : null,
+      matches_listed_color: typeof p.matches_listed_color === "boolean" ? p.matches_listed_color : null,
+    };
+  } catch (e) {
+    console.warn("classify error:", e);
+    return null;
+  }
+}
+
 async function runQc(
   apiKey: string,
   sourceDataUrl: string,
@@ -240,16 +284,50 @@ serve(async (req) => {
       (b.quality_score ?? 0) - (a.quality_score ?? 0)
     );
     let source = pool[0];
+    let classifiedFacing: string | null = null;
     if (sourcePhotoId) {
       const { data: isSaOverride } = await supabase.rpc("is_super_admin", { check_user_id: userId });
       if (isSaOverride !== true) return json({ success: false, error: "Only Exotiq support can pick a source photo" }, 403);
       const picked = photos.find((p) => p.id === sourcePhotoId);
       if (!picked) return json({ success: false, error: "Source photo not found on this vehicle" }, 400);
       source = picked;
+    } else if (pool.length) {
+      // Classify candidates (costs no attempt) so interior/detail/rear shots are
+      // never used as the source. Prefer an exterior front-quarter photo.
+      let chosen: (typeof pool)[number] | null = null;
+      let fallback: (typeof pool)[number] | null = null;
+      let fallbackFacing: string | null = null;
+      let paintConflict: string | null = null;
+      let fallbackConflict: string | null = null;
+      for (const cand of pool.slice(0, 6)) {
+        const c = await classifySource(LOVABLE_API_KEY, cand.url, vehicle.color ?? null);
+        if (!c) continue;
+        if (c.kind === "exterior_front_quarter") {
+          chosen = cand; classifiedFacing = c.facing;
+          paintConflict = c.matches_listed_color === false ? c.paint : null;
+          break;
+        }
+        if (c.kind === "exterior_other" && !fallback) {
+          fallback = cand; fallbackFacing = c.facing;
+          fallbackConflict = c.matches_listed_color === false ? c.paint : null;
+        }
+      }
+      if (!chosen && fallback) { chosen = fallback; classifiedFacing = fallbackFacing; paintConflict = fallbackConflict; }
+      if (!chosen) {
+        return json({ success: false, error: "Add a front 45° exterior photo first", needsSourcePhoto: true }, 400);
+      }
+      if (paintConflict && vehicle.color) {
+        return json({
+          success: false,
+          paintConflict: true,
+          error: `Check paint color: the listing says ${vehicle.color} but the photo shows ${paintConflict}. Update the listing color, then render again.`,
+        }, 409);
+      }
+      source = chosen;
     }
     if (!source?.url) {
       return json(
-        { success: false, error: "Add a 45° front driver-side photo first", needsSourcePhoto: true },
+        { success: false, error: "Add a front 45° exterior photo first", needsSourcePhoto: true },
         400
       );
     }
@@ -264,6 +342,9 @@ serve(async (req) => {
     const priorFailures = new Set<string>();
     (priorJobs ?? []).forEach((j) => (j.qc_failure_reasons ?? []).forEach((f) => priorFailures.add(f)));
     let prompt = STUDIO_HERO_MASTER_PROMPT;
+    if (vehicle.color) {
+      prompt += `\n\nPAINT HINT: the listed exterior paint color is ${vehicle.color}. If the source photo clearly shows a different paint color, match the source photo exactly.`;
+    }
     priorFailures.forEach((f) => {
       if (STUDIO_HERO_CORRECTIONS[f]) prompt += "\n\n" + STUDIO_HERO_CORRECTIONS[f];
     });
@@ -292,7 +373,7 @@ serve(async (req) => {
       return json({ success: false, error: "Could not load the source photo" }, 500);
     }
     let mirrored = false;
-    if ((sourcePhotoId && mirrorSource === true) || source.detected_angle === "rear_quarter" || source.detected_angle === "right_side") {
+    if ((sourcePhotoId && mirrorSource === true) || source.detected_angle === "rear_quarter" || source.detected_angle === "right_side" || (!sourcePhotoId && classifiedFacing === "right")) {
       const m = await mirrorDataUrl(sourceDataUrl);
       sourceDataUrl = m.dataUrl;
       mirrored = m.mirrored;
