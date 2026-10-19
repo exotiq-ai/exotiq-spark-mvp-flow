@@ -3,7 +3,7 @@
 // benchmarking at least as well as the current one (studio-hero-benchmark).
 import { STUDIO_HERO_MASTER_PROMPT } from "./studioHero.ts";
 
-export const STUDIO_RECIPE_VERSION = "v2.0";
+export const STUDIO_RECIPE_VERSION = "v2.1";
 
 export const IDENTITY_SHEET_PROMPT = `You are an automotive expert cataloguing ONE specific vehicle from several photos of it. Describe only what is visible; use null when unsure. Ignore surroundings and interior color when describing exterior paint. Respond ONLY with JSON:
 {
@@ -25,7 +25,7 @@ export function identitySheetToText(sheet: Record<string, unknown>): string {
 
 // Locked camera/lighting recipe appended to the v1.5 master studio prompt.
 export const LOCKED_RECIPE = `LOCKED CAMERA RECIPE (identical for every vehicle): full-frame camera, 50mm lens equivalent, f/8, camera at knee height (about 60cm), positioned at the front driver-side corner so the car is seen at a true 45-degree three-quarter angle, front pointing to the LEFT edge of frame. 3:2 landscape.
-LOCKED LIGHT RECIPE: one very large diffused softbox high above the car (out of frame), two tall strip softboxes at 90 degrees left and right (out of frame), low-intensity fill from camera position. Same exposure every time.
+LOCKED LIGHT RECIPE: broad, even, soft illumination whose sources are NEVER visible — no ceiling, no light panels, softboxes, strips or fixtures anywhere in frame or reflected as rectangles in the paint. The top of the frame fades to near-black. Same exposure every time.
 IMAGES: FIRST image = main source photo of the exact car. Any following images before the last = extra reference photos of the SAME car (use them for wheels, badges, kit details). LAST image = fixed studio STYLE REFERENCE (environment only).`;
 
 export function buildV2Prompt(sheet: Record<string, unknown>, corrections: string[] = []): string {
