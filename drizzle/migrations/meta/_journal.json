@@ -64,6 +64,13 @@
       "when": 1791317372219,
       "tag": "0008_quote_v2_fields_and_protect_switch",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792452413071,
+      "tag": "0009_migration",
+      "breakpoints": true
     }
   ]
 }

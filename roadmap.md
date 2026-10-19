@@ -28,3 +28,5 @@
 - [ ] "Service fee" Stripe/email wording (release day with v2 — Protect still charged until then)
 - [ ] Publish guardrails + 14-day notice flow
 - [ ] v2 split release (with MP-31)
+
+- [ ] Studio Hero v2: pick benchmark winner (Gregory), then switch live renderer + remove QC fail-open; add Super Admin side-by-side review view
