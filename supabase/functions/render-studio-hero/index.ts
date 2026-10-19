@@ -7,6 +7,7 @@ import {
   STUDIO_HERO_MASTER_PROMPT,
   STUDIO_HERO_CORRECTIONS,
   STUDIO_HERO_SOURCE_CLASSIFIER,
+  STUDIO_HERO_STYLE_REFERENCE_URL,
   STUDIO_HERO_QC_CHECKLIST,
   STUDIO_HERO_MAX_ATTEMPTS,
   STUDIO_HERO_ESCALATION_EMAIL,
@@ -147,7 +148,8 @@ async function classifySource(apiKey: string, url: string, listedColor: string |
 async function runQc(
   apiKey: string,
   sourceDataUrl: string,
-  renderDataUrl: string
+  renderDataUrl: string,
+  styleRefDataUrl: string | null = null
 ): Promise<QcResult> {
   const res = await fetch(AI_GATEWAY, {
     method: "POST",
@@ -158,9 +160,10 @@ async function runQc(
         {
           role: "user",
           content: [
-            { type: "text", text: STUDIO_HERO_QC_CHECKLIST + "\n\nFirst image is the SOURCE photo, second image is the RENDER." },
+            { type: "text", text: STUDIO_HERO_QC_CHECKLIST + "\n\nFirst image is the SOURCE photo, second image is the RENDER, third image (if present) is the STYLE REFERENCE studio." },
             { type: "image_url", image_url: { url: sourceDataUrl } },
             { type: "image_url", image_url: { url: renderDataUrl } },
+            ...(styleRefDataUrl ? [{ type: "image_url", image_url: { url: styleRefDataUrl } }] : []),
           ],
         },
       ],
@@ -383,6 +386,7 @@ serve(async (req) => {
     sourceDataUrl = padRes.dataUrl;
     if (padRes.padded) console.log("source padded to landscape", { jobId: job.id });
 
+    const styleRefDataUrl = await fetchAsDataUrl(STUDIO_HERO_STYLE_REFERENCE_URL);
     // Render via Nano Banana (edit-style: source photo as reference)
     const renderRes = await fetch(AI_GATEWAY, {
       method: "POST",
@@ -395,6 +399,7 @@ serve(async (req) => {
             content: [
               { type: "text", text: prompt },
               { type: "image_url", image_url: { url: sourceDataUrl } },
+              ...(styleRefDataUrl ? [{ type: "image_url", image_url: { url: styleRefDataUrl } }] : []),
             ],
           },
         ],
@@ -475,7 +480,7 @@ serve(async (req) => {
 
     // QC gate
     await supabase.from("hero_render_jobs").update({ status: "qc", render_photo_id: photoRecord.id }).eq("id", job.id);
-    const qc = await runQc(LOVABLE_API_KEY, sourceDataUrl, renderImageUrl);
+    const qc = await runQc(LOVABLE_API_KEY, sourceDataUrl, renderImageUrl, styleRefDataUrl);
     // Deterministic orientation gate — the vision reviewer can miss portrait output.
     const dims = imageDims(renderImageUrl);
     if (dims && dims.h >= dims.w) {
