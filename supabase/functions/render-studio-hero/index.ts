@@ -148,7 +148,8 @@ async function classifySource(apiKey: string, url: string, listedColor: string |
 async function runQc(
   apiKey: string,
   sourceDataUrl: string,
-  renderDataUrl: string
+  renderDataUrl: string,
+  styleRefDataUrl: string | null = null
 ): Promise<QcResult> {
   const res = await fetch(AI_GATEWAY, {
     method: "POST",
@@ -479,7 +480,7 @@ serve(async (req) => {
 
     // QC gate
     await supabase.from("hero_render_jobs").update({ status: "qc", render_photo_id: photoRecord.id }).eq("id", job.id);
-    const qc = await runQc(LOVABLE_API_KEY, sourceDataUrl, renderImageUrl);
+    const qc = await runQc(LOVABLE_API_KEY, sourceDataUrl, renderImageUrl, styleRefDataUrl);
     // Deterministic orientation gate — the vision reviewer can miss portrait output.
     const dims = imageDims(renderImageUrl);
     if (dims && dims.h >= dims.w) {
