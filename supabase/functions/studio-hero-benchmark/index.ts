@@ -13,7 +13,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 const AI = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const VISION_MODEL = "google/gemini-2.5-pro";
+const VISION_MODEL = "google/gemini-3.1-pro-preview";
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
 async function toDataUrl(url: string): Promise<string | null> {

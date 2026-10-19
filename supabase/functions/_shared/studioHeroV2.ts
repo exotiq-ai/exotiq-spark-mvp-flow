@@ -45,6 +45,5 @@ export const V2_CORRECTIONS: Record<string, string> = {
 // Image models eligible for benchmarking (chat-completions image output).
 export const BENCHMARK_MODELS = [
   "google/gemini-2.5-flash-image",
-  "google/gemini-3.1-flash-image",
   "google/gemini-3-pro-image",
 ];
