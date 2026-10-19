@@ -2,15 +2,19 @@
 // Single source of truth for the ARK-style studio render pipeline.
 // Bump STUDIO_HERO_PROMPT_VERSION whenever the prompt or checklist changes.
 
-export const STUDIO_HERO_PROMPT_VERSION = "v1.4";
+export const STUDIO_HERO_PROMPT_VERSION = "v1.5";
 
-export const STUDIO_HERO_MASTER_PROMPT = `Create a photorealistic premium automotive studio photograph of this EXACT vehicle. Replace the source environment and lighting, not the vehicle's identity. Every output must look photographed in the same fixed ARK studio, with the same neutral charcoal backdrop, polished floor, exposure and broad soft lighting. Vehicle paint must NEVER tint the studio background or floor.
+// Fixed ARK studio style anchor sent with every render (environment only).
+export const STUDIO_HERO_STYLE_REFERENCE_URL =
+  "https://jlgwbbqydjeokypoenoc.supabase.co/storage/v1/object/public/vehicle-photos/_studio-reference%2Fark-studio-reference-v1.jpg";
 
-STUDIO: a seamless neutral charcoal-gray cyclorama with understated fine matte texture and a gradual, broad tonal transition across the entire backdrop. Keep the floor-to-wall transition unobtrusive. No concentrated radial glow behind the car, bright halo, spotlight cone or pool, heavy vignette, crushed-black corners, colored light, brick, cinderblock, windows, doors, wall panels, visible ceiling, light fixtures or overhead lightbox. Do not reproduce the source photo's surroundings.
+export const STUDIO_HERO_MASTER_PROMPT = `Create a photorealistic premium automotive studio photograph of the EXACT vehicle in the FIRST image. The SECOND image is the fixed ARK studio STYLE REFERENCE: copy only its room, backdrop, floor, lighting, exposure and mood. Never copy the reference vehicle, its color, shape, wheels or position. Every output must look photographed in this same studio on the same day. Vehicle paint must NEVER tint the studio.
 
-LIGHTING: use large diffused light sources outside the frame, broad soft overhead illumination and balanced soft side fill. Long smooth highlights follow the hood, roof and shoulder line; gentle fill reveals the grille, front bumper, wheels and side profile without flattening the paint finish. Preserve natural contrast and black paint separation without hard-edged glare, blown highlights or a theatrical spotlight. The car must feel evenly lit in a professional studio, not isolated in a bright pool of light. Never show or reflect a recognizable lightbox panel, fixture or lighting rig.
+STUDIO: the same dark, low-key ARK studio room as the style reference: a deep charcoal-black back wall and side walls meeting in soft, barely visible corners, with a very faint, softly lit stone/masonry texture that fades into near-black at the top and edges. A gentle, broad lift of light on the wall behind the car only. Keep it moody, premium and consistent. No bright gray or white cyclorama, no colored light, windows, doors, signage, visible ceiling, light fixtures or overhead lightbox. Do not reproduce the source photo's surroundings.
 
-FLOOR: polished neutral charcoal, neither matte asphalt nor a mirror. Show a subtle, softly blurred, low-opacity reflection of the lower body, wheels and sills directly beneath the car, fading naturally with distance. Keep realistic soft contact shadows under the tires so the car sits firmly on the floor. No sharp duplicate car reflection, wet-floor effect, luminous floor patch or colored reflections spilling across the studio.
+LIGHTING: large soft overhead key light and gentle side fill, out of frame, sculpting the car against the dark room. Long smooth highlights along the hood, roof and shoulder line; the grille, front bumper, wheels and side profile stay clearly readable. The car is the brightest subject; the studio stays dark. Natural contrast, no hard glare, blown highlights, theatrical spotlight cone or visible/reflected lighting rig.
+
+FLOOR: dark charcoal smooth concrete like the style reference, softly lit around and in front of the car and falling off to near-black toward the edges. A subtle, soft low-opacity sheen/reflection beneath the lower body and wheels, with realistic soft contact shadows under the tires. No mirror duplicate, wet floor or bright floor patch.
 
 COMPOSITION: true 45-degree front driver-side three-quarter view from knee height. The front of the car points toward the LEFT edge of the frame. Wheels turned slightly toward camera without changing their design. Landscape orientation. The complete car fills 75-80% of frame width, centered lower-middle, with generous clear padding above and on both sides. Keep the entire front bumper, splitter, mirrors, roof and every tire inside the frame; leave floor visible below the tires and their reflection. No crop, collage, text, watermark or added graphics.
 
@@ -21,7 +25,7 @@ export const STUDIO_HERO_CORRECTIONS: Record<string, string> = {
   wrong_direction:
     "CRITICAL: the front of the car MUST point toward the LEFT edge of the frame. Mirror the composition horizontally if needed.",
   wrong_backdrop:
-    "CRITICAL: use the fixed neutral charcoal-gray seamless studio, with a broad subtle tonal transition only. Remove color casts, concentrated radial glow, bright halo, wall panels and visible ceiling. Absolutely no light fixtures, lightbox, brick, cinderblock, windows, garage doors or outdoor elements.",
+    "CRITICAL: match the STYLE REFERENCE studio exactly: dark charcoal-black room with very faint masonry texture, dark concrete floor, car brightest subject. No light gray/white backdrop, color casts, visible ceiling, light fixtures, lightbox, windows, garage doors or outdoor elements.",
   wrong_lighting:
     "CRITICAL: replace theatrical spotlight lighting with broad, large-source diffused illumination and balanced soft side fill. Keep gentle long highlights and readable body details. No spotlight pool, bright halo, hard-edged glare, heavy vignette, clipped highlights or visible/reflected lighting rigs.",
   wrong_floor:
@@ -45,16 +49,16 @@ export const STUDIO_HERO_SOURCE_CLASSIFIER = `Classify this vehicle photo for us
 - facing: which edge of the frame the FRONT of the car points toward, or null.
 - matches_listed_color: whether the exterior paint is the same color family as the listed color; null if no listed color or no exterior visible. Ignore interior/upholstery color.`;
 
-export const STUDIO_HERO_QC_CHECKLIST = `You are an automotive photography QC reviewer. Compare the RENDERED image against the SOURCE photo for vehicle fidelity; assess the rendered environment against the fixed ARK studio standard below, NOT against the source environment. Answer in JSON only. A broad subtle charcoal tonal transition is acceptable; a concentrated spotlight halo is not. Judge obvious visual defects, not tiny pixel differences.
+export const STUDIO_HERO_QC_CHECKLIST = `You are an automotive photography QC reviewer. Compare the RENDERED image against the SOURCE photo for vehicle fidelity; assess the rendered environment against the fixed ARK STYLE REFERENCE and the standard below, NOT against the source environment. Answer in JSON only. A broad subtle charcoal tonal transition is acceptable; a concentrated spotlight halo is not. Judge obvious visual defects, not tiny pixel differences.
 
 Check each item:
 1. direction: front of the car points toward the LEFT edge of the frame (45-degree front three-quarter view).
-2. backdrop: seamless neutral charcoal-gray studio with a broad subtle tonal transition. FAIL for obvious color casts, concentrated bright radial halos, wall panels, visible ceiling, brick or cinderblock walls, windows, garage doors, outdoor scenery, or visible light fixtures/lightbox. A gentle broad gradient is fine.
+2. backdrop: the same dark low-key ARK studio as the STYLE REFERENCE (third image): deep charcoal-black walls with at most a very faint masonry texture, dark concrete floor. FAIL for a light gray or white backdrop, a clearly different room, color casts, windows, garage doors, outdoor scenery, visible ceiling or visible light fixtures/lightbox.
 3. orientation: landscape (wider than tall).
 4. framing: car fully visible, roughly centered, approximately 75-80% of frame width with padding. FAIL if any bumper, splitter, mirror, roof or tire is cut off, or the car is tiny. Floor and reflection must have space below the tires.
 5. fidelity: the car is recognizably the same vehicle with the same paint color, wheel design, and body kit as the SOURCE. FAIL only for obvious changes: different paint color, clearly different wheel design, extra wheels, warped badges, or invented body panels. Minor lighting/reflection differences are fine.
 6. lighting: broad soft studio illumination with balanced fill and smooth highlights. FAIL for a conspicuous spotlight cone/pool, strong halo, heavy vignette, hard glare, large blown highlights, or a recognizable lightbox/lighting rig reflected in the car. Natural paint-dependent highlight differences are fine.
-7. floor: polished neutral charcoal with a subtle soft reflection beneath the car and realistic tire contact shadows. FAIL for a clearly matte floor with no reflection, a sharp mirror duplicate, wet-floor appearance or a bright localized floor pool. Do not demand an equally bright reflection from every paint color.
+7. floor: dark charcoal concrete with a subtle soft sheen beneath the car and realistic tire contact shadows. FAIL for a light/bright floor, sharp mirror duplicate, wet-floor appearance or a bright localized floor pool.
 8. roof state: the rendered convertible roof must match the SOURCE's open or closed state; an obvious change is detail_mismatch.
 
 9. paint: the rendered exterior paint color matches the SOURCE car's exterior paint (ignore interior color). An obvious color change is paint_mismatch.
