@@ -3,7 +3,7 @@
 // benchmarking at least as well as the current one (studio-hero-benchmark).
 import { STUDIO_HERO_MASTER_PROMPT } from "./studioHero.ts";
 
-export const STUDIO_RECIPE_VERSION = "v2.1";
+export const STUDIO_RECIPE_VERSION = "v2.2";
 
 export const IDENTITY_SHEET_PROMPT = `You are an automotive expert cataloguing ONE specific vehicle from several photos of it. Describe only what is visible; use null when unsure. Ignore surroundings and interior color when describing exterior paint. Respond ONLY with JSON:
 {
@@ -17,19 +17,24 @@ export const IDENTITY_SHEET_PROMPT = `You are an automotive expert cataloguing O
  "body_kit_and_aero": [string],
  "window_tint": string|null,
  "distinctive_features": [string]
-}`;
+ }
+For wheels, distinguish a solid disc/dish from a spoke wheel. Count only visible openings; use null rather than guessing hidden geometry. Describe the broad face, perimeter openings, center cap and finish precisely. Do not infer a standard factory wheel from the vehicle model.`;
 
 export function identitySheetToText(sheet: Record<string, unknown>): string {
   return `VEHICLE IDENTITY SHEET (ground truth — every item must appear exactly as described):\n${JSON.stringify(sheet, null, 1)}`;
 }
 
 // Locked camera/lighting recipe appended to the v1.5 master studio prompt.
-export const LOCKED_RECIPE = `LOCKED CAMERA RECIPE (identical for every vehicle): full-frame camera, 50mm lens equivalent, f/8, camera at knee height (about 60cm), positioned at the front driver-side corner so the car is seen at a true 45-degree three-quarter angle, front pointing to the LEFT edge of frame. 3:2 landscape.
-LOCKED LIGHT RECIPE: broad, even, soft illumination whose sources are NEVER visible — no ceiling, no light panels, softboxes, strips or fixtures anywhere in frame or reflected as rectangles in the paint. The top of the frame fades to near-black. Same exposure every time.
+export const LOCKED_RECIPE = `LOCKED CAMERA RECIPE (identical for every vehicle): full-frame camera, 50mm lens equivalent, f/8, camera at knee height (about 60cm), positioned at the front driver-side corner so the car is seen at a true 45-degree three-quarter angle. Absolute frame layout: front bumper, grille and headlights in the LEFT third; rear body recedes toward the RIGHT third. Car travels right to left. Reconstruct this viewpoint from the references; do not retain a right-facing source composition or mirror badges and lettering. Frame slightly downward with the ceiling entirely outside the picture. Full car at 75-80% width, generous tire/reflection clearance. 3:2 landscape.
+LOCKED LIGHT RECIPE: broad, even, soft off-camera illumination and balanced side fill. No ceiling, light panels, softboxes, strips or fixtures anywhere in frame or reflected as rectangles in the paint. The upper 20% is unobstructed near-black wall, not a ceiling or a lighting rig. Same neutral exposure every time. No spotlight pool, halo or colored glow. The dark smooth concrete floor has a soft, low-opacity reflection beneath the wheels and lower body, not a sharp mirror image.
 IMAGES: FIRST image = main source photo of the exact car. Any following images before the last = extra reference photos of the SAME car (use them for wheels, badges, kit details). LAST image = fixed studio STYLE REFERENCE (environment only).`;
 
 export function buildV2Prompt(sheet: Record<string, unknown>, corrections: string[] = []): string {
-  return [STUDIO_HERO_MASTER_PROMPT, LOCKED_RECIPE, identitySheetToText(sheet), ...corrections].join("\n\n");
+  // Remove conflicting v1 image numbering and lighting language in the benchmark only.
+  const master = STUDIO_HERO_MASTER_PROMPT
+    .replace("The SECOND image", "The LAST image")
+    .replace("large soft overhead key light and gentle side fill, out of frame", "broad soft off-camera illumination and balanced gentle side fill");
+  return [master, LOCKED_RECIPE, identitySheetToText(sheet), ...corrections].join("\n\n");
 }
 
 export const QC_V2_PROMPT = `You are a strict automotive photography QC reviewer. You get: the VEHICLE IDENTITY SHEET (text), one or more SOURCE photos of the real car, then the RENDER, then the STUDIO STYLE REFERENCE (last image).
