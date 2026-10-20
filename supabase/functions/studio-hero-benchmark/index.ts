@@ -3,7 +3,7 @@
 // renders with the locked recipe, scores with strict QC (fail-closed).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
-import { STUDIO_HERO_STYLE_REFERENCE_URL } from "../_shared/studioHero.ts";
+import { STUDIO_HERO_STYLE_REFERENCE_URL, STUDIO_HERO_SOURCE_CLASSIFIER } from "../_shared/studioHero.ts";
 import {
   STUDIO_RECIPE_VERSION, IDENTITY_SHEET_PROMPT, QC_V2_PROMPT, BENCHMARK_MODELS,
   buildV2Prompt, identitySheetToText,
@@ -82,9 +82,24 @@ Deno.serve(async (req) => {
     const real = (photos ?? []).filter((p) => p.url && !['studio_render', 'ai_generated'].includes(p.source ?? '') && !/studio-hero|ai-hero|generated/i.test(p.original_filename ?? "") && p.photo_type !== 'interior');
     if (!real.length && !referenceImages) return json({ error: "No real exterior photos" }, 422);
     real.sort((a, b) => Number(b.detected_angle === "front_quarter") - Number(a.detected_angle === "front_quarter"));
-    const refs = sourcePhotoIds ? sourcePhotoIds.map((id: string) => real.find((p) => p.id === id)) : real.slice(0, 4);
-    if (refs.some((p) => !p)) return json({ error: 'Reference photos must belong to this vehicle and cannot be generated or interior photos.' }, 400);
-    const refData: string[] = referenceImages ?? (await Promise.all(refs.map((p) => toDataUrl(p.url)))).filter(Boolean) as string[];
+    const requested = sourcePhotoIds ? sourcePhotoIds.map((id: string) => real.find((p) => p.id === id)) : real.slice(0, 8);
+    if (requested.some((p) => !p)) return json({ error: 'Reference photos must belong to this vehicle and cannot be generated or interior photos.' }, 400);
+    const refs: typeof real = [];
+    const refData: string[] = referenceImages ?? [];
+    if (!referenceImages) for (const photo of requested) {
+      if (!photo) continue;
+      const image = await toDataUrl(photo.url);
+      if (!image) continue;
+      const classification = parseJson((await chat(KEY, VISION_MODEL, [{ type: 'text', text: STUDIO_HERO_SOURCE_CLASSIFIER }, img(image)], false, telemetry))?.content);
+      const kind = classification?.kind;
+      if (!['exterior_front_quarter', 'exterior_other', 'rear', 'detail'].includes(kind)) {
+        if (sourcePhotoIds) return json({ error: 'Selected references include an interior or unsuitable photo. Choose genuine exterior or detail references.' }, 422);
+        continue;
+      }
+      if (refs.length === 0 && !['exterior_front_quarter', 'exterior_other', 'rear'].includes(kind)) continue;
+      refs.push(photo); refData.push(image);
+      if (refs.length >= 4) break;
+    }
     if (!refData.length) return json({ error: "Could not load photos" }, 422);
 
     // Stage 1: identity sheet (cached per vehicle)

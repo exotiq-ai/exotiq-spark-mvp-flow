@@ -15,6 +15,6 @@ describe('Studio Hero benchmark isolation', () => {
   });
 
   it('keeps uploaded examples out of the saved identity sheet', () => {
-    expect(source).toMatch(/if \(!referenceImages\) await db\.from\("vehicle_identity_sheets"\)\.upsert/);
+    expect(source).toMatch(/if \(!referenceImages\) \{\s*const \{ error: sheetError \} = await db\.from\("vehicle_identity_sheets"\)\.upsert/);
   });
 });
