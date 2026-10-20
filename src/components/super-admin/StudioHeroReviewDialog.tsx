@@ -14,7 +14,7 @@ import { describeFunctionError } from '@/lib/functionError';
 import { toast } from 'sonner';
 
 type Vehicle = { id: string; make: string; model: string; year: number | null; image_url: string | null };
-type Photo = { id: string; vehicle_id: string; url: string; enhanced_url: string | null; source: string | null; photo_type: string | null; original_filename: string | null };
+type Photo = { id: string; vehicle_id: string; url: string; enhanced_url: string | null; source: string | null; photo_type: string | null; original_filename: string | null; detected_angle?: string | null };
 type Sheet = { vehicle_id: string; sheet: Record<string, unknown>; reviewed_overrides: Record<string, unknown>; edited_at: string | null };
 type Benchmark = { id: string; vehicle_id: string; render_url: string | null; recipe_version: string; model: string; qc_pass: boolean | null; fidelity_score: number | null; studio_score: number | null; qc_failures: string[]; qc_notes: string | null; error: string | null; created_at: string; review_status: string; reference_kind: string; review_details: unknown; identity_snapshot: Record<string, unknown> | null; duration_ms: number | null; cost_usd: number | null };
 type Job = { id: string; vehicle_id: string; status: string; attempt_number: number; created_at: string; archived_at: string | null; error: string | null };
@@ -106,7 +106,7 @@ export function StudioHeroReviewDialog({ teamId, open, onClose }: { teamId: stri
             <Button variant="outline" size="sm" disabled={!!busy} onClick={() => setReset('fleet')}><RotateCcw className="mr-2 h-4 w-4" />Reset fleet</Button>
           </div>
           {!!candidates.length && <Select value={candidate?.id ?? ''} onValueChange={setCandidateId}><SelectTrigger aria-label="Candidate history"><SelectValue /></SelectTrigger><SelectContent>{candidates.map((b) => <SelectItem key={b.id} value={b.id}>{new Date(b.created_at).toLocaleString()} · {b.recipe_version} · {b.model.split('/')[1]} · {b.review_status}</SelectItem>)}</SelectContent></Select>}
-          <div className="grid gap-4 md:grid-cols-3">{image(uploadedExamples[0] ?? photos.find((p) => p.id === selectedPhotos[0])?.url ?? photos.find((p) => p.original_filename === 'IMG_8148.jpeg')?.url ?? photos[0]?.url, 'Original reference')}{image(vehicle?.image_url, 'Current hero')}{image(candidate?.render_url, 'Candidate preview')}</div>
+          <div className="grid gap-4 md:grid-cols-3">{image(uploadedExamples[0] ?? photos.find((p) => p.id === selectedPhotos[0])?.url ?? photos.find((p) => ['front_quarter', 'front', 'side', 'rear_quarter'].includes(p.detected_angle ?? ''))?.url ?? photos[0]?.url, 'Original reference')}{image(vehicle?.image_url, 'Current hero')}{image(candidate?.render_url, 'Candidate preview')}</div>
           {candidate && <section className="space-y-3 border-y py-4">
             <div className="flex flex-wrap gap-2"><Badge variant={candidate.qc_pass ? 'secondary' : 'outline'}>{candidate.qc_pass ? 'Quality checks passed' : 'Quality checks not passed'}</Badge><Badge variant="outline">{candidate.recipe_version}</Badge><span className="text-sm text-muted-foreground">Fidelity {candidate.fidelity_score ?? '—'}/10 · Studio {candidate.studio_score ?? '—'}/10{candidate.duration_ms ? ` · ${Math.round(candidate.duration_ms / 1000)}s` : ''} · Cost {candidate.cost_usd == null ? 'not recorded' : `$${candidate.cost_usd.toFixed(3)}`}</span></div>
             <p className="text-sm">{candidate.error ?? candidate.qc_notes ?? 'No review notes saved'}</p>
