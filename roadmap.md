@@ -30,3 +30,8 @@
 - [ ] v2 split release (with MP-31)
 
 - [ ] Studio Hero v2: pick benchmark winner (Gregory), then switch live renderer + remove QC fail-open; add Super Admin side-by-side review view
+
+## Maybach reference benchmark — 2026-10-20
+- [ ] Rerun a preview with the two supplied Maybach references; preserve the live hero and tenant attempts
+- [ ] Inspect wheels, direction, lighting and studio consistency; present the result
+- [ ] Prepare the finishing and Super Admin upgrade plan based on the result
