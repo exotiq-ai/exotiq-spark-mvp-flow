@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@4.0.0";
 import { logTransfer } from "../_shared/transferGuard.ts";
+import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import {
   STUDIO_HERO_PROMPT_VERSION,
   STUDIO_HERO_MASTER_PROMPT,
@@ -13,11 +14,6 @@ import {
   STUDIO_HERO_ESCALATION_EMAIL,
 } from "../_shared/studioHero.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
 
 const RENDER_MODEL = "google/gemini-2.5-flash-image"; // Nano Banana
 const QC_MODEL = "google/gemini-2.5-flash";
@@ -99,6 +95,7 @@ interface QcResult {
   pass: boolean;
   failures: string[];
   notes?: string;
+  pending?: boolean;
 }
 
 interface SourceClass {
@@ -171,22 +168,23 @@ async function runQc(
   });
   if (!res.ok) {
     console.error("QC call failed:", res.status, await res.text());
-    // QC unavailable: fail open (treat as pass) so a QC outage never blocks heroes.
-    return { pass: true, failures: [], notes: "qc_unavailable_fail_open" };
+    return { pass: false, failures: [], notes: 'Quality review is unavailable. The current hero is unchanged.', pending: true };
   }
   const data = await res.json();
   const text: string = data.choices?.[0]?.message?.content ?? "";
   try {
     const match = text.match(/\{[\s\S]*\}/);
-    if (!match) return { pass: true, failures: [], notes: "qc_unparseable_fail_open" };
+    if (!match) return { pass: false, failures: [], notes: 'Quality review is incomplete.', pending: true };
     const parsed = JSON.parse(match[0]);
+    const codes = Object.keys(STUDIO_HERO_CORRECTIONS);
+    if (typeof parsed.pass !== 'boolean' || !Array.isArray(parsed.failures) || parsed.failures.some((f: unknown) => typeof f !== 'string' || !codes.includes(f)) || typeof parsed.notes !== 'string') return { pass: false, failures: [], notes: 'Quality review is invalid.', pending: true };
     return {
-      pass: Boolean(parsed.pass),
+      pass: parsed.pass === true && parsed.failures.length === 0,
       failures: Array.isArray(parsed.failures) ? parsed.failures.map(String) : [],
       notes: typeof parsed.notes === "string" ? parsed.notes : undefined,
     };
   } catch {
-    return { pass: true, failures: [], notes: "qc_parse_error_fail_open" };
+    return { pass: false, failures: [], notes: 'Quality review is incomplete.', pending: true };
   }
 }
 
@@ -194,7 +192,9 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { vehicleId, teamId: bodyTeamId, sourcePhotoId, mirrorSource } = await req.json();
+    const { vehicleId, sourcePhotoId, mirrorSource, reviewJobId } = await req.json();
+    if (typeof vehicleId !== 'string' || !/^[0-9a-f-]{36}$/i.test(vehicleId)) return json({ success: false, error: 'Invalid vehicleId' }, 400);
+    if (reviewJobId !== undefined && (typeof reviewJobId !== 'string' || !/^[0-9a-f-]{36}$/i.test(reviewJobId))) return json({ success: false, error: 'Invalid review job' }, 400);
     if (sourcePhotoId !== undefined && (typeof sourcePhotoId !== "string" || !/^[0-9a-f-]{36}$/i.test(sourcePhotoId))) {
       return json({ success: false, error: "Invalid sourcePhotoId" }, 400);
     }
@@ -212,10 +212,10 @@ serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) return json({ success: false, error: "Authentication required" }, 401);
     const authClient = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
-    const { data: userData, error: userError } = await authClient.auth.getUser(
+    const { data: userData, error: userError } = await authClient.auth.getClaims(
       authHeader.replace("Bearer ", "")
     );
-    const userId = userData?.user?.id;
+    const userId = userData?.claims?.sub;
     if (userError || !userId) return json({ success: false, error: "Authentication required" }, 401);
 
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
@@ -227,15 +227,16 @@ serve(async (req) => {
       .eq("id", vehicleId)
       .single();
     if (vErr || !vehicle) return json({ success: false, error: "Vehicle not found" }, 404);
-    const teamId = vehicle.team_id ?? bodyTeamId;
+    const teamId = vehicle.team_id;
+    if (!teamId) return json({ success: false, error: 'Vehicle account not found' }, 400);
 
     const { data: membership } = await supabase
       .from("team_members")
-      .select("user_id")
+      .select("user_id, role")
       .eq("team_id", teamId)
       .eq("user_id", userId)
       .maybeSingle();
-    if (!membership) {
+    if (!membership || membership.role === 'viewer') {
       const { data: isSa } = await supabase.rpc("is_super_admin", { check_user_id: userId });
       if (isSa !== true) return json({ success: false, error: "Not a member of this team" }, 403);
     }
@@ -247,6 +248,29 @@ serve(async (req) => {
       .single();
     if (team?.studio_hero_opt_out) {
       return json({ success: false, error: "Studio hero renders are disabled for this team" }, 400);
+    }
+
+    if (reviewJobId) {
+      const { data: pendingJob } = await supabase.from('hero_render_jobs').select('*').eq('id', reviewJobId).eq('vehicle_id', vehicleId).eq('team_id', teamId).is('archived_at', null).single();
+      if (!pendingJob || pendingJob.review_state !== 'waiting' || !pendingJob.render_photo_id || !pendingJob.source_photo_id) return json({ success: false, error: 'No saved image is waiting for review.' }, 400);
+      const { data: pair } = await supabase.from('vehicle_photos').select('id,url').eq('vehicle_id', vehicleId).in('id', [pendingJob.source_photo_id, pendingJob.render_photo_id]);
+      const sourceUrl = pair?.find((p) => p.id === pendingJob.source_photo_id)?.url;
+      const renderUrl = pair?.find((p) => p.id === pendingJob.render_photo_id)?.url;
+      if (!sourceUrl || !renderUrl) return json({ success: false, error: 'Review photos could not be found.' }, 422);
+      const [sourceData, renderData, styleData] = await Promise.all([fetchAsDataUrl(sourceUrl), fetchAsDataUrl(renderUrl), fetchAsDataUrl(STUDIO_HERO_STYLE_REFERENCE_URL)]);
+      if (!sourceData || !renderData || !styleData) return json({ success: false, error: 'Review photos could not be loaded.' }, 422);
+      const qc = await runQc(LOVABLE_API_KEY, sourceData, renderData, styleData);
+      if (qc.pending) return json({ success: false, reviewPending: true, error: qc.notes });
+      const dims = imageDims(renderData);
+      if (dims && dims.h >= dims.w) { qc.pass = false; qc.failures.push('wrong_orientation'); }
+      await supabase.from('hero_render_jobs').update({ qc_passed: qc.pass, review_state: qc.pass ? 'passed' : 'rejected', review_details: qc, qc_failure_reasons: qc.failures, status: qc.pass ? 'qc' : pendingJob.attempt_number >= 3 ? 'escalated' : 'failed', error: qc.notes }).eq('id', pendingJob.id);
+      if (!qc.pass) {
+        if (pendingJob.attempt_number >= 3) await escalate(supabase, teamId, vehicle, pendingJob.attempt_number);
+        return json({ success: false, qcFailed: true, error: qc.notes, attemptsUsed: pendingJob.attempt_number });
+      }
+      const { error: promoteError } = await supabase.rpc('studio_promote_job', { _job_id: pendingJob.id, _actor_id: userId });
+      if (promoteError) return json({ success: false, error: 'Could not promote reviewed photo. Current hero is unchanged.' }, 500);
+      return json({ success: true, imageUrl: renderUrl, photoId: pendingJob.render_photo_id, attemptsUsed: pendingJob.attempt_number });
     }
 
     // Enforce the 3-render cap
@@ -354,20 +378,8 @@ serve(async (req) => {
     });
 
     // Create the job row
-    const { data: job, error: jobErr } = await supabase
-      .from("hero_render_jobs")
-      .insert({
-        vehicle_id: vehicleId,
-        team_id: teamId,
-        source_photo_id: source.id,
-        status: "rendering",
-        attempt_number: attempt,
-        prompt_version: STUDIO_HERO_PROMPT_VERSION,
-        prompt_used: prompt,
-      })
-      .select()
-      .single();
-    if (jobErr || !job) return json({ success: false, error: "Failed to create render job" }, 500);
+    const { data: job, error: jobErr } = await supabase.rpc('studio_reserve_attempt', { _vehicle_id: vehicleId, _source_id: source.id, _actor_id: userId, _prompt: prompt, _version: STUDIO_HERO_PROMPT_VERSION, _model: RENDER_MODEL });
+    if (jobErr || !job) return json({ success: false, error: jobErr?.message ?? 'Could not reserve a render attempt.' }, 409);
 
     // Fetch source image; mirror if the car faces right (source facing unknown →
     // rely on prompt + QC; we mirror only when analysis marked it rear/right-ish)
@@ -387,6 +399,10 @@ serve(async (req) => {
     if (padRes.padded) console.log("source padded to landscape", { jobId: job.id });
 
     const styleRefDataUrl = await fetchAsDataUrl(STUDIO_HERO_STYLE_REFERENCE_URL);
+    if (!styleRefDataUrl) {
+      await supabase.from('hero_render_jobs').update({ status: 'cancelled', archived_at: new Date().toISOString(), error: 'Studio reference unavailable; no image generated.' }).eq('id', job.id);
+      return json({ success: false, error: 'Studio reference is unavailable. No image was generated.' }, 422);
+    }
     // Render via Nano Banana (edit-style: source photo as reference)
     const renderRes = await fetch(AI_GATEWAY, {
       method: "POST",
@@ -480,7 +496,13 @@ serve(async (req) => {
 
     // QC gate
     await supabase.from("hero_render_jobs").update({ status: "qc", render_photo_id: photoRecord.id }).eq("id", job.id);
-    const qc = await runQc(LOVABLE_API_KEY, sourceDataUrl, renderImageUrl, styleRefDataUrl);
+    let qc: QcResult;
+    try { qc = await runQc(LOVABLE_API_KEY, sourceDataUrl, renderImageUrl, styleRefDataUrl); }
+    catch { qc = { pass: false, failures: [], notes: 'Quality review is unavailable. Current hero is unchanged.', pending: true }; }
+    if (qc.pending) {
+      await supabase.from('hero_render_jobs').update({ status: 'qc', review_state: 'waiting', qc_passed: false, error: qc.notes }).eq('id', job.id);
+      return json({ success: false, reviewPending: true, error: qc.notes, attemptsUsed: attempt });
+    }
     // Deterministic orientation gate — the vision reviewer can miss portrait output.
     const dims = imageDims(renderImageUrl);
     if (dims && dims.h >= dims.w) {
@@ -496,6 +518,8 @@ serve(async (req) => {
         .update({
           status: finalAttempt ? "escalated" : "failed",
           qc_passed: false,
+          review_state: 'rejected',
+          review_details: qc,
           qc_failure_reasons: qc.failures,
           error: qc.notes ?? null,
           updated_at: new Date().toISOString(),
@@ -519,30 +543,10 @@ serve(async (req) => {
       });
     }
 
-    // QC passed — promote this render to hero at display_order 0
-    await supabase.from("vehicle_photos").update({ photo_type: "exterior", is_visible: false }).eq("vehicle_id", vehicleId).eq("photo_type", "hero").eq("source", "studio_render");
-    await supabase.from("vehicle_photos").update({ photo_type: "exterior" }).eq("vehicle_id", vehicleId).eq("photo_type", "hero");
-    await supabase
-      .from("vehicle_photos")
-      .update({ display_order: 1 })
-      .eq("vehicle_id", vehicleId)
-      .eq("display_order", 0);
-    await supabase
-      .from("vehicle_photos")
-      .update({ photo_type: "hero", display_order: 0, is_visible: true })
-      .eq("id", photoRecord.id);
-
-    await supabase.from("vehicles").update({ image_url: imageUrl }).eq("id", vehicleId);
-    await supabase
-      .from("hero_render_jobs")
-      .update({
-        status: "passed",
-        qc_passed: true,
-        render_photo_id: photoRecord.id,
-        mirrored_source: mirrored,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", job.id);
+    const { error: reviewSaveError } = await supabase.from('hero_render_jobs').update({ qc_passed: true, review_state: 'passed', review_details: qc, qc_failure_reasons: [], mirrored_source: mirrored }).eq('id', job.id);
+    if (reviewSaveError) return json({ success: false, error: 'Could not save quality review. Current hero is unchanged.' }, 500);
+    const { error: promoteError } = await supabase.rpc('studio_promote_job', { _job_id: job.id, _actor_id: userId });
+    if (promoteError) return json({ success: false, error: 'Could not promote reviewed photo. Current hero is unchanged.' }, 500);
 
     return json({
       success: true,

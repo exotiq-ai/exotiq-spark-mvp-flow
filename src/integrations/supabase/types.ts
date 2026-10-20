@@ -1571,6 +1571,8 @@ export type Database = {
           recipe_version: string | null
           render_model: string | null
           render_photo_id: string | null
+          review_details: Json | null
+          review_state: string | null
           source_photo_id: string | null
           status: string
           team_id: string
@@ -1591,6 +1593,8 @@ export type Database = {
           recipe_version?: string | null
           render_model?: string | null
           render_photo_id?: string | null
+          review_details?: Json | null
+          review_state?: string | null
           source_photo_id?: string | null
           status?: string
           team_id: string
@@ -1611,6 +1615,8 @@ export type Database = {
           recipe_version?: string | null
           render_model?: string | null
           render_photo_id?: string | null
+          review_details?: Json | null
+          review_state?: string | null
           source_photo_id?: string | null
           status?: string
           team_id?: string
@@ -3670,56 +3676,140 @@ export type Database = {
         }
         Relationships: []
       }
+      studio_hero_audit: {
+        Row: {
+          action: string
+          actor_id: string
+          created_at: string
+          details: Json
+          id: string
+          team_id: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_id: string
+          created_at?: string
+          details?: Json
+          id?: string
+          team_id: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string
+          created_at?: string
+          details?: Json
+          id?: string
+          team_id?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "studio_hero_audit_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "studio_hero_audit_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       studio_hero_benchmark_results: {
         Row: {
+          cost_usd: number | null
           created_at: string
           created_by: string | null
+          duration_ms: number | null
           error: string | null
           fidelity_score: number | null
+          gateway_run_id: string | null
           id: string
+          identity_snapshot: Json | null
           model: string
           qc_failures: string[]
           qc_notes: string | null
           qc_pass: boolean | null
+          recipe_snapshot: Json | null
           recipe_version: string
+          reference_kind: string
           render_url: string | null
+          review_details: Json | null
+          review_status: string
+          reviewed_at: string | null
+          reviewed_by: string | null
           run_label: string
+          source_photo_ids: string[]
+          storage_path: string | null
           studio_score: number | null
           team_id: string
+          usage_details: Json | null
           vehicle_id: string
         }
         Insert: {
+          cost_usd?: number | null
           created_at?: string
           created_by?: string | null
+          duration_ms?: number | null
           error?: string | null
           fidelity_score?: number | null
+          gateway_run_id?: string | null
           id?: string
+          identity_snapshot?: Json | null
           model: string
           qc_failures?: string[]
           qc_notes?: string | null
           qc_pass?: boolean | null
+          recipe_snapshot?: Json | null
           recipe_version: string
+          reference_kind?: string
           render_url?: string | null
+          review_details?: Json | null
+          review_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           run_label: string
+          source_photo_ids?: string[]
+          storage_path?: string | null
           studio_score?: number | null
           team_id: string
+          usage_details?: Json | null
           vehicle_id: string
         }
         Update: {
+          cost_usd?: number | null
           created_at?: string
           created_by?: string | null
+          duration_ms?: number | null
           error?: string | null
           fidelity_score?: number | null
+          gateway_run_id?: string | null
           id?: string
+          identity_snapshot?: Json | null
           model?: string
           qc_failures?: string[]
           qc_notes?: string | null
           qc_pass?: boolean | null
+          recipe_snapshot?: Json | null
           recipe_version?: string
+          reference_kind?: string
           render_url?: string | null
+          review_details?: Json | null
+          review_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           run_label?: string
+          source_photo_ids?: string[]
+          storage_path?: string | null
           studio_score?: number | null
           team_id?: string
+          usage_details?: Json | null
           vehicle_id?: string
         }
         Relationships: []
@@ -5278,8 +5368,10 @@ export type Database = {
           edited_by: string | null
           id: string
           model: string | null
+          reviewed_overrides: Json
           sheet: Json
           source_photo_ids: string[]
+          source_revision: string | null
           team_id: string
           updated_at: string
           vehicle_id: string
@@ -5290,8 +5382,10 @@ export type Database = {
           edited_by?: string | null
           id?: string
           model?: string | null
+          reviewed_overrides?: Json
           sheet?: Json
           source_photo_ids?: string[]
+          source_revision?: string | null
           team_id: string
           updated_at?: string
           vehicle_id: string
@@ -5302,8 +5396,10 @@ export type Database = {
           edited_by?: string | null
           id?: string
           model?: string | null
+          reviewed_overrides?: Json
           sheet?: Json
           source_photo_ids?: string[]
+          source_revision?: string | null
           team_id?: string
           updated_at?: string
           vehicle_id?: string
@@ -7334,9 +7430,55 @@ export type Database = {
         Args: { _hours: number; _reason: string; _team_id: string }
         Returns: string
       }
+      studio_promote_job: {
+        Args: { _actor_id: string; _job_id: string }
+        Returns: undefined
+      }
+      studio_reserve_attempt: {
+        Args: {
+          _actor_id: string
+          _model: string
+          _prompt: string
+          _source_id: string
+          _vehicle_id: string
+          _version: string
+        }
+        Returns: {
+          archived_at: string | null
+          attempt_number: number
+          created_at: string
+          error: string | null
+          id: string
+          mirrored_source: boolean
+          prompt_used: string
+          prompt_version: string
+          qc_failure_reasons: string[] | null
+          qc_passed: boolean | null
+          recipe_version: string | null
+          render_model: string | null
+          render_photo_id: string | null
+          review_details: Json | null
+          review_state: string | null
+          source_photo_id: string | null
+          status: string
+          team_id: string
+          updated_at: string
+          vehicle_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "hero_render_jobs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       super_admin_has_permission: {
         Args: { check_user_id?: string; permission_name: string }
         Returns: boolean
+      }
+      super_admin_reset_studio_fleet: {
+        Args: { _team_id: string }
+        Returns: number
       }
       super_admin_reset_studio_hero: {
         Args: { _vehicle_id: string }
@@ -7351,6 +7493,18 @@ export type Database = {
           last_status: string
           vehicle_id: string
         }[]
+      }
+      super_admin_studio_review: {
+        Args: { _decision: string; _result_id: string; _same_vehicle?: boolean }
+        Returns: undefined
+      }
+      super_admin_studio_save_identity: {
+        Args: { _overrides: Json; _vehicle_id: string }
+        Returns: undefined
+      }
+      super_admin_studio_workspace: {
+        Args: { _team_id: string }
+        Returns: Json
       }
       team_active_vehicle_count: { Args: { _team_id: string }; Returns: number }
       team_can_transact: { Args: { _team_id: string }; Returns: boolean }
