@@ -6,9 +6,12 @@ const source = readFileSync(resolve(process.cwd(), 'supabase/functions/studio-he
 
 describe('Studio Hero benchmark isolation', () => {
   it('does not write vehicle photos or spend tenant render attempts', () => {
-    const mutations = Array.from(source.matchAll(/\.from\("([^"]+)"\)[\s\S]*?\.(insert|upsert|update|delete)\(/g));
-    expect(mutations.map((match) => match[1])).not.toContain('hero_render_jobs');
-    expect(source).not.toMatch(/\.from\("vehicle_photos"\)[\s\S]*?\.(insert|upsert|update|delete)\(/);
+    const tableCalls = source.split(/(?=\.from\(")/).slice(1);
+    const writtenTables = tableCalls
+      .filter((call) => /\.(insert|upsert|update|delete)\(/.test(call))
+      .map((call) => call.match(/^\.from\("([^"]+)"\)/)?.[1]);
+    expect(writtenTables).not.toContain('hero_render_jobs');
+    expect(writtenTables).not.toContain('vehicle_photos');
   });
 
   it('keeps uploaded examples out of the saved identity sheet', () => {
