@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { describeFunctionError } from '@/lib/functionError';
 
 export const STUDIO_HERO_MAX_ATTEMPTS = 3;
 
@@ -37,10 +38,11 @@ export const useStudioHero = (vehicleId: string | undefined) => {
     queryKey: ['studio-hero-jobs', vehicleId],
     enabled: !!vehicleId,
     queryFn: async () => {
+      if (!vehicleId) return [];
       const { data, error } = await supabase
         .from('hero_render_jobs')
         .select('id, vehicle_id, status, attempt_number, qc_failure_reasons, error, created_at')
-        .eq('vehicle_id', vehicleId!)
+        .eq('vehicle_id', vehicleId)
         .is('archived_at', null)
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -64,7 +66,7 @@ export const useStudioHero = (vehicleId: string | undefined) => {
       });
 
       if (error) {
-        const msg = data?.error || error.message || 'Studio render failed';
+        const msg = data?.error || await describeFunctionError(error, 'Studio render failed');
         toast.error(msg);
         await refetch();
         return { success: false, error: msg, ...(data ?? {}) };
@@ -89,6 +91,7 @@ export const useStudioHero = (vehicleId: string | undefined) => {
 
       await refetch();
       queryClient.invalidateQueries({ queryKey: ['vehicle-photos', vehicleId] });
+      for (const key of ['vehicles', 'fleet', 'vehicle-hero-photos']) queryClient.invalidateQueries({ queryKey: [key] });
       return result;
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Studio render failed';
