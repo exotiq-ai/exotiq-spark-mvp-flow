@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -21,9 +21,16 @@ export interface Notification {
 // when two members of the same team signed in within the same window.
 
 
+// The bell is mounted more than once on the dashboard (header + page), so this hook runs in several places at the
+// same time. supabase-js reuses a channel by NAME, so a fixed name made the second copy knock out the first and
+// left the page with no live subscription. Each hook instance therefore gets its own channel name, and a toast
+// is shown only once per notification id.
+const toastedNotificationIds = new Set<string>();
+
 export const useNotifications = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const instanceId = useRef(Math.random().toString(36).slice(2, 10)).current;
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -144,7 +151,7 @@ export const useNotifications = () => {
     if (!user) return;
 
     const channel = supabase
-      .channel("notifications-realtime")
+      .channel(`notifications-realtime-${user.id}-${instanceId}`)
       .on(
         "postgres_changes",
         {
@@ -155,13 +162,18 @@ export const useNotifications = () => {
         },
         (payload) => {
           const newNotification = formatNotification(payload.new);
-          setNotifications((prev) => [newNotification, ...prev]);
-          
-          // Show toast for new notification
-          toast({
-            title: newNotification.title,
-            description: newNotification.message,
-          });
+          setNotifications((prev) =>
+            prev.some((n) => n.id === newNotification.id) ? prev : [newNotification, ...prev],
+          );
+
+          // Show toast for new notification (once, even if several bell components are mounted)
+          if (!toastedNotificationIds.has(newNotification.id)) {
+            toastedNotificationIds.add(newNotification.id);
+            toast({
+              title: newNotification.title,
+              description: newNotification.message,
+            });
+          }
         }
       )
       .subscribe();
@@ -169,7 +181,7 @@ export const useNotifications = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, toast]);
+  }, [user, toast, instanceId]);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
