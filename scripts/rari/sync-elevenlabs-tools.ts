@@ -16,6 +16,12 @@
  *   ELEVENLABS_API_KEY=... ELEVENLABS_AGENT_ID=... RARI_TOOLS_URL=https://<ref>.supabase.co/functions/v1/elevenlabs-tools \
  *     bun run rari:sync-tools            # dry run, prints the plan
  *   ... bun run rari:sync-tools -- --apply
+ *
+ * A second environment (a rehearsal or staging project with its own copy of the agent) sets
+ * RARI_TOOL_SCOPE=<name>, e.g. RARI_TOOL_SCOPE=rehearsal. Tools then carry the marker
+ * `[rari-registry:rehearsal]`, and the script sees ONLY tools with that marker: it never reads,
+ * patches or deletes the production tools (marker `[rari-registry]`), which are shared by id with
+ * the production agent. Tool names are the same in both scopes; ElevenLabs allows that.
  */
 import {
   FLEET_TOOLS,
@@ -30,8 +36,13 @@ const API_KEY = process.env.ELEVENLABS_API_KEY;
 const AGENT_ID = process.env.ELEVENLABS_AGENT_ID;
 const TOOLS_URL = process.env.RARI_TOOLS_URL;
 
-/** Marker so we only ever delete tools this script created. */
-const OWNED_MARKER = '[rari-registry]';
+/** Marker so we only ever delete tools this script created. A scoped run has its own marker (see the usage note). */
+const SCOPE = process.env.RARI_TOOL_SCOPE?.trim() || '';
+if (SCOPE && !/^[a-z0-9-]+$/.test(SCOPE)) {
+  console.error('RARI_TOOL_SCOPE must be lowercase letters, digits or dashes');
+  process.exit(1);
+}
+const OWNED_MARKER = SCOPE ? `[rari-registry:${SCOPE}]` : '[rari-registry]';
 
 if (!API_KEY || !AGENT_ID || !TOOLS_URL) {
   console.error(
@@ -133,10 +144,12 @@ function projectOnto(desired: unknown, actual: unknown): unknown {
 
 async function main() {
   console.log(
-    `${APPLY ? 'APPLYING' : 'DRY RUN'} — ${FLEET_TOOLS.length} registry tools -> agent ${AGENT_ID}\n`,
+    `${APPLY ? 'APPLYING' : 'DRY RUN'} — ${FLEET_TOOLS.length} registry tools -> agent ${AGENT_ID}${SCOPE ? ` (scope ${SCOPE}, marker ${OWNED_MARKER})` : ''}\n`,
   );
 
   const listed = await el<{ tools: RemoteTool[] }>('/convai/tools');
+  // A scoped run considers only its own tools: a production tool of the same name is invisible to it.
+  if (SCOPE) listed.tools = listed.tools.filter((t) => t.tool_config.description?.includes(OWNED_MARKER));
 
   // Names can collide with legacy client/webhook tools this script does not own.
   // Always resolve to the registry-owned webhook tool so we never PATCH a legacy one.
