@@ -151,7 +151,7 @@ serve(async (req) => {
           Authorization: `Bearer ${resendApiKey}`,
         },
         body: JSON.stringify({
-          from: "Exotiq <noreply@exotiq.io>",
+          from: "Exotiq <noreply@mail.exotiq.ai>",
           to: [customerEmail],
           subject: `Your Rental Agreement — ${vehicleName}`,
           html: `
@@ -194,7 +194,7 @@ serve(async (req) => {
           Authorization: `Bearer ${resendApiKey}`,
         },
         body: JSON.stringify({
-          from: "Exotiq <noreply@exotiq.io>",
+          from: "Exotiq <noreply@mail.exotiq.ai>",
           to: [operatorEmail],
           subject: `Signed Agreement — ${customerName} — ${docRef}`,
           html: `

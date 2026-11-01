@@ -175,7 +175,7 @@ serve(async (req) => {
     
     // Send the email via Resend
     const { data: emailData, error: emailError } = await resend.emails.send({
-      from: 'Rari AI <noreply@exotiq.ai>',
+      from: 'Rari AI <noreply@mail.exotiq.ai>',
       to: [recipientEmail],
       subject: `Rari Conversation Summary - ${startTime.toLocaleDateString()}`,
       html: htmlContent,
