@@ -1,13 +1,38 @@
 import { z } from 'zod';
 
 // Customer validation schema
+/**
+ * A phone as the form accepts it ("+1 (555) 000-0000", "555-555-0100") to the digits the schema and the
+ * database expect ("+15550000000", "5555550100"): keep a leading "+", drop everything else that is not a digit.
+ */
+export function normalizePhone(value: string | null | undefined): string {
+  if (!value) return '';
+  const trimmed = value.trim();
+  const digits = trimmed.replace(/\D/g, '');
+  return trimmed.startsWith('+') && digits ? `+${digits}` : digits;
+}
+
+const CUSTOMER_DATE_FIELDS = ['date_of_birth', 'license_expiry', 'insurance_expiry'] as const;
+const CUSTOMER_PHONE_FIELDS = ['phone', 'secondary_phone', 'emergency_contact_phone'] as const;
+
+/**
+ * What the Add/Edit Customer forms produce, made safe for the customers table: phones normalised, and an
+ * empty date sent as null (Postgres refuses "" for a date column: 22007 invalid input syntax for type date).
+ */
+export function cleanCustomerInput<T extends Record<string, unknown>>(customer: T): T {
+  const out: Record<string, unknown> = { ...customer };
+  for (const f of CUSTOMER_PHONE_FIELDS) if (typeof out[f] === 'string') out[f] = normalizePhone(out[f] as string);
+  for (const f of CUSTOMER_DATE_FIELDS) if (out[f] === '') out[f] = null;
+  return out as T;
+}
+
 export const customerSchema = z.object({
   full_name: z.string().trim().min(1, "Name required").max(100, "Name too long"),
   email: z.string().trim().email("Invalid email").max(255, "Email too long"),
   phone: z.string().regex(/^\+?[1-9]\d{1,14}$/, "Invalid phone number").optional().or(z.literal('')),
   address: z.string().max(500, "Address too long").optional().or(z.literal('')),
   drivers_license: z.string().max(50, "License number too long").optional().or(z.literal('')),
-  date_of_birth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format").optional().or(z.literal('')),
+  date_of_birth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format").nullable().optional().or(z.literal('')),
   insurance_provider: z.string().max(100, "Provider name too long").optional().or(z.literal('')),
   insurance_policy: z.string().max(100, "Policy number too long").optional().or(z.literal('')),
   notes: z.string().max(2000, "Notes too long").optional().or(z.literal('')),

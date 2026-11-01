@@ -12,6 +12,7 @@ import { describeFunctionError } from '@/lib/functionError';
 import { useRealtimeReconnect } from '@/hooks/useRealtimeReconnect';
 import {
   customerSchema,
+  cleanCustomerInput,
   bookingSchema,
   messageSchema,
   damageClaimSchema,
@@ -1179,17 +1180,21 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
   const createCustomer = async (customer: Omit<Database['public']['Tables']['customers']['Insert'], 'user_id'>) => {
     if (!user) return;
 
+    // Phones are normalised before validation (the form accepts "+1 (555) 000-0000"; the schema wants digits),
+    // empty dates become null, and every failure is thrown so the dialog cannot report a success that did not
+    // happen (it used to toast "Success" after a validation error or a 400 from the database).
+    const cleaned = cleanCustomerInput(customer);
     try {
-      const validated = customerSchema.parse(customer);
+      const validated = customerSchema.parse(cleaned);
       const teamId = currentTeam?.id;
 
       const { error } = await supabase
         .from('customers')
-        .insert({ ...(validated as any), user_id: user.id, team_id: teamId || null });
+        .insert({ ...cleaned, ...(validated as any), user_id: user.id, team_id: teamId || null });
 
       if (error) {
         toast({ title: "Error", description: error.message, variant: "destructive" });
-        return;
+        throw new Error(error.message);
       }
 
       await refreshData();
@@ -1197,9 +1202,9 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       if (error instanceof z.ZodError) {
         toast({ title: "Validation Error", description: error.errors[0].message, variant: "destructive" });
-      } else {
-        throw error;
+        throw new Error(error.errors[0].message);
       }
+      throw error;
     }
   };
 
