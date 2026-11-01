@@ -65,10 +65,11 @@ serve(async (req) => {
     }
 
     // Format messages for email
+    // rari_messages carries created_at (there is no `timestamp` column: every line used to print "Invalid Date").
     const messages = (conversation.rari_messages || [])
-      .sort((a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+      .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
       .map((msg: any) => {
-        const time = new Date(msg.timestamp).toLocaleTimeString();
+        const time = new Date(msg.created_at).toLocaleTimeString();
         const role = msg.role === 'user' ? 'You' : 'Rari';
         return `[${time}] ${role}: ${msg.content}`;
       })
@@ -142,7 +143,7 @@ serve(async (req) => {
   <div class="metadata">
     <div class="metadata-item"><strong>Date:</strong> ${startTime.toLocaleString()}</div>
     <div class="metadata-item"><strong>Duration:</strong> ${durationMinutes} minutes</div>
-    <div class="metadata-item"><strong>Messages:</strong> ${conversation.message_count}</div>
+    <div class="metadata-item"><strong>Messages:</strong> ${conversation.message_count ?? (conversation.rari_messages || []).length}</div>
   </div>
   
   <div class="conversation">${messages.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>

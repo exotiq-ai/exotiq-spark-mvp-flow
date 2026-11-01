@@ -3,6 +3,7 @@
 // a card up front. stripe-webhook attaches the saved card as the default
 // payment method on the customer and any live subscription.
 import Stripe from "https://esm.sh/stripe@18.5.0";
+import { isServiceRoleBearer } from "../_shared/serviceRole.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -29,8 +30,9 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Service-role bearer = trusted internal caller (ops tooling).
-    const isInternal = jwt === Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    // Service-role bearer = trusted internal caller (ops tooling). Verified by the role claim plus a privileged
+    // probe, not by string equality with the injected env value (which differs per deployment).
+    const isInternal = await isServiceRoleBearer(jwt);
     if (!isInternal) {
       const anonClient = createClient(
         Deno.env.get("SUPABASE_URL")!,
