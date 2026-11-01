@@ -166,7 +166,7 @@ serve(async (req) => {
       .map(async (user) => {
         try {
           const emailResponse = await resend.emails.send({
-            from: "ExotIQ <notifications@resend.dev>",
+            from: "Exotiq <notifications@mail.exotiq.ai>",
             to: [user.email],
             subject: `${senderName || "Someone"} mentioned you in ${conversationName}`,
             html: `
