@@ -10,7 +10,7 @@ const corsHeaders = {
 
 const TARGET_URL = Deno.env.get("UPTIME_TARGET_URL") ?? "https://app.exotiq.ai";
 const ALERT_TO = "hello@exotiq.ai";
-const FROM = "Exotiq Uptime <noreply@exotiq.ai>";
+const FROM = "Exotiq Uptime <noreply@mail.exotiq.ai>";
 const TIMEOUT_MS = 15_000;
 
 type CheckResult = {
