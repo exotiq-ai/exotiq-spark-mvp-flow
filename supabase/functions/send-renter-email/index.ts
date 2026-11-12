@@ -99,14 +99,18 @@ serve(async (req) => {
       return jsonResponse({ error: `Unknown template: ${body.templateName}` }, 400);
     }
 
-    const html = interpolate(template, body.variables);
-    const text = derivePlainText(template, body.variables);
-
-    // Validate that no raw placeholders remain after interpolation (QA safety).
-    const remaining = html.match(/\{\{\w+\}\}/g) ?? [];
-    if (remaining.length > 0) {
-      return jsonResponse({ error: "Unresolved template variables", variables: remaining }, 400);
+    // Every placeholder the template names must be supplied, checked BEFORE interpolation: interpolate()
+    // turns a missing variable into "", so a check on the result could never fire and a caller that forgot a
+    // variable sent blank-field mail ("auto-cancels at unless .") with a 200. Found on the rehearsal, 2026-11-01.
+    const required = Array.from(new Set(Array.from(template.matchAll(/\{\{(\w+)\}\}/g), (m) => m[1])));
+    const supplied = body.variables ?? {};
+    const missing = required.filter((key) => supplied[key] === undefined || supplied[key] === null);
+    if (missing.length > 0) {
+      return jsonResponse({ error: "Unresolved template variables", variables: missing }, 400);
     }
+
+    const html = interpolate(template, supplied);
+    const text = derivePlainText(template, supplied);
 
     // Tenant-first branding (2026-08-18): the operator's business name is the
     // From display name; the sending address stays on the platform domain so
