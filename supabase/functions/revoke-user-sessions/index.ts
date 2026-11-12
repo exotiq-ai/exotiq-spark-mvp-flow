@@ -43,19 +43,45 @@ serve(async (req) => {
     // Use service role client to check if calling user is an admin
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Check if calling user has admin role using the has_role function
-    const { data: hasAdminRole, error: roleError } = await adminClient.rpc('has_role', {
-      _user_id: callingUser.id,
-      _role: 'admin'
-    });
+    // The caller must be an active owner or admin of a team the target user
+    // belongs to (the app calls this right after deactivating the member, so the
+    // target's membership in that team may already be inactive). An owner's
+    // sessions can only be ended by an owner. A user who is active in a team the
+    // caller does not manage is out of reach.
+    const { data: managedTeams, error: managedError } = await adminClient
+      .from('team_members')
+      .select('team_id, role')
+      .eq('user_id', callingUser.id)
+      .eq('is_active', true)
+      .in('role', ['owner', 'admin']);
 
-    if (roleError) {
-      console.error('Error checking admin role:', roleError);
+    if (managedError) {
+      console.error('Error checking team permissions:', managedError);
       throw new Error('Failed to verify admin permissions');
     }
 
-    if (!hasAdminRole) {
-      throw new Error('Unauthorized: Admin role required');
+    const managed = (managedTeams ?? []) as { team_id: string; role: string }[];
+    let allowed = false;
+
+    if (managed.length > 0 && typeof target_user_id === 'string') {
+      const { data: targetRows, error: targetError } = await adminClient
+        .from('team_members')
+        .select('team_id, role, is_active')
+        .eq('user_id', target_user_id);
+      if (targetError) {
+        console.error('Error checking target membership:', targetError);
+      }
+      const targetMemberships = (targetError ? [] : (targetRows ?? [])) as { team_id: string; role: string; is_active: boolean }[];
+      const roleIn = (teamId: string) => managed.find((row) => row.team_id === teamId)?.role;
+      const activeElsewhere = targetMemberships.some((target) => target.is_active && !roleIn(target.team_id));
+      allowed = !activeElsewhere && targetMemberships.some((target) => {
+        const mine = roleIn(target.team_id);
+        return Boolean(mine) && (target.role !== 'owner' || mine === 'owner');
+      });
+    }
+
+    if (!allowed) {
+      throw new Error('Unauthorized: Team admin role required for this user');
     }
 
     // Prevent self-deactivation session revocation

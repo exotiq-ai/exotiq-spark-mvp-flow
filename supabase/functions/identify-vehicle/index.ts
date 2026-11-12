@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { logTransfer } from "../_shared/transferGuard.ts";
+import { requireServiceOrUser } from "../_shared/serviceAuth.ts";
 
 import { aiChatUrl, aiModel, aiProviderLabel, aiRequestParams } from "../_shared/aiProvider.ts";
 const corsHeaders = {
@@ -37,6 +38,10 @@ serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
+
+  // Signed-in users only.
+  const auth = await requireServiceOrUser(req);
+  if (!auth.ok) return auth.response(corsHeaders);
 
   try {
     const { imageUrl, filename } = await req.json() as IdentifyVehicleRequest;

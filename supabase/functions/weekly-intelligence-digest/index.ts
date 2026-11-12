@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.77.0';
 import { logTransfer } from "../_shared/transferGuard.ts";
 import { loadFleetTruth, recommendAll, sharePct } from "../_shared/motoriq/serverFacts.ts";
+import { requireServiceOrUser } from "../_shared/serviceAuth.ts";
 
 import { aiChatUrl, aiModel, aiProviderLabel, aiRequestParams } from "../_shared/aiProvider.ts";
 const corsHeaders = {
@@ -66,8 +67,18 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // The digest is built for the signed-in user; the id comes from the session.
+  const auth = await requireServiceOrUser(req);
+  if (!auth.ok) return auth.response(corsHeaders);
+  if (!auth.userId) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
   try {
-    const { userId } = await req.json();
+    const userId = auth.userId;
 
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;

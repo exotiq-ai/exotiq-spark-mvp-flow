@@ -236,9 +236,6 @@ verify_jwt = false
 [functions.prepare-tenant-document]
 verify_jwt = false
 
-[functions.rari-agent-admin]
-verify_jwt = true
-
 [functions.record-terms-acceptance]
 verify_jwt = false
 
