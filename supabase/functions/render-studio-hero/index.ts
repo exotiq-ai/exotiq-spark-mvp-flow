@@ -574,7 +574,7 @@ async function escalate(
     if (!resendKey) return;
     const resend = new Resend(resendKey);
     await resend.emails.send({
-      from: "Exotiq Studio <noreply@exotiq.ai>",
+      from: "Exotiq Studio <noreply@mail.exotiq.ai>",
       to: [STUDIO_HERO_ESCALATION_EMAIL],
       subject: `Studio hero needs help: ${label}`,
       html: `<p>The studio hero render for <strong>${label}</strong> (vehicle ${vehicle.id}, team ${teamId}) failed quality checks ${attempts} times.</p><p>Please review the renders in the Super Admin portal and hand-finish the hero photo for this vehicle.</p>`,
