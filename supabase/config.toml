@@ -94,7 +94,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.confirm-data-deletion]
-verify_jwt = false
+verify_jwt = true
 
 [functions.demo-data-snapshot]
 verify_jwt = false
@@ -127,7 +127,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.send-deletion-confirmation]
-verify_jwt = false
+verify_jwt = true
 
 [functions.gcal-auth]
 verify_jwt = false
