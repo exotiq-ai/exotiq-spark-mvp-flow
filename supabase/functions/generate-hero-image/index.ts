@@ -101,6 +101,30 @@ serve(async (req) => {
     // Create Supabase client with service role for storage access
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+    // The vehicle must belong to a team the caller is an active member of.
+    const { data: vehicleRow } = await supabase
+      .from("vehicles")
+      .select("team_id")
+      .eq("id", vehicleId)
+      .maybeSingle();
+    let callerOnVehicleTeam = false;
+    if (vehicleRow?.team_id && (!teamId || teamId === vehicleRow.team_id)) {
+      const { data: membership } = await supabase
+        .from("team_members")
+        .select("id")
+        .eq("team_id", vehicleRow.team_id)
+        .eq("user_id", userId)
+        .eq("is_active", true)
+        .maybeSingle();
+      callerOnVehicleTeam = Boolean(membership);
+    }
+    if (!callerOnVehicleTeam) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Not authorized for this vehicle" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Build the generation prompt
     const yearStr = year ? `${year} ` : "";
     const colorStr = color || "default factory";
