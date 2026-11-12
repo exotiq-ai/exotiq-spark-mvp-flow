@@ -213,7 +213,8 @@ serve(async (req) => {
     const signedPdfBytes = await pdfDoc.save();
 
     // Upload to storage
-    const signedFileName = `signed/${user.id}/${docRef || `signed-${Date.now()}`}.pdf`;
+    // First folder = user id so the signed-in user can create a link to it under the storage policy.
+    const signedFileName = `${user.id}/signed/${docRef || `signed-${Date.now()}`}.pdf`;
     const { error: uploadError } = await supabase.storage
       .from("customer-documents")
       .upload(signedFileName, signedPdfBytes, {
