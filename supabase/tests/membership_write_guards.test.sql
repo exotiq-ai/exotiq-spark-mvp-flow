@@ -50,6 +50,22 @@ begin
     select 1 from pg_proc p, aclexplode(p.proacl) a
     where p.oid = fn and a.grantee = 0 and a.privilege_type = 'EXECUTE'
   ), 'guard_team_member_write(): no PUBLIC grant';
+  -- the body holds every rule (compared in lower case, with runs of white space folded to one blank)
+  select lower(regexp_replace(p.prosrc, '\s+', ' ', 'g')) into def from pg_proc p where p.oid = fn;
+  assert def like '%if current_user not in (''authenticated'', ''anon'') then%',
+    'guard_team_member_write(): only signed-in and anonymous clients are restricted';
+  assert def like '%if tg_op = ''insert'' then raise exception%',
+    'guard_team_member_write(): a client does not insert a membership';
+  assert def like '%if tg_op = ''delete'' then if old.role::text = ''owner'' then raise exception%',
+    'guard_team_member_write(): a client does not delete an owner''s membership';
+  assert def like '%if new.team_id is distinct from old.team_id or new.user_id is distinct from old.user_id then raise exception%',
+    'guard_team_member_write(): a membership is not moved to another team or user';
+  assert def like '%if new.role is distinct from old.role and (new.role::text = ''owner'' or old.role::text = ''owner'' or old.user_id = auth.uid()) then raise exception%',
+    'guard_team_member_write(): no role change to or from owner, and none on the caller''s own row';
+  assert def like '%if old.role::text = ''owner'' and new.is_active is distinct from old.is_active then raise exception%',
+    'guard_team_member_write(): an owner''s membership is not switched on or off';
+  assert (length(def) - length(replace(def, 'using errcode = ''42501''', ''))) / length('using errcode = ''42501''') = 5,
+    'guard_team_member_write(): five refusals, each with SQLSTATE 42501';
   select t.tgtype, t.tgenabled, t.tgfoid into trg
   from pg_trigger t
   where t.tgrelid = 'public.team_members'::regclass and t.tgname = 'guard_team_member_write' and not t.tgisinternal;
@@ -70,6 +86,9 @@ begin
     select 1 from pg_proc p, aclexplode(p.proacl) a
     where p.oid = fn and a.grantee = 0 and a.privilege_type = 'EXECUTE'
   ), 'guard_team_owner_change(): no PUBLIC grant';
+  select lower(regexp_replace(p.prosrc, '\s+', ' ', 'g')) into def from pg_proc p where p.oid = fn;
+  assert def like '%if current_user in (''authenticated'', ''anon'') and new.owner_id is distinct from old.owner_id then raise exception%using errcode = ''42501''%',
+    'guard_team_owner_change(): a client does not change owner_id';
   select t.tgtype, t.tgenabled, t.tgfoid into trg
   from pg_trigger t
   where t.tgrelid = 'public.teams'::regclass and t.tgname = 'guard_team_owner_change' and not t.tgisinternal;
