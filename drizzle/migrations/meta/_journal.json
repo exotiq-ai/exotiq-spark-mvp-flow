@@ -85,6 +85,13 @@
       "when": 1794462876818,
       "tag": "0011_restrict_legacy_team_member_functions",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1794497521905,
+      "tag": "0012_tighten_function_privileges_and_column_update_grants",
+      "breakpoints": true
     }
   ]
 }
