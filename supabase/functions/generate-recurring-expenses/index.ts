@@ -1,5 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { requireServiceOrUser } from "../_shared/serviceAuth.ts";
+import { requireCronToken } from "../_shared/serviceAuth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,8 +10,8 @@ const corsHeaders = {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
-  // Service-role function: cron token or an authenticated user only.
-  const auth = await requireServiceOrUser(req);
+  // Scheduler only: the daily job sends the shared scheduler token.
+  const auth = requireCronToken(req);
   if (!auth.ok) return auth.response(corsHeaders);
 
 
