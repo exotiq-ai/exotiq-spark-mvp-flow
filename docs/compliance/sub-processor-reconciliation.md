@@ -12,7 +12,7 @@
 | Google Gemini (via Lovable AI Gateway) | `ai-demand-forecast`, `identify-vehicle`, `parse-expense-receipt`, etc. | ✅ active | none |
 | OpenAI | `rari-*` paths | ✅ active | none |
 | Anthropic | `rari-*` paths | ✅ active | none |
-| ElevenLabs | `rari-agent-admin`, `rari-mcp-server`, voice agent | ✅ active | none |
+| ElevenLabs | `elevenlabs-session`, `elevenlabs-tools`, `rari-mcp-server`, voice agent | ✅ active | none |
 | Google Calendar API | `googleCalendar.ts` | ✅ active | none |
 | MotorIQ | external sync | ✅ active | none |
 | **Resend** | `role-change-notification`, `rari-email-summary`, `mention-notification`, `resend-invite`, `invite-user`, `send-signed-document` | ❌ missing | **added** |
