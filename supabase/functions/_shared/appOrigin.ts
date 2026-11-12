@@ -25,11 +25,24 @@ function normalize(candidate: string): string {
  * Anything unknown (preview domains, localhost, spoofed origins) collapses to
  * the canonical app origin.
  */
+/**
+ * Extra https origins allowed in NON-production environments (staging/rehearsal), set as a comma-separated
+ * list in the EXTRA_APP_ORIGINS secret. Unset in production, so production behaviour is unchanged.
+ */
+function extraAppOrigins(): string[] {
+  return (Deno.env.get("EXTRA_APP_ORIGINS") ?? "")
+    .split(",")
+    .map(normalize)
+    .filter((o) => o.startsWith("https://"));
+}
+
 export function safeAppOrigin(candidate?: string | null): string {
   if (!candidate) return DEFAULT_APP_ORIGIN;
   const normalized = normalize(candidate);
   if (!normalized.startsWith("https://")) return DEFAULT_APP_ORIGIN;
-  return ALLOWED_APP_ORIGINS.includes(normalized) ? normalized : DEFAULT_APP_ORIGIN;
+  return ALLOWED_APP_ORIGINS.includes(normalized) || extraAppOrigins().includes(normalized)
+    ? normalized
+    : DEFAULT_APP_ORIGIN;
 }
 
 /** Convenience helper: safe origin straight off an incoming request. */
