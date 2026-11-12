@@ -63,7 +63,7 @@ async function notifyAdminsOfNewUser(
             Authorization: `Bearer ${RESEND_API_KEY}`,
           },
           body: JSON.stringify({
-            from: "ExotIQ <notifications@exotiq.io>",
+            from: "ExotIQ <notifications@mail.exotiq.ai>",
             to: [admin.email],
             subject: `New Team Member Joined: ${newUserName}`,
             html: `

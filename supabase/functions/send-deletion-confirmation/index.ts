@@ -142,7 +142,7 @@ serve(async (req: Request) => {
 
     // Send email via Resend
     const emailResponse = await resend.emails.send({
-      from: "Exotiq <noreply@resend.dev>",
+      from: "Exotiq <noreply@mail.exotiq.ai>",
       to: [email],
       subject: "⚠️ Confirm Your Exotiq Data Deletion Request",
       html: `
