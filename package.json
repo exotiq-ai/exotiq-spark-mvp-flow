@@ -17,7 +17,8 @@
     "rari:sync-tools": "bun scripts/rari/sync-elevenlabs-tools.ts",
     "rari:parity-check": "bun scripts/rari/cross-surface-parity-check.ts",
     "rari:tenant-isolation": "bun scripts/rari/tenant-isolation-proof.ts",
-    "prepare": "husky"
+    "prepare": "husky",
+    "prebuild": "node scripts/check-supabase-env.mjs"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
