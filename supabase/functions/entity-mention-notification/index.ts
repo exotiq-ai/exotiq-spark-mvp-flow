@@ -213,7 +213,7 @@ serve(async (req) => {
         if (p?.email_mentions === false) return null;
         try {
           await resend.emails.send({
-            from: "ExotIQ <notifications@resend.dev>",
+            from: "ExotIQ <notifications@mail.exotiq.ai>",
             to: [r.email],
             subject: `${senderName} mentioned you on a ${label.toLowerCase()}`,
             html: `
