@@ -51,7 +51,7 @@ serve(async (req) => {
     // Fetch template document
     const { data: templateDoc, error: templateErr } = await supabase
       .from("documents")
-      .select("file_url, name")
+      .select("file_url, name, team_id, user_id")
       .eq("id", templateDocumentId)
       .single();
     if (templateErr || !templateDoc) {
@@ -71,6 +71,29 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ error: "Booking not found" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // The booking must belong to a team the caller is an active member of, and the
+    // template must belong to that team (or, for a template without a team, to the caller).
+    let callerOnBookingTeam = false;
+    if (booking.team_id) {
+      const { data: membership } = await supabase
+        .from("team_members")
+        .select("id")
+        .eq("team_id", booking.team_id)
+        .eq("user_id", userId)
+        .eq("is_active", true)
+        .maybeSingle();
+      callerOnBookingTeam = Boolean(membership);
+    }
+    const templateInScope = templateDoc.team_id
+      ? templateDoc.team_id === booking.team_id
+      : templateDoc.user_id === userId;
+    if (!callerOnBookingTeam || !templateInScope) {
+      return new Response(
+        JSON.stringify({ error: "Not authorized for this booking" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 

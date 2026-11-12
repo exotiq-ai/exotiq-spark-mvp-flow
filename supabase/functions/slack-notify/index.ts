@@ -20,6 +20,18 @@ interface SlackNotifyRequest {
   test?: boolean;
 }
 
+// Slack incoming webhooks live on these hosts; nothing else is contacted.
+const SLACK_WEBHOOK_HOSTS = new Set(["hooks.slack.com", "hooks.slack-gov.com"]);
+const isSlackWebhookUrl = (value: unknown): value is string => {
+  if (typeof value !== "string") return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && SLACK_WEBHOOK_HOSTS.has(url.hostname) && !url.username && !url.password && !url.port;
+  } catch {
+    return false;
+  }
+};
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -41,6 +53,12 @@ serve(async (req) => {
 
     // Handle test messages with direct webhook URL
     if (test && webhookUrl) {
+      if (!isSlackWebhookUrl(webhookUrl)) {
+        return new Response(
+          JSON.stringify({ success: false, message: "Enter a Slack incoming webhook URL" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+        );
+      }
       const slackPayload = {
         text: message,
         attachments: [
@@ -81,6 +99,14 @@ serve(async (req) => {
       );
     }
 
+    // A signed-in caller sends to their own Slack connection only.
+    if (!auth.isCron && user_id !== auth.userId) {
+      return new Response(
+        JSON.stringify({ success: false, message: "Not authorized for this user" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 }
+      );
+    }
+
     // Get user's notification preferences
     const { data: prefs, error: prefsError } = await supabaseClient
       .from("notification_preferences")
@@ -97,7 +123,7 @@ serve(async (req) => {
     }
 
     // Check if Slack is enabled
-    if (!prefs.slack_enabled || !prefs.slack_webhook_url) {
+    if (!prefs.slack_enabled || !isSlackWebhookUrl(prefs.slack_webhook_url)) {
       console.log("Slack not enabled for user:", user_id);
       return new Response(
         JSON.stringify({ success: false, message: "Slack not enabled" }),

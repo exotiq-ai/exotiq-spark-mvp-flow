@@ -69,6 +69,28 @@ serve(async (req) => {
       );
     }
 
+    // The document must belong to a team the caller is an active member of
+    // (or, for a document without a team, to the caller).
+    let callerMaySend = false;
+    if (doc.team_id) {
+      const { data: membership } = await supabase
+        .from("team_members")
+        .select("id")
+        .eq("team_id", doc.team_id)
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .maybeSingle();
+      callerMaySend = Boolean(membership);
+    } else {
+      callerMaySend = doc.user_id === user.id;
+    }
+    if (!callerMaySend) {
+      return new Response(
+        JSON.stringify({ error: "Not authorized for this document" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Get booking for context
     let booking: Record<string, any> | null = null;
     if (doc.booking_id) {
