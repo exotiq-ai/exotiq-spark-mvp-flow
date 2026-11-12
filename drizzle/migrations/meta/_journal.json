@@ -99,6 +99,13 @@
       "when": 1794500284495,
       "tag": "0013_scope_member_activation_to_the_team_and_tidy_membership_lookups_and_chat_policies",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1794502978677,
+      "tag": "0014_membership_and_platform_role_rows_are_written_by_server_side_code_only",
+      "breakpoints": true
     }
   ]
 }
