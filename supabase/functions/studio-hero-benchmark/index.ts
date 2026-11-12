@@ -10,15 +10,11 @@ import {
 } from "../_shared/studioHeroV2.ts";
 import { validateStudioReview, mergeIdentity, identityRevision } from '../_shared/studioReview.ts';
 import { aiChatUrl, aiModel, aiRequestParams } from "../_shared/aiProvider.ts";
-import { geminiImageModel, geminiImageResponse } from "../_shared/geminiImage.ts";
+import { geminiImageResponse } from "../_shared/geminiImage.ts";
 
-// The review dialog sends the ids in BENCHMARK_MODELS. Map each to the Google model actually called:
-// the baseline is whatever render-studio-hero renders with today; the other id is passed to Google
-// without its provider prefix unless GEMINI_IMAGE_MODEL_PRO names a different model.
-function directImageModel(requested: string): string {
-  if (requested === "google/gemini-2.5-flash-image") return geminiImageModel();
-  return Deno.env.get("GEMINI_IMAGE_MODEL_PRO") || requested.replace(/^google\//, "");
-}
+// The review dialog sends the ids in BENCHMARK_MODELS ("google/<model>"). Each one is sent to Google as
+// that same model without the provider prefix, so the model saved on a result row is the model that rendered it.
+const directImageModel = (requested: string): string => requested.replace(/^google\//, "");
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
 async function toDataUrl(url: string): Promise<string | null> {
