@@ -96,13 +96,10 @@ export const AddCustomerDialog = ({
       setIsVIP(false);
       setError(null);
       onOpenChange(false);
-      
-      toast({
-        title: "Success",
-        description: "Customer added successfully",
-      });
+      // The context announces "Customer Added" itself once the row exists; no second toast here.
     } catch (err) {
-      setError("Failed to add customer. Please try again.");
+      // The context has already explained the failure in a toast; keep the dialog open with the reason.
+      setError(err instanceof Error && err.message ? err.message : "Failed to add customer. Please try again.");
       console.error("Error adding customer:", err);
     } finally {
       setLoading(false);
