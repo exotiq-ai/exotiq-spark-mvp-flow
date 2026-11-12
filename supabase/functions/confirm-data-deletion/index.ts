@@ -1,5 +1,12 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import {
+  isPlatformAdmin,
+  isTeamOwnerOfRecord,
+  isUuid,
+  oneTimeTokenDigest,
+  requireSessionUser,
+} from "../_shared/callerSession.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -28,6 +35,18 @@ serve(async (req: Request) => {
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // The confirming user is the signed-in user; nothing below trusts an id from the body.
+    const session = await requireSessionUser(req, supabase);
+    if (!session.ok) return session.response(corsHeaders);
+
+    // Self-service deletion runs only where the operator has switched it on.
+    if (Deno.env.get("TEAM_DATA_DELETION_ENABLED") !== "true") {
+      return new Response(
+        JSON.stringify({ error: "Data deletion is handled by support. Please contact support@exotiq.com." }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const { token, confirmationPhrase, reason, teamId }: ConfirmDeletionRequest = await req.json();
 
     // Validate confirmation phrase
@@ -38,14 +57,35 @@ serve(async (req: Request) => {
       );
     }
 
-    // Verify token and get deletion request
+    if (!isUuid(teamId) || typeof token !== "string" || token.length === 0) {
+      return new Response(
+        JSON.stringify({ error: "Invalid or expired deletion token" }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Platform staff accounts do not use the self-service path.
+    if (
+      (await isPlatformAdmin(supabase, session.userId)) ||
+      !(await isTeamOwnerOfRecord(supabase, session.userId, teamId))
+    ) {
+      return new Response(
+        JSON.stringify({ error: "Only the team owner can confirm data deletion" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // The request must have been created by this same user through the e-mail step:
+    // the table holds a keyed digest of the token that was sent to their inbox.
+    const tokenDigest = await oneTimeTokenDigest(token, teamId, session.userId);
     const { data: deletionRequest, error: fetchError } = await supabase
       .from("deletion_requests")
       .select("*")
-      .eq("confirmation_token", token)
+      .eq("confirmation_token", tokenDigest)
       .eq("team_id", teamId)
-      .in("status", ["email_sent", "pending"])
-      .single();
+      .eq("requested_by", session.userId)
+      .eq("status", "email_sent")
+      .maybeSingle();
 
     if (fetchError || !deletionRequest) {
       console.error("Deletion request not found:", fetchError);
@@ -70,14 +110,23 @@ serve(async (req: Request) => {
       );
     }
 
-    // Update deletion request status
-    await supabase
+    // Claim the request; a request can be confirmed once
+    const { data: claimed, error: claimError } = await supabase
       .from("deletion_requests")
       .update({
         status: "confirmed",
         confirmed_at: new Date().toISOString(),
       })
-      .eq("id", deletionRequest.id);
+      .eq("id", deletionRequest.id)
+      .eq("status", "email_sent")
+      .select("id");
+
+    if (claimError || !claimed || claimed.length !== 1) {
+      return new Response(
+        JSON.stringify({ error: "Invalid or expired deletion token" }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     console.log(`Starting data deletion for team: ${teamId}`);
 
@@ -194,17 +243,14 @@ serve(async (req: Request) => {
     try {
       const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
       if (stripeKey) {
-        // Get user's Stripe customer ID
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("email")
-          .eq("id", deletionRequest.requested_by)
-          .single();
+        // The billing customer is looked up by the confirming user's sign-in address
+        const billingEmail = session.email;
 
-        if (profile?.email) {
+        if (billingEmail) {
           // Search for Stripe customer
+          const searchQuery = `email:'${billingEmail.replace(/['\\]/g, "")}'`;
           const searchResponse = await fetch(
-            `https://api.stripe.com/v1/customers/search?query=email:'${profile.email}'`,
+            `https://api.stripe.com/v1/customers/search?query=${encodeURIComponent(searchQuery)}`,
             {
               headers: {
                 Authorization: `Bearer ${stripeKey}`,
