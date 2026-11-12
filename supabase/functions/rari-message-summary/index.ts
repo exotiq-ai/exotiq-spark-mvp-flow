@@ -52,6 +52,7 @@ serve(async (req) => {
         )
       `)
       .eq('id', conversationId)
+      .eq('user_id', userId)
       .single();
 
     if (convError) {

@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { signState } from "../_shared/signedState.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -55,7 +56,8 @@ Deno.serve(async (req) => {
     const clientId = Deno.env.get("GOOGLE_CALENDAR_CLIENT_ID")!;
     const redirectUri = `${Deno.env.get("SUPABASE_URL")}/functions/v1/gcal-callback`;
 
-    const state = btoa(JSON.stringify({ team_id, user_id: userId }));
+    // The callback only accepts a state issued here (signed, 15 minutes).
+    const state = await signState({ team_id, user_id: userId }, Deno.env.get("GOOGLE_CALENDAR_CLIENT_SECRET") ?? "");
 
     const params = new URLSearchParams({
       client_id: clientId,
