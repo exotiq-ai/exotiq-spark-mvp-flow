@@ -2,10 +2,11 @@
 // HEAD-checks referenced JS/CSS bundles, records the result and emails on state change.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { Resend } from "https://esm.sh/resend@4.0.0";
+import { requireCronToken } from "../_shared/serviceAuth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-token",
 };
 
 const TARGET_URL = Deno.env.get("UPTIME_TARGET_URL") ?? "https://app.exotiq.ai";
@@ -125,6 +126,10 @@ function upEmail(downSinceMs: number): { subject: string; html: string } {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  // Scheduler only: the hourly job sends the shared scheduler token.
+  const auth = requireCronToken(req);
+  if (!auth.ok) return auth.response(corsHeaders);
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
