@@ -5,8 +5,9 @@
 export const STUDIO_HERO_PROMPT_VERSION = "v1.5";
 
 // Fixed ARK studio style anchor sent with every render (environment only).
+// The file lives in this project's own public vehicle-photos bucket, so the host comes from SUPABASE_URL.
 export const STUDIO_HERO_STYLE_REFERENCE_URL =
-  "https://jlgwbbqydjeokypoenoc.supabase.co/storage/v1/object/public/vehicle-photos/_studio-reference%2Fark-studio-reference-v1.jpg";
+  `${(Deno.env.get("SUPABASE_URL") ?? "").replace(/\/+$/, "")}/storage/v1/object/public/vehicle-photos/_studio-reference%2Fark-studio-reference-v1.jpg`;
 
 export const STUDIO_HERO_MASTER_PROMPT = `Create a photorealistic premium automotive studio photograph of the EXACT vehicle in the FIRST image. The SECOND image is the fixed ARK studio STYLE REFERENCE: copy only its room, backdrop, floor, lighting, exposure and mood. Never copy the reference vehicle, its color, shape, wheels or position. Every output must look photographed in this same studio on the same day. Vehicle paint must NEVER tint the studio.
 

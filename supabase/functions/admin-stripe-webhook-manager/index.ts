@@ -17,8 +17,9 @@ const DEFAULT_WEBHOOK_EVENTS = [
   "payment_intent.payment_failed",
 ];
 
-const DEFAULT_WEBHOOK_URL =
-  "https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1/rent-payment-webhook";
+// Default target: this project's own rent-payment-webhook function.
+const defaultWebhookUrl = () =>
+  `${(Deno.env.get("SUPABASE_URL") ?? "").replace(/\/+$/, "")}/functions/v1/rent-payment-webhook`;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -47,7 +48,7 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const webhookUrl = typeof body.url === "string" && body.url.trim()
       ? body.url.trim()
-      : DEFAULT_WEBHOOK_URL;
+      : defaultWebhookUrl();
     const recreate = Boolean(body.recreate);
 
     // List existing endpoints and find one matching this URL.
