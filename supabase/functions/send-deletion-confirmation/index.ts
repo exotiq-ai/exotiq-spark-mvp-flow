@@ -1,6 +1,13 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { Resend } from 'https://esm.sh/resend@4.0.0';
+import {
+  isPlatformAdmin,
+  isTeamOwnerOfRecord,
+  isUuid,
+  oneTimeTokenDigest,
+  requireSessionUser,
+} from "../_shared/callerSession.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,11 +17,15 @@ const corsHeaders = {
 
 interface DeletionRequest {
   teamId: string;
-  userId: string;
-  email: string;
   resend?: boolean;
   requestId?: string;
 }
+
+const jsonResponse = (status: number, body: Record<string, unknown>) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 
 serve(async (req: Request) => {
   // Handle CORS preflight
@@ -29,13 +40,25 @@ serve(async (req: Request) => {
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { teamId, userId, email, resend: isResend, requestId }: DeletionRequest = await req.json();
+    // The requester is the signed-in user. Their id and email come from the session.
+    const session = await requireSessionUser(req, supabase);
+    if (!session.ok) return session.response(corsHeaders);
+    const userId = session.userId;
+    const email = session.email;
 
-    if (!teamId || !userId || !email) {
-      return new Response(
-        JSON.stringify({ error: "Missing required fields" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    const { teamId, resend: isResend, requestId }: DeletionRequest = await req.json();
+
+    if (!isUuid(teamId)) {
+      return jsonResponse(400, { error: "Missing required fields" });
+    }
+
+    // Platform staff accounts do not use the self-service path.
+    if (await isPlatformAdmin(supabase, userId)) {
+      return jsonResponse(403, { error: "Only the team owner can request data deletion" });
+    }
+
+    if (!(await isTeamOwnerOfRecord(supabase, userId, teamId))) {
+      return jsonResponse(403, { error: "Only the team owner can request data deletion" });
     }
 
     // Rate limiting: Check for recent requests (max 3 per day)
@@ -56,30 +79,37 @@ serve(async (req: Request) => {
       );
     }
 
-    let confirmationToken: string;
+    // The token goes to the requester's inbox only. The table keeps a keyed digest of it.
+    const confirmationToken = crypto.randomUUID();
+    const tokenDigest = await oneTimeTokenDigest(confirmationToken, teamId, userId);
     let deletionRequestId: string;
 
     if (isResend && requestId) {
-      // Resend email for existing request
-      const { data: existingRequest, error: fetchError } = await supabase
-        .from("deletion_requests")
-        .select("confirmation_token")
-        .eq("id", requestId)
-        .single();
+      // Resend: issue a fresh token for the requester's own open request
+      if (!isUuid(requestId)) {
+        return jsonResponse(404, { error: "Deletion request not found" });
+      }
 
-      if (fetchError || !existingRequest) {
+      const { data: reissued, error: reissueError } = await supabase
+        .from("deletion_requests")
+        .update({ confirmation_token: tokenDigest })
+        .eq("id", requestId)
+        .eq("team_id", teamId)
+        .eq("requested_by", userId)
+        .eq("status", "email_sent")
+        .gt("scheduled_deletion_at", new Date().toISOString())
+        .select("id");
+
+      if (reissueError || !reissued || reissued.length !== 1) {
         return new Response(
           JSON.stringify({ error: "Deletion request not found" }),
           { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
-      confirmationToken = existingRequest.confirmation_token;
       deletionRequestId = requestId;
     } else {
       // Create new deletion request
-      confirmationToken = crypto.randomUUID();
-      
       const { data: newRequest, error: insertError } = await supabase
         .from("deletion_requests")
         .insert({
@@ -87,7 +117,7 @@ serve(async (req: Request) => {
           requested_by: userId,
           request_type: "full_data_deletion",
           status: "email_sent",
-          confirmation_token: confirmationToken,
+          confirmation_token: tokenDigest,
           scheduled_deletion_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // 1 hour expiry
           ip_address: req.headers.get("x-forwarded-for") || "unknown",
           user_agent: req.headers.get("user-agent") || "unknown",
