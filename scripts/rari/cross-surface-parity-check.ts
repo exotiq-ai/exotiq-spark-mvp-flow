@@ -11,7 +11,7 @@
 //   RARI_TOOL_TOKEN_SECRET
 //   USER_ID        (a user with an active team_members row)
 // Optional:
-//   RARI_BASE_URL  (default: the Lovable Cloud function URL)
+//   RARI_BASE_URL  (default: SUPABASE_URL + /functions/v1)
 
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
@@ -23,7 +23,7 @@ const USER_ID = requireEnv('USER_ID');
 const SUPABASE_AUTH_TOKEN = process.env.SUPABASE_AUTH_TOKEN; // optional; chat uses the user's auth token, not the tool token
 const BASE_URL =
   process.env.RARI_BASE_URL ||
-  'https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1';
+  `${SUPABASE_URL.replace(/\/+$/, '')}/functions/v1`;
 
 function requireEnv(name: string): string {
   const value = process.env[name];

@@ -24,7 +24,7 @@ const USER_ID_A = requireEnv('USER_ID_A');
 const USER_ID_B = requireEnv('USER_ID_B');
 const BASE_URL =
   process.env.RARI_BASE_URL ||
-  'https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1';
+  `${SUPABASE_URL.replace(/\/+$/, '')}/functions/v1`;
 
 function requireEnv(name: string): string {
   const value = process.env[name];

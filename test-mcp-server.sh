@@ -3,7 +3,8 @@
 # Test script for Rari MCP Server
 # This helps debug why ElevenLabs isn't seeing tools
 
-BASE_URL="https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1/rari-mcp-server"
+# SUPABASE_URL is required: https://<project-ref>.supabase.co
+BASE_URL="${SUPABASE_URL:?Set SUPABASE_URL to the project URL}/functions/v1/rari-mcp-server"
 
 echo "🔍 Testing Rari MCP Server Endpoints..."
 echo ""

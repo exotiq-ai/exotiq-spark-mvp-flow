@@ -9,7 +9,9 @@ fs.mkdirSync(outDir, { recursive: true });
 
 const session = JSON.parse(fs.readFileSync(sessionPath, "utf8"));
 const token = session.session.access_token;
-const functionUrl = `${session.session.supabase_url || "https://jlgwbbqydjeokypoenoc.supabase.co"}/functions/v1/text-to-speech`;
+const supabaseUrl = session.session.supabase_url || process.env.SUPABASE_URL;
+if (!supabaseUrl) throw new Error("No project URL: the session file has no supabase_url and SUPABASE_URL is not set.");
+const functionUrl = `${supabaseUrl.replace(/\/+$/, "")}/functions/v1/text-to-speech`;
 
 const reels = [
   {

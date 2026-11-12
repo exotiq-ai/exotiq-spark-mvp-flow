@@ -5,9 +5,9 @@
  * (it prints the signing secrets once — copy them straight into the project
  * secrets; they are never stored by this script).
  *
- * Usage:
- *   STRIPE_LIVE_KEY=sk_live_xxx bun scripts/stripe/live-preflight.ts
- *   STRIPE_LIVE_KEY=sk_live_xxx bun scripts/stripe/live-preflight.ts --apply
+ * Usage (SUPABASE_FUNCTIONS_BASE is required and names the project the webhooks must point at):
+ *   SUPABASE_FUNCTIONS_BASE=https://<project-ref>.supabase.co/functions/v1 STRIPE_LIVE_KEY=sk_live_xxx bun scripts/stripe/live-preflight.ts
+ *   SUPABASE_FUNCTIONS_BASE=https://<project-ref>.supabase.co/functions/v1 STRIPE_LIVE_KEY=sk_live_xxx bun scripts/stripe/live-preflight.ts --apply
  *
  * The key is read from the environment only — never commit it, never paste it
  * into chat.
@@ -16,7 +16,13 @@
 const KEY = process.env.STRIPE_LIVE_KEY ?? "";
 const APPLY = process.argv.includes("--apply");
 
-const FUNCTIONS_BASE = "https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1";
+// No default on purpose: the endpoints this script checks (and creates with --apply) must point at the
+// project named by the operator, never at a host baked into the file.
+const FUNCTIONS_BASE = (process.env.SUPABASE_FUNCTIONS_BASE ?? "").trim().replace(/\/+$/, "");
+if (!/^https:\/\/[^/\s]+\/functions\/v1$/.test(FUNCTIONS_BASE)) {
+  console.error("SUPABASE_FUNCTIONS_BASE must be set to https://<project-ref>.supabase.co/functions/v1. Aborting.");
+  process.exit(2);
+}
 
 // Subscription objects hardcoded in create-checkout-session / switch-subscription.
 const PRICE_IDS = [
@@ -138,6 +144,7 @@ async function main() {
     process.exit(2);
   }
 
+  console.log(`\nWebhook target: ${FUNCTIONS_BASE}`);
   console.log("\n== Account ==");
   const { body: acct } = await stripe("account");
   if (acct.error) {
