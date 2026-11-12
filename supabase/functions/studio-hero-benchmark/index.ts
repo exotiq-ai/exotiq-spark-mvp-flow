@@ -9,9 +9,16 @@ import {
   buildV2Prompt, identitySheetToText,
 } from "../_shared/studioHeroV2.ts";
 import { validateStudioReview, mergeIdentity, identityRevision } from '../_shared/studioReview.ts';
+import { aiChatUrl, aiModel, aiRequestParams } from "../_shared/aiProvider.ts";
+import { geminiImageModel, geminiImageResponse } from "../_shared/geminiImage.ts";
 
-const AI = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const VISION_MODEL = "google/gemini-3.1-pro-preview";
+// The review dialog sends the ids in BENCHMARK_MODELS. Map each to the Google model actually called:
+// the baseline is whatever render-studio-hero renders with today; the other id is passed to Google
+// without its provider prefix unless GEMINI_IMAGE_MODEL_PRO names a different model.
+function directImageModel(requested: string): string {
+  if (requested === "google/gemini-2.5-flash-image") return geminiImageModel();
+  return Deno.env.get("GEMINI_IMAGE_MODEL_PRO") || requested.replace(/^google\//, "");
+}
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
 async function toDataUrl(url: string): Promise<string | null> {
@@ -23,21 +30,26 @@ async function toDataUrl(url: string): Promise<string | null> {
   } catch { return null; }
 }
 const img = (url: string) => ({ type: "image_url", image_url: { url } });
-async function chat(key: string, model: string, content: unknown[], image = false, telemetry?: { runId?: string; calls: unknown[] }) {
-  const headers = new Headers({ Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', 'X-Lovable-AIG-SDK': 'fetch' });
-  if (telemetry?.runId) headers.set('X-Lovable-AIG-Run-ID', telemetry.runId);
-  const r = await fetch(AI, { method: "POST", headers,
-    body: JSON.stringify({ model, messages: [{ role: "user", content }], ...(image ? { modalities: ["image", "text"] } : {}) }) });
+// Vision/text calls go to the OpenAI-compatible provider; image renders go to Google directly.
+// `imageModel` set = render call: content[0] is the prompt, every following entry is an image in order.
+async function chat(key: string, content: unknown[], imageModel: string | null = null, telemetry?: { runId?: string; calls: unknown[] }) {
+  const model = imageModel ?? aiModel("vision");
+  const r = imageModel
+    ? await geminiImageResponse({
+        prompt: (content[0] as { text: string }).text,
+        referenceDataUrls: content.slice(1).map((c) => (c as { image_url: { url: string } }).image_url.url),
+        model: imageModel,
+      })
+    : await fetch(aiChatUrl(), { method: "POST",
+        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...aiRequestParams("vision"), messages: [{ role: "user", content }] }) });
   if (!r.ok) {
     const body = await r.json().catch(() => ({}));
     const message = body.message ?? body.error?.message ?? `${model} request failed (${r.status})`;
     throw Object.assign(new Error(message), { status: r.status });
   }
   const response = await r.json();
-  if (telemetry) {
-    telemetry.runId ??= r.headers.get('X-Lovable-AIG-Run-ID') ?? undefined;
-    telemetry.calls.push({ model, usage: response.usage ?? null });
-  }
+  if (telemetry) telemetry.calls.push({ model, usage: response.usage ?? null });
   const message = response.choices?.[0]?.message;
   if (message?.refusal || (!message?.content && !message?.images?.length)) {
     throw Object.assign(new Error(message?.refusal || 'The model returned no output.'), { status: 422 });
@@ -59,9 +71,9 @@ Deno.serve(async (req) => {
     if (referenceImages !== undefined && (!Array.isArray(referenceImages) || referenceImages.length < 1 || referenceImages.length > 4 || referenceImages.some((image) => typeof image !== 'string' || image.length > 8_000_000 || !/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(image)))) return json({ error: 'Supply 1–4 JPEG, PNG or WebP reference images, each under 8 MB encoded.' }, 400);
     const label = typeof runLabel === "string" && /^[a-zA-Z0-9_-]{1,79}$/.test(runLabel) ? runLabel : `bench-${new Date().toISOString().slice(0, 10)}`;
 
-    const KEY = Deno.env.get("LOVABLE_API_KEY"), URL_ = Deno.env.get("SUPABASE_URL");
+    const KEY = Deno.env.get("OPENAI_API_KEY"), URL_ = Deno.env.get("SUPABASE_URL");
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY"), serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (!KEY || !URL_ || !anonKey || !serviceKey) return json({ error: 'Photo testing is not configured.' }, 500);
+    if (!KEY || !Deno.env.get("GEMINI_API_KEY") || !URL_ || !anonKey || !serviceKey) return json({ error: 'Photo testing is not configured.' }, 500);
     const auth = req.headers.get("Authorization")?.replace("Bearer ", "");
     if (!auth) return json({ error: "Authentication required" }, 401);
     const anon = createClient(URL_, anonKey);
@@ -71,6 +83,7 @@ Deno.serve(async (req) => {
     const db = createClient(URL_, serviceKey);
     const { data: isSa } = await db.rpc("is_super_admin", { check_user_id: userId });
     if (isSa !== true) return json({ error: "Super admin only" }, 403);
+    const VISION_MODEL = aiModel("vision");
 
     const { data: v } = await db.from("vehicles").select("id, team_id, make, model, year, color").eq("id", vehicleId).single();
     if (!v) return json({ error: "Vehicle not found" }, 404);
@@ -90,7 +103,7 @@ Deno.serve(async (req) => {
       if (!photo) continue;
       const image = await toDataUrl(photo.url);
       if (!image) continue;
-      const classification = parseJson((await chat(KEY, VISION_MODEL, [{ type: 'text', text: STUDIO_HERO_SOURCE_CLASSIFIER }, img(image)], false, telemetry))?.content);
+      const classification = parseJson((await chat(KEY, [{ type: 'text', text: STUDIO_HERO_SOURCE_CLASSIFIER }, img(image)], null, telemetry))?.content);
       const kind = classification?.kind;
       if (!['exterior_front_quarter', 'exterior_other', 'rear', 'detail'].includes(kind)) {
         if (sourcePhotoIds) return json({ error: 'Selected references include an interior or unsuitable photo. Choose genuine exterior or detail references.' }, 422);
@@ -107,7 +120,7 @@ Deno.serve(async (req) => {
     let { data: sheetRow } = await db.from("vehicle_identity_sheets").select("sheet,source_revision,reviewed_overrides").eq("vehicle_id", vehicleId).maybeSingle();
     const overrides = sheetRow?.reviewed_overrides as Record<string, unknown> ?? {};
     if (!sheetRow || rebuildSheet === true || referenceImages || sheetRow.source_revision !== revision) {
-      const msg = await chat(KEY, VISION_MODEL, [{ type: "text", text: `${IDENTITY_SHEET_PROMPT}\nListing: ${v.year ?? ""} ${v.make} ${v.model}, listed color ${v.color ?? "unknown"}.` }, ...refData.map(img)], false, telemetry);
+      const msg = await chat(KEY, [{ type: "text", text: `${IDENTITY_SHEET_PROMPT}\nListing: ${v.year ?? ""} ${v.make} ${v.model}, listed color ${v.color ?? "unknown"}.` }, ...refData.map(img)], null, telemetry);
       const sheet = parseJson(msg?.content);
       if (!sheet || typeof sheet !== 'object' || Array.isArray(sheet) || !sheet.wheels || !sheet.paint || !Array.isArray(sheet.evidence)) return json({ error: "Identity sheet failed validation; no render was started." }, 422);
       // Ad-hoc uploaded examples must not overwrite the vehicle's saved identity sheet.
@@ -126,7 +139,7 @@ Deno.serve(async (req) => {
     const prompt = buildV2Prompt(sheet, correction ? [correction] : []);
     let renderUrl: string | null = null, storagePath: string | null = null, error: string | null = null, qc: ReturnType<typeof validateStudioReview> = null, upstreamStatus: number | null = null;
     try {
-      const m = await chat(KEY, model, [{ type: "text", text: prompt }, ...renderInputs.map(img)], true, telemetry);
+      const m = await chat(KEY, [{ type: "text", text: prompt }, ...renderInputs.map(img)], directImageModel(model), telemetry);
       const out = m?.images?.[0]?.image_url?.url as string | undefined;
       if (!out?.startsWith("data:image")) throw new Error("no_image");
       const [h, b64] = out.split(","); const mime = h.match(/data:([^;]+)/)?.[1] || "image/png";
@@ -137,7 +150,7 @@ Deno.serve(async (req) => {
       if (upErr) throw new Error("upload_failed");
       renderUrl = db.storage.from("vehicle-photos").getPublicUrl(path).data.publicUrl;
       // Strict QC — fail closed
-      const q = await chat(KEY, VISION_MODEL, [{ type: "text", text: `${QC_V2_PROMPT}\n\n${identitySheetToText(sheet)}` }, ...refData.slice(0, 3).map(img), img(out), ...(style ? [img(style)] : [])], false, telemetry);
+      const q = await chat(KEY, [{ type: "text", text: `${QC_V2_PROMPT}\n\n${identitySheetToText(sheet)}` }, ...refData.slice(0, 3).map(img), img(out), ...(style ? [img(style)] : [])], null, telemetry);
       qc = validateStudioReview(parseJson(q?.content));
       if (!qc) error = "Quality review is incomplete or invalid; candidate is not approved.";
     } catch (e) {
