@@ -92,6 +92,13 @@
       "when": 1794497521905,
       "tag": "0012_tighten_function_privileges_and_column_update_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1794500284495,
+      "tag": "0013_scope_member_activation_to_the_team_and_tidy_membership_lookups_and_chat_policies",
+      "breakpoints": true
     }
   ]
 }
