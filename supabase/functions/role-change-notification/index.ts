@@ -19,11 +19,20 @@ interface RoleChangeRequest {
 }
 
 const ROLE_LABELS: Record<string, string> = {
+  owner: "Owner",
   admin: "Administrator",
   manager: "Manager", 
   operator: "Operator",
   viewer: "Viewer",
 };
+
+const escapeHtml = (value: unknown): string =>
+  String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 
 serve(async (req: Request) => {
   // Handle CORS preflight
@@ -55,21 +64,47 @@ serve(async (req: Request) => {
     // Create admin client for operations
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Verify caller is admin
-    const { data: isAdmin } = await supabaseAdmin.rpc("has_role", {
-      _user_id: adminUser.id,
-      _role: "admin",
-    });
-
-    if (!isAdmin) {
-      throw new Error("Only admins can trigger role change notifications");
-    }
-
-    const { userId, oldRole, newRole, oldPermissions, newPermissions, changedBy }: RoleChangeRequest = await req.json();
+    const { userId, oldRole: rawOldRole, newRole }: RoleChangeRequest = await req.json();
 
     if (!userId || !newRole) {
       throw new Error("User ID and new role are required");
     }
+
+    // Only the known role names are accepted
+    const oldRole = rawOldRole || "viewer";
+    const isKnownRole = (value: unknown): value is string =>
+      typeof value === "string" && Object.prototype.hasOwnProperty.call(ROLE_LABELS, value);
+    if (typeof userId !== "string" || !isKnownRole(newRole) || !isKnownRole(oldRole)) {
+      throw new Error("Unknown role");
+    }
+
+    // The caller must be an active owner or admin of a team the affected user belongs to,
+    // and the affected user must not be active in a team the caller does not manage
+    const { data: managedTeams } = await supabaseAdmin
+      .from("team_members")
+      .select("team_id")
+      .eq("user_id", adminUser.id)
+      .eq("is_active", true)
+      .in("role", ["owner", "admin"]);
+    const managedTeamIds = (managedTeams ?? []).map((row: { team_id: string }) => row.team_id);
+
+    let sharesTeam = false;
+    if (managedTeamIds.length > 0) {
+      const { data: targetRows, error: targetError } = await supabaseAdmin
+        .from("team_members")
+        .select("team_id, is_active")
+        .eq("user_id", userId);
+      const memberships = (targetError ? [] : (targetRows ?? [])) as { team_id: string; is_active: boolean }[];
+      const activeElsewhere = memberships.some((m) => m.is_active && !managedTeamIds.includes(m.team_id));
+      sharesTeam = !activeElsewhere && memberships.some((m) => managedTeamIds.includes(m.team_id));
+    }
+
+    if (!sharesTeam) {
+      throw new Error("Only admins of the user's team can trigger role change notifications");
+    }
+
+    // The change is attributed to the signed-in caller
+    const changedBy = adminUser.id;
 
     // Get the affected user's profile
     const { data: userProfile, error: profileError } = await supabaseAdmin
@@ -90,15 +125,15 @@ serve(async (req: Request) => {
       .eq("id", changedBy)
       .single();
 
-    const adminName = adminProfile?.full_name || "An administrator";
-    const companyName = userProfile.company_name || "Exotiq";
-    const userName = userProfile.full_name || "Team Member";
+    const adminName = escapeHtml(adminProfile?.full_name || "An administrator");
+    const companyName = escapeHtml(userProfile.company_name || "Exotiq");
+    const userName = escapeHtml(userProfile.full_name || "Team Member");
 
-    const oldRoleLabel = ROLE_LABELS[oldRole] || oldRole;
-    const newRoleLabel = ROLE_LABELS[newRole] || newRole;
+    const oldRoleLabel = ROLE_LABELS[oldRole];
+    const newRoleLabel = ROLE_LABELS[newRole];
 
     // Determine if this is a promotion or demotion
-    const roleHierarchy: Record<string, number> = { admin: 4, manager: 3, operator: 2, viewer: 1 };
+    const roleHierarchy: Record<string, number> = { owner: 5, admin: 4, manager: 3, operator: 2, viewer: 1 };
     const isPromotion = (roleHierarchy[newRole] || 0) > (roleHierarchy[oldRole] || 0);
     const changeType = isPromotion ? "promoted" : "updated";
 
@@ -106,7 +141,7 @@ serve(async (req: Request) => {
     const emailResponse = await resend.emails.send({
       from: "Exotiq <noreply@mail.exotiq.ai>",
       to: [userProfile.email],
-      subject: `Your role has been ${changeType} at ${companyName}`,
+      subject: `Your role has been ${changeType} at ${userProfile.company_name || "Exotiq"}`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -175,7 +210,7 @@ serve(async (req: Request) => {
         old_role: oldRole,
         new_role: newRole,
         changed_by: changedBy,
-        changed_by_name: adminName,
+        changed_by_name: adminProfile?.full_name || "An administrator",
       },
     });
 

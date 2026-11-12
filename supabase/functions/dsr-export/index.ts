@@ -93,6 +93,8 @@ Deno.serve(async (req) => {
     const { data: tm } = await (db.from("team_members") as any)
       .select("team_id")
       .eq("user_id", callerId)
+      .eq("is_active", true)
+      .in("role", ["owner", "admin"])
       .maybeSingle();
     const callerTeamId = (tm as { team_id?: string } | null)?.team_id;
     if (!callerTeamId) {
@@ -123,11 +125,29 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    if (reqRow.team_id && reqRow.team_id !== callerTeamId) {
+    if (reqRow.team_id !== callerTeamId) {
       return new Response(JSON.stringify({ error: "cross-team request" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // An operator-user subject must belong to the caller's team, and must not be
+    // active in a different team.
+    if (reqRow.subject_user_id) {
+      const { data: subjectRows } = await db
+        .from("team_members")
+        .select("team_id, is_active")
+        .eq("user_id", reqRow.subject_user_id);
+      const memberships = (subjectRows ?? []) as { team_id: string; is_active: boolean }[];
+      const inCallerTeam = memberships.some((m) => m.team_id === callerTeamId);
+      const activeElsewhere = memberships.some((m) => m.is_active && m.team_id !== callerTeamId);
+      if (!inCallerTeam || activeElsewhere) {
+        return new Response(JSON.stringify({ error: "subject is not a member of this team" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     const bundle: Record<string, unknown> = {
