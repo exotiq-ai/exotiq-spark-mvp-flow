@@ -289,3 +289,7 @@ verify_jwt = true
 
 [functions.super-admin-tenant-lifecycle]
 verify_jwt = true
+
+# Added with studio hero v2. Super-admin only: it checks the caller's token and is_super_admin itself.
+[functions.studio-hero-benchmark]
+verify_jwt = true
