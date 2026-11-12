@@ -118,7 +118,8 @@ Deno.serve(async (req) => {
       .from("bookings")
       .select("*, vehicles(name, make, model, year)")
       .eq("id", booking_id)
-      .single();
+      .eq("team_id", team_id)
+      .maybeSingle();
 
     if (!booking) {
       return new Response(JSON.stringify({ error: "booking_not_found" }), {

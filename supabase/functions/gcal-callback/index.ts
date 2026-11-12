@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { verifyState } from "../_shared/signedState.ts";
 
 Deno.serve(async (req) => {
   try {
@@ -19,10 +20,12 @@ Deno.serve(async (req) => {
       return Response.redirect(`${frontendUrl}/dashboard?gcal=error&reason=missing_params`, 302);
     }
 
-    let state: { team_id: string; user_id: string };
-    try {
-      state = JSON.parse(atob(stateParam));
-    } catch {
+    // Only a state issued by gcal-auth (signed, not expired) is accepted.
+    const state = await verifyState<{ team_id: string; user_id: string }>(
+      stateParam,
+      Deno.env.get("GOOGLE_CALENDAR_CLIENT_SECRET"),
+    );
+    if (!state || typeof state.team_id !== "string" || typeof state.user_id !== "string") {
       return Response.redirect(`${frontendUrl}/dashboard?gcal=error&reason=invalid_state`, 302);
     }
 
