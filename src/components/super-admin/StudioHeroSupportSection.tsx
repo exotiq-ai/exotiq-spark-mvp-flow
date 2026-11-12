@@ -4,7 +4,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { RotateCcw } from 'lucide-react';
+import { RotateCcw, Images } from 'lucide-react';
+import { StudioHeroReviewDialog } from './StudioHeroReviewDialog';
 
 interface Row {
   vehicle_id: string;
@@ -19,6 +20,7 @@ const MAX = 3;
 export const StudioHeroSupportSection = ({ teamId }: { teamId: string }) => {
   const [rows, setRows] = useState<Row[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
+  const [reviewOpen, setReviewOpen] = useState(false);
 
   const load = useCallback(async () => {
     const { data, error } = await supabase.rpc('super_admin_studio_hero_status', { _team_id: teamId });
@@ -47,6 +49,7 @@ export const StudioHeroSupportSection = ({ teamId }: { teamId: string }) => {
           <p className="text-xs text-muted-foreground">
             Reset a vehicle's render counter to give the operator 3 new attempts. Past renders stay saved.
           </p>
+          <Button variant="outline" size="sm" className="mt-3" onClick={() => setReviewOpen(true)} data-testid="studio-review-open"><Images className="mr-2 h-4 w-4" />Review studio photos</Button>
         </div>
         {rows.length === 0 ? (
           <p className="text-xs text-muted-foreground">No studio renders for this account yet.</p>
@@ -78,6 +81,7 @@ export const StudioHeroSupportSection = ({ teamId }: { teamId: string }) => {
           </ul>
         )}
       </CardContent>
+      <StudioHeroReviewDialog teamId={teamId} open={reviewOpen} onClose={() => { setReviewOpen(false); load(); }} />
     </Card>
   );
 };

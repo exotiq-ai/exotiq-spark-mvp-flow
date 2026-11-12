@@ -28,3 +28,19 @@
 - [ ] "Service fee" Stripe/email wording (release day with v2 — Protect still charged until then)
 - [ ] Publish guardrails + 14-day notice flow
 - [ ] v2 split release (with MP-31)
+
+- [ ] Studio Hero v2: pick benchmark winner (Gregory), then switch live renderer + remove QC fail-open; add Super Admin side-by-side review view
+
+## Maybach reference benchmark — 2026-10-20
+- [x] Rerun a preview with the two supplied Maybach references; preserve the live hero and tenant attempts
+- [x] Inspect wheels, direction, lighting and studio consistency; present the result (rejected: lower bumper mesh; reflection still faint)
+- [x] Prepare the finishing and Super Admin upgrade plan based on the result
+
+## Studio Hero v2 finishing — approved 2026-10-20
+- [ ] Identity evidence, source refresh and strict review validation
+- [ ] Super Admin comparison, identity editing, test render, approval/rejection and audited fleet reset
+- [ ] Targeted Maybach correction and fixed repeated benchmark
+- [ ] Atomic attempt/promotion foundations and fail-closed review
+- [ ] Signed-in verification and tests
+- [ ] Activate candidate recipe and automatic rollout (blocked until benchmark parity and Gregory's winner approval)
+- [ ] Renter-app cache/gallery coordination (external renter-app owner)

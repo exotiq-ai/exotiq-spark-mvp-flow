@@ -23,16 +23,19 @@ function parseDataUrl(u: string): { mimeType: string; data: string } | null {
 const jsonResponse = (body: unknown, status: number) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
+// Images are sent in order: sourceDataUrl first, then every referenceDataUrls entry (prompts that say
+// "FIRST image ... LAST image" rely on this order).
 export async function geminiImageResponse(
-  opts: { prompt: string; sourceDataUrl?: string; model?: string },
+  opts: { prompt: string; sourceDataUrl?: string; referenceDataUrls?: string[]; model?: string },
 ): Promise<Response> {
   const key = (Deno.env.get("GEMINI_API_KEY") ?? "").trim();
   if (!key) return jsonResponse({ error: "GEMINI_API_KEY is not configured" }, 500);
 
   const parts: Array<Record<string, unknown>> = [{ text: opts.prompt }];
-  if (opts.sourceDataUrl) {
-    const img = parseDataUrl(opts.sourceDataUrl);
-    if (!img) return jsonResponse({ error: "source image is not a base64 data URL" }, 400);
+  const inputs = [...(opts.sourceDataUrl ? [opts.sourceDataUrl] : []), ...(opts.referenceDataUrls ?? [])];
+  for (const dataUrl of inputs) {
+    const img = parseDataUrl(dataUrl);
+    if (!img) return jsonResponse({ error: "input image is not a base64 data URL" }, 400);
     parts.push({ inline_data: { mime_type: img.mimeType, data: img.data } });
   }
 
