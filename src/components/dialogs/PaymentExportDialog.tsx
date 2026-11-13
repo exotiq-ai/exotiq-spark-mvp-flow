@@ -15,6 +15,7 @@ import { Download, FileSpreadsheet, FileText, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { operatorPayments } from "@/lib/paymentLegs";
 
 interface PaymentExportDialogProps {
   open: boolean;
@@ -107,8 +108,10 @@ export const PaymentExportDialog = ({
     if (startDate) query = query.gte("created_at", startDate);
     if (endDate) query = query.lte("created_at", endDate);
 
-    const { data: payments, error } = await query;
+    const { data: paymentRows, error } = await query;
     if (error) throw error;
+    // The operator's own payments only: the Exotiq charge of marketplace bookings is Exotiq's revenue.
+    const payments = operatorPayments(paymentRows);
 
     // HTML-escape all interpolated values to prevent stored XSS in the print window
     const escapeHtml = (value: unknown): string =>

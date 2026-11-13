@@ -36,6 +36,7 @@ import { cn } from "@/lib/utils";
 import { calculateBookingTotal, getGasFeeForTeam } from "@/lib/pricingUtils";
 import { useTeamGasFeeSettings } from '@/hooks/useTeamGasFeeSettings';
 import { useMoney } from '@/hooks/useMoney';
+import { operatorPayments } from "@/lib/paymentLegs";
 
 type Booking = Database['public']['Tables']['bookings']['Row'];
 type Payment = Database['public']['Tables']['payments']['Row'];
@@ -113,7 +114,7 @@ export const RecordPaymentDialog = ({
         .select("*")
         .eq("booking_id", booking.id)
         .eq("payment_status", "completed");
-      setExistingPayments(data || []);
+      setExistingPayments(operatorPayments(data));
     };
     fetchPayments();
   }, [open, booking.id]);

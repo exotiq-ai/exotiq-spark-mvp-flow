@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { loadFleetTruth, rankByUtilization, sharePct, type FleetTruth } from '../../supabase/functions/_shared/motoriq/serverFacts.ts';
+import { operatorPayments } from '@/lib/paymentLegs';
 
 // Utilization and revenue per car come from the tenant's own bookings (the same facts MotorIQ shows), never from
 // the stored vehicles.utilization / vehicles.revenue columns, which nothing maintains.
@@ -141,14 +142,16 @@ export function createRariClientTools(userId: string, teamId?: string, userRole?
       try {
         let paymentsQuery = supabase
           .from('payments')
-          .select('amount, payment_status, transaction_date, booking_id')
+          .select('amount, payment_status, transaction_date, booking_id, payment_type')
           .eq('payment_status', 'completed');
         
         if (teamId) {
           paymentsQuery = paymentsQuery.eq('team_id', teamId);
         }
         
-        const { data: payments } = await paymentsQuery;
+        const { data: paymentRows } = await paymentsQuery;
+        // Exotiq's marketplace charge is not the operator's revenue (see lib/paymentLegs).
+        const payments = operatorPayments(paymentRows);
 
         let bookingsQuery = supabase
           .from('bookings')
@@ -360,13 +363,15 @@ export function createRariClientTools(userId: string, teamId?: string, userRole?
       try {
         let paymentsQuery = supabase
           .from('payments')
-          .select('amount, payment_status, payment_method, transaction_date');
+          .select('amount, payment_status, payment_method, transaction_date, payment_type');
         
         if (teamId) {
           paymentsQuery = paymentsQuery.eq('team_id', teamId);
         }
         
-        const { data: payments } = await paymentsQuery;
+        const { data: paymentRows } = await paymentsQuery;
+        // Exotiq's marketplace charge is not the operator's revenue (see lib/paymentLegs).
+        const payments = operatorPayments(paymentRows);
 
         const completed = payments?.filter(p => p.payment_status === 'completed') || [];
         const pending = payments?.filter(p => p.payment_status === 'pending') || [];

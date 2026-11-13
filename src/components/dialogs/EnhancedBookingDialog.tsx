@@ -108,7 +108,7 @@ export const EnhancedBookingDialog = ({
   bookingId,
   onNavigateToModule,
 }: EnhancedBookingDialogProps) => {
-  const { bookings, vehicles, payments, customers, updateBookingStatus, updateBookingDetails, createPayment, sendMessage, refreshData } = useFleet();
+  const { bookings, vehicles, payments, exotiqFeePayments, customers, updateBookingStatus, updateBookingDetails, createPayment, sendMessage, refreshData } = useFleet();
   const blockIfRestricted = useBlockIfRestricted();
   const { currentTeam } = useTeam();
   const { toast } = useToast();
@@ -165,7 +165,11 @@ export const EnhancedBookingDialog = ({
   const booking = bookings.find((b) => b.id === bookingId);
   const vehicle = vehicles.find((v) => v.id === booking?.vehicle_id);
   const customer = customers.find((c) => c.id === booking?.customer_id);
+  // `payments` holds the operator's own payments only; the Exotiq charge of a marketplace booking is shown apart.
   const bookingPayments = payments.filter((p) => p.booking_id === bookingId);
+  const exotiqFeesPaid = exotiqFeePayments
+    .filter((p) => p.booking_id === bookingId && p.payment_status === "completed")
+    .reduce((sum, p) => sum + Number(p.amount), 0);
 
   const totalPaid = bookingPayments
     .filter((p) => p.payment_status === "completed")
@@ -1290,6 +1294,13 @@ export const EnhancedBookingDialog = ({
                               </div>
                             </div>
                           ))}
+                        </div>
+                      )}
+
+                      {exotiqFeesPaid > 0 && (
+                        <div className="p-3 rounded-lg bg-muted/20 text-xs text-muted-foreground flex items-center justify-between gap-3">
+                          <span>Exotiq booking fees, paid by the renter in a separate charge (EXOTIQ RENT). Not part of your revenue.</span>
+                          <span className="font-medium whitespace-nowrap">{fmt(exotiqFeesPaid)}</span>
                         </div>
                       )}
 

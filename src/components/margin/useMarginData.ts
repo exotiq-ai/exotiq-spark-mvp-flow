@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTeam } from "@/contexts/TeamContext";
 import { useMarginFilters } from "./MarginFiltersContext";
+import { operatorPayments } from "@/lib/paymentLegs";
 
 export interface FilteredBooking {
   id: string;
@@ -153,7 +154,7 @@ export function useMarginData(): State {
           .in("booking_id", bookingIds)
           .gte("transaction_date", startIso)
           .lte("transaction_date", endIso);
-        payments = ((payData || []) as any[]) as FilteredPayment[];
+        payments = operatorPayments((payData || []) as any[]) as FilteredPayment[];
       }
 
       // Filter expenses by location/vehicle (no source filter for expenses)

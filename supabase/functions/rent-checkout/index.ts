@@ -27,6 +27,7 @@ import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.77.0";
 import { resolveStripeMode, teamConnectedAccountId } from "../_shared/stripeMode.ts";
 import { checkRateLimit, clientIp } from "../_shared/rateLimit.ts";
+import { separateChargeNotice } from "../_shared/checkoutDisclosure.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -81,7 +82,7 @@ serve(async (req) => {
       .from("bookings")
       .select(
         "id, booking_ref, status, booking_source, confirmation_token, payment_due_at, " +
-        "total_value, platform_fee_cents, protection_total_cents, protection_tier, " +
+        "total_value, platform_fee_cents, protection_total_cents, protection_tier, state_fee_cents, processing_fee_cents, " +
         "operator_payment_intent_id, customer_name, customer_email, team_id, vehicle_id",
       )
       .eq("booking_ref", bookingRef)
@@ -150,6 +151,9 @@ serve(async (req) => {
     const origin = req.headers.get("origin") || "https://book.exotiq.rent";
     const returnBase = `${origin}/booking/${encodeURIComponent(booking.booking_ref)}?t=${encodeURIComponent(token)}`;
 
+    // Say on the Stripe page that the Exotiq part follows as a separate charge (the storefront says it too).
+    const notice = separateChargeNotice(booking, currency);
+
     const session = await stripe.checkout.sessions.create(
       {
         customer: customerId,
@@ -183,6 +187,7 @@ serve(async (req) => {
             stripe_mode: mode,
           },
         },
+        ...(notice ? { custom_text: { submit: { message: notice } } } : {}),
         success_url: `${returnBase}&payment=success`,
         cancel_url: `${returnBase}&payment=cancelled`,
         metadata: {
@@ -191,7 +196,7 @@ serve(async (req) => {
           stripe_mode: mode,
         },
       },
-      { idempotencyKey: `rent-checkout-${booking.booking_ref}-${booking.payment_due_at ?? ""}` },
+      { idempotencyKey: `rent-checkout-v2-${booking.booking_ref}-${booking.payment_due_at ?? ""}` },
     );
 
     logStep("Checkout session created", { bookingRef, mode, sessionId: session.id });

@@ -19,6 +19,7 @@ import {
   paymentSchema,
   vehicleSchema
 } from '@/lib/validationSchemas';
+import { operatorPayments, exotiqFeePayments } from '@/lib/paymentLegs';
 
 type Vehicle = Database['public']['Tables']['vehicles']['Row'];
 type Booking = Database['public']['Tables']['bookings']['Row'];
@@ -41,7 +42,10 @@ interface FleetContextType {
   customerNotes: CustomerNote[];
   inspections: VehicleInspection[];
   damageClaims: DamageClaim[];
+  /** The operator's own payments (the Exotiq charge of marketplace bookings is left out, see lib/paymentLegs). */
   payments: Payment[];
+  /** The Exotiq charge rows of marketplace bookings: paid by the renter to Exotiq, not operator revenue. */
+  exotiqFeePayments: Payment[];
   revenue: { today: number; month: number; change: number | null };
   loading: boolean;
   isRefreshing: boolean; // New: show subtle "updating" state without blocking UI
@@ -112,6 +116,8 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
   const [inspections, setInspections] = useState<VehicleInspection[]>([]);
   const [damageClaims, setDamageClaims] = useState<DamageClaim[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const operatorPaymentRows = useMemo(() => operatorPayments(payments), [payments]);
+  const exotiqFeePaymentRows = useMemo(() => exotiqFeePayments(payments), [payments]);
 
   // Helper to get current filters - use refs to avoid stale closures
   const userRef = useRef(user);
@@ -1362,7 +1368,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
 
         const booking = bookings.find(b => b.id === bookingId);
         if (booking && allPayments) {
-          const totalPaid = allPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+          const totalPaid = operatorPayments(allPayments).reduce((sum, p) => sum + Number(p.amount), 0);
           const totalValue = Number(booking.total_value);
 
           let newStatus: string;
@@ -1572,7 +1578,8 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       customerNotes,
       inspections,
       damageClaims,
-      payments,
+      payments: operatorPaymentRows,
+      exotiqFeePayments: exotiqFeePaymentRows,
       revenue,
       loading,
       isRefreshing,
