@@ -26,6 +26,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { describeError } from '@/lib/describeError';
 
 interface Props {
   teamId: string;
@@ -57,11 +58,13 @@ export const MarketplaceReadinessPanel = ({ teamId }: Props) => {
         queryClient.invalidateQueries({ queryKey: ['marketplace-readiness', teamId] }),
         queryClient.invalidateQueries({ queryKey: ['marketplace-readiness-fee', teamId] }),
         queryClient.invalidateQueries({ queryKey: ['marketplace-readiness-deposit', teamId] }),
+        // The Super Admin list reads the fee state to enable Approve.
+        queryClient.invalidateQueries({ queryKey: ['sa-marketplace-teams'] }),
       ]);
     } catch (e) {
       toast({
         title: 'Could not confirm',
-        description: e instanceof Error ? e.message : 'Unexpected error',
+        description: describeError(e, 'Unexpected error'),
         variant: 'destructive',
       });
     } finally {

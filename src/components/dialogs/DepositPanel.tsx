@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { ShieldCheck, CreditCard, Loader2, AlertTriangle, Lock, Unlock, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useMoney } from "@/hooks/useMoney";
+import { describeError } from '@/lib/describeError';
 
 type DepositPayment = {
   id: string;
@@ -91,7 +92,7 @@ export function DepositPanel({ booking, onRefresh }: Props) {
       await refresh();
       onRefresh?.();
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
+      const msg = describeError(e);
       toast({ title: `${label} failed`, description: msg, variant: "destructive" });
     } finally {
       setAction(null);

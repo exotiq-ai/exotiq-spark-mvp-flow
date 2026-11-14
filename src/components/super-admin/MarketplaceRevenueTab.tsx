@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   Undo2,
 } from 'lucide-react';
+import { describeError } from '@/lib/describeError';
 
 interface RevenueRow {
   team_id: string;
@@ -137,7 +138,7 @@ export const MarketplaceRevenueTab = () => {
       console.error('[MarketplaceRevenue] error', e);
       toast({
         title: 'Could not load revenue',
-        description: e instanceof Error ? e.message : String(e),
+        description: describeError(e),
         variant: 'destructive',
       });
     } finally {
@@ -166,7 +167,7 @@ export const MarketplaceRevenueTab = () => {
         console.error('[MarketplaceRevenue] drill error', e);
         toast({
           title: 'Could not load bookings',
-          description: e instanceof Error ? e.message : String(e),
+          description: describeError(e),
           variant: 'destructive',
         });
       } finally {
@@ -192,7 +193,7 @@ export const MarketplaceRevenueTab = () => {
     } catch (e) {
       toast({
         title: 'Retry failed',
-        description: e instanceof Error ? e.message : String(e),
+        description: describeError(e),
         variant: 'destructive',
       });
     } finally {

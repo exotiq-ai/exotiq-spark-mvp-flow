@@ -80,6 +80,7 @@ import {
   Loader2,
   AlertCircle,
 } from "lucide-react";
+import { describeError } from '@/lib/describeError';
 import type { Database } from "@/integrations/supabase/types";
 
 type CustomerNote = Database["public"]["Tables"]["customer_notes"]["Row"];
@@ -264,7 +265,7 @@ export const EnhancedBookingDialog = ({
     } catch (err) {
       toast({
         title: "Could not generate invoice",
-        description: err instanceof Error ? err.message : String(err),
+        description: describeError(err),
         variant: "destructive",
       });
     } finally {
@@ -1610,7 +1611,7 @@ export const EnhancedBookingDialog = ({
                   } catch (e) {
                     toast({
                       title: "Could not send payment link",
-                      description: e instanceof Error ? e.message : String(e),
+                      description: describeError(e),
                       variant: "destructive",
                     });
                   } finally {

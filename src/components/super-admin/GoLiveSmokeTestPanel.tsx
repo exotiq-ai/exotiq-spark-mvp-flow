@@ -35,6 +35,7 @@ import {
   type SmokeScenario,
   type SmokeStep,
 } from "@/lib/smokeTest";
+import { describeError } from '@/lib/describeError';
 
 const SCENARIO_BLURBS: Record<SmokeScenario, string> = {
   subscription:
@@ -101,7 +102,7 @@ export const GoLiveSmokeTestPanel = () => {
         await loadRuns();
         return data;
       } catch (e) {
-        const message = e instanceof Error ? e.message : String(e);
+        const message = describeError(e);
         toast.error("Smoke run error", { description: message });
         return null;
       } finally {

@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ChevronDown, ChevronRight, Search, AlertTriangle, Loader2 } from 'lucide-react';
 import { MarketplaceReadinessPanel } from './MarketplaceReadinessPanel';
+import { describeError } from '@/lib/describeError';
 
 interface TeamRecord {
   id: string;
@@ -30,6 +31,8 @@ interface TeamRecord {
   marketplace_test_mode: boolean;
   is_demo_account: boolean;
   owner_id: string | null;
+  platform_fee_percent?: number | string | null;
+  platform_fee_confirmed_at?: string | null;
 }
 
 interface TeamRow {
@@ -43,6 +46,8 @@ interface TeamRow {
   marketplace_test_mode: boolean;
   is_demo_account: boolean;
   owner_id: string | null;
+  platform_fee_percent: number | string | null;
+  platform_fee_confirmed_at: string | null;
   owner_email: string | null;
   owner_company_name: string | null;
 }
@@ -78,7 +83,7 @@ const useTeams = () =>
     queryFn: async (): Promise<TeamRow[]> => {
       const { data: teams, error } = await supabase
         .from('teams')
-        .select('id, name, slug, marketplace_visible, marketplace_request_status, marketplace_requested_at, marketplace_rejection_reason, marketplace_test_mode, is_demo_account, owner_id')
+        .select('id, name, slug, marketplace_visible, marketplace_request_status, marketplace_requested_at, marketplace_rejection_reason, marketplace_test_mode, is_demo_account, owner_id, platform_fee_percent, platform_fee_confirmed_at')
         .is('deleted_at', null)
         .order('name', { ascending: true });
       if (error) throw error;
@@ -108,6 +113,8 @@ const useTeams = () =>
           marketplace_test_mode: !!record.marketplace_test_mode,
           is_demo_account: !!record.is_demo_account,
           owner_id: record.owner_id,
+          platform_fee_percent: record.platform_fee_percent ?? null,
+          platform_fee_confirmed_at: record.platform_fee_confirmed_at ?? null,
           owner_email: record.owner_id ? profileMap[record.owner_id]?.email ?? null : null,
           owner_company_name: record.owner_id ? profileMap[record.owner_id]?.company_name ?? null : null,
         };
@@ -176,7 +183,7 @@ export const MarketplaceVisibilityTab = () => {
       });
     },
     onError: (e: unknown) =>
-      toast({ title: 'Update failed', description: e instanceof Error ? e.message : String(e), variant: 'destructive' }),
+      toast({ title: 'Update failed', description: describeError(e), variant: 'destructive' }),
   });
 
   const approveRequest = useMutation({
@@ -195,7 +202,7 @@ export const MarketplaceVisibilityTab = () => {
       toast({ title: 'Marketplace request approved', description: vars.teamName });
     },
     onError: (e: unknown) =>
-      toast({ title: 'Approval failed', description: e instanceof Error ? e.message : String(e), variant: 'destructive' }),
+      toast({ title: 'Approval failed', description: describeError(e), variant: 'destructive' }),
   });
 
   const rejectRequest = useMutation({
@@ -217,7 +224,7 @@ export const MarketplaceVisibilityTab = () => {
       toast({ title: 'Marketplace request rejected', description: vars.teamName });
     },
     onError: (e: unknown) =>
-      toast({ title: 'Rejection failed', description: e instanceof Error ? e.message : String(e), variant: 'destructive' }),
+      toast({ title: 'Rejection failed', description: describeError(e), variant: 'destructive' }),
   });
 
   const markProduction = useMutation({
@@ -234,7 +241,7 @@ export const MarketplaceVisibilityTab = () => {
       toast({ title: 'Team marked as production' });
     },
     onError: (e: unknown) =>
-      toast({ title: 'Update failed', description: e instanceof Error ? e.message : String(e), variant: 'destructive' }),
+      toast({ title: 'Update failed', description: describeError(e), variant: 'destructive' }),
   });
 
   const syncNameFromProfile = useMutation({
@@ -266,7 +273,7 @@ export const MarketplaceVisibilityTab = () => {
       });
     },
     onError: (e: unknown) =>
-      toast({ title: 'Rename failed', description: e instanceof Error ? e.message : String(e), variant: 'destructive' }),
+      toast({ title: 'Rename failed', description: describeError(e), variant: 'destructive' }),
   });
 
   const toggleTestMode = useMutation({
@@ -286,7 +293,7 @@ export const MarketplaceVisibilityTab = () => {
       });
     },
     onError: (e: unknown) =>
-      toast({ title: 'Update failed', description: e instanceof Error ? e.message : String(e), variant: 'destructive' }),
+      toast({ title: 'Update failed', description: describeError(e), variant: 'destructive' }),
   });
 
   const toggleVehicle = useMutation({
@@ -314,7 +321,7 @@ export const MarketplaceVisibilityTab = () => {
       qc.invalidateQueries({ queryKey: ['sa-marketplace-vehicles', vars.teamId] });
     },
     onError: (e: unknown) =>
-      toast({ title: 'Update failed', description: e instanceof Error ? e.message : String(e), variant: 'destructive' }),
+      toast({ title: 'Update failed', description: describeError(e), variant: 'destructive' }),
   });
 
   const toggleUnlisted = useMutation({
@@ -342,7 +349,7 @@ export const MarketplaceVisibilityTab = () => {
       qc.invalidateQueries({ queryKey: ['sa-marketplace-vehicles', vars.teamId] });
     },
     onError: (e: unknown) =>
-      toast({ title: 'Update failed', description: e instanceof Error ? e.message : String(e), variant: 'destructive' }),
+      toast({ title: 'Update failed', description: describeError(e), variant: 'destructive' }),
   });
 
 
@@ -376,7 +383,7 @@ export const MarketplaceVisibilityTab = () => {
       });
     },
     onError: (e: unknown) =>
-      toast({ title: 'Bulk update failed', description: e instanceof Error ? e.message : String(e), variant: 'destructive' }),
+      toast({ title: 'Bulk update failed', description: describeError(e), variant: 'destructive' }),
   });
 
   return (
@@ -502,16 +509,33 @@ export const MarketplaceVisibilityTab = () => {
 
                     {(team.marketplace_request_status === 'requested' || team.marketplace_request_status === 'rejected') && (
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                        {team.marketplace_request_status === 'requested' && (
-                          <Button
-                            size="sm"
-                            onClick={() => approveRequest.mutate({ teamId: team.id, teamName: team.name })}
-                            disabled={approveRequest.isPending}
-                          >
-                            {approveRequest.isPending && <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />}
-                            Approve
-                          </Button>
-                        )}
+                        {team.marketplace_request_status === 'requested' && (() => {
+                          // The database refuses marketplace_visible until the platform fee is confirmed
+                          // (> 0 and platform_fee_confirmed_at set). Say so here instead of failing on click.
+                          const feeConfirmed = Number(team.platform_fee_percent ?? 0) > 0 && !!team.platform_fee_confirmed_at;
+                          if (!feeConfirmed) {
+                            return (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setExpanded(team.id)}
+                                title="The platform fee must be confirmed before the team can go on the marketplace"
+                              >
+                                Confirm fee to approve
+                              </Button>
+                            );
+                          }
+                          return (
+                            <Button
+                              size="sm"
+                              onClick={() => approveRequest.mutate({ teamId: team.id, teamName: team.name })}
+                              disabled={approveRequest.isPending}
+                            >
+                              {approveRequest.isPending && <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />}
+                              Approve
+                            </Button>
+                          );
+                        })()}
                         <div className="flex items-center gap-2">
                           <Input
                             placeholder="Rejection reason (optional)"

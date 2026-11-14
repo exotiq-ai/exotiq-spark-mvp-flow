@@ -24,6 +24,7 @@ import {
 import { formatMoney } from "@/lib/format";
 import { DefaultDepositCard } from "@/components/settings/DefaultDepositCard";
 import { Globe, Building2, Receipt, Save, Mail, Store } from "lucide-react";
+import { describeError } from '@/lib/describeError';
 
 interface BusinessAddress {
   line1?: string;
@@ -178,7 +179,7 @@ export const BusinessProfileSection = () => {
         description: `Business name, currency, ${taxLabel.toLowerCase()} settings, and address updated.`,
       });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = describeError(err);
       toast({
         title: "Could not save",
         description: msg,
