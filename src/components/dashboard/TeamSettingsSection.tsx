@@ -14,7 +14,7 @@ import { useTeam } from "@/contexts/TeamContext";
 import { PermissionGuard } from "@/components/common/PermissionGuard";
 import { supabase } from "@/integrations/supabase/client";
 import { DefaultDepositCard } from "@/components/settings/DefaultDepositCard";
-import { MileageSettings } from "@/components/settings/MileageSettings";
+import { Link } from "react-router-dom";
 import { Save, Building2, Clock, Bell, Loader2, DollarSign, Fuel, ShieldCheck } from "lucide-react";
 
 interface TeamSettings {
@@ -325,8 +325,14 @@ export const TeamSettingsSection = () => {
 
         <Separator className="my-4" />
 
-        {/* Mileage: team default and every car (also in Settings → Mileage) */}
-        <MileageSettings />
+        {/* Mileage moved to Fleet → Pricing (next to the cars it prices) */}
+        <div className="rounded-lg border border-dashed p-4 text-sm">
+          <p className="font-medium">Mileage rules have moved</p>
+          <p className="text-muted-foreground mt-1">
+            The team default and each car's miles per day, overage rate and unlimited miles are now in{" "}
+            <Link to="/dashboard/fleet?tab=pricing" className="text-primary underline underline-offset-2">Fleet → Pricing</Link>.
+          </p>
+        </div>
       </Card>
 
       <div className="flex justify-end">

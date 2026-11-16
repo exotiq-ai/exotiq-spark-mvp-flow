@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMoney } from "@/hooks/useMoney";
 import { useTeam } from "@/contexts/TeamContext";
 import { useFleet } from "@/contexts/FleetContext";
-import { PermissionGuard } from "@/components/common/PermissionGuard";
+import { useFleetPricingAccess } from "@/hooks/useFleetPricingAccess";
 import { supabase } from "@/integrations/supabase/client";
 import { describeError } from "@/lib/describeError";
 import { currencySymbol } from "@/lib/currencySymbol";
@@ -15,13 +15,14 @@ import { MileageRulesTable } from "@/components/settings/MileageRulesTable";
 
 /**
  * Mileage rules: the team default (seeds new cars) and every car's own allowance, rate and unlimited flag.
- * Shown in Settings → Mileage and in Team Hub → Settings.
+ * Shown in Fleet → Pricing.
  */
 export const MileageSettings = () => {
   const { toast } = useToast();
   const { currency } = useMoney();
   const { currentTeam, refreshTeam } = useTeam();
   const { refreshData: refreshFleet } = useFleet();
+  const { canEditTeamDefaults } = useFleetPricingAccess();
 
   const [mileageLimit, setMileageLimit] = useState<string>("");
   const [mileageOverage, setMileageOverage] = useState<string>("");
@@ -122,6 +123,7 @@ export const MileageSettings = () => {
             placeholder="125"
             value={mileageLimit}
             onChange={(e) => setMileageLimit(e.target.value)}
+            disabled={!canEditTeamDefaults}
             onWheel={(e) => e.currentTarget.blur()}
             className="w-full sm:w-[200px]"
           />
@@ -136,13 +138,14 @@ export const MileageSettings = () => {
             placeholder="4.99"
             value={mileageOverage}
             onChange={(e) => setMileageOverage(e.target.value)}
+            disabled={!canEditTeamDefaults}
             onWheel={(e) => e.currentTarget.blur()}
             className="w-full sm:w-[200px]"
           />
         </div>
       </div>
 
-      <PermissionGuard minRole="admin" fallback={null}>
+      {canEditTeamDefaults ? (
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={handleSaveMileage} disabled={savingMileage}>
             {savingMileage ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
@@ -153,7 +156,9 @@ export const MileageSettings = () => {
             Apply to every car
           </Button>
         </div>
-      </PermissionGuard>
+      ) : (
+        <p className="text-xs text-muted-foreground">Only the team owner can change the team default.</p>
+      )}
 
       <div className="space-y-2 pt-2">
         <h5 className="text-sm font-semibold">Each car</h5>

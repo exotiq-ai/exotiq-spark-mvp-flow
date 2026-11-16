@@ -1,6 +1,8 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useMotorIQ } from '@/hooks/useMotorIQ';
 import { useAuth } from '@/contexts/AuthContext';
+import { useFleetPricingAccess } from '@/hooks/useFleetPricingAccess';
+import { FleetPricingTab } from '@/components/fleet/FleetPricingTab';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -53,6 +55,7 @@ import {
   Trash2,
   Wrench,
   ClipboardCheck,
+  Tag,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSearchParams } from 'react-router-dom';
@@ -174,6 +177,7 @@ export const FleetPageEnhanced = () => {
 
   // Tab state
   const [activeTab, setActiveTab] = useState('fleet');
+  const { canEditCars: canSeePricing } = useFleetPricingAccess();
   const [selectedTask, setSelectedTask] = useState<VehicleTask | null>(null);
 
   // Deep-link from notifications/attention tab
@@ -184,6 +188,7 @@ export const FleetPageEnhanced = () => {
     if (tab === 'maintenance') setActiveTab('maintenance');
     if (tab === 'inspections') setActiveTab('inspections');
     if (tab === 'photos') setActiveTab('photos');
+    if (tab === 'pricing') setActiveTab('pricing');
     if (taskId && tasks.length > 0) {
       const task = tasks.find(t => t.id === taskId);
       if (task) setSelectedTask(task);
@@ -542,6 +547,8 @@ export const FleetPageEnhanced = () => {
   // Module tabs configuration
   const moduleTabs = [
     { id: 'fleet', label: 'Fleet', shortLabel: 'Fleet', icon: Car },
+    // Pricing sits next to the cars it prices; only people who can edit car prices see it.
+    ...(canSeePricing ? [{ id: 'pricing', label: 'Pricing', shortLabel: 'Pricing', icon: Tag }] : []),
     { id: 'maintenance', label: 'Maintenance', shortLabel: 'Maint.', icon: Wrench },
     { id: 'inspections', label: 'Inspections', shortLabel: 'Insp.', icon: ClipboardCheck },
     { id: 'photos', label: 'Photos', shortLabel: 'Photos', icon: Camera },
@@ -741,6 +748,13 @@ export const FleetPageEnhanced = () => {
             </>
           )}
         </TabsContent>
+
+        {/* Pricing Tab Content */}
+        {canSeePricing && (
+          <TabsContent value="pricing" className="mt-0">
+            <FleetPricingTab />
+          </TabsContent>
+        )}
 
         {/* Maintenance Tab Content */}
         <TabsContent value="maintenance" className="mt-0">

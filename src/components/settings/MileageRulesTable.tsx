@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Save, Search, Undo2 } from "lucide-react";
 import { useFleet } from "@/contexts/FleetContext";
 import { useTeam } from "@/contexts/TeamContext";
-import { useUserRole } from "@/hooks/useUserRole";
+import { useFleetPricingAccess } from "@/hooks/useFleetPricingAccess";
 import { useToast } from "@/hooks/use-toast";
 import { describeError } from "@/lib/describeError";
 import { cn } from "@/lib/utils";
@@ -31,9 +31,9 @@ const SOURCE_LABEL = {
 export const MileageRulesTable = ({ currencySymbol = "$" }: { currencySymbol?: string }) => {
   const { vehicles, updateVehicle } = useFleet();
   const { currentTeam } = useTeam();
-  const { hasRoleOrHigher } = useUserRole();
+  const { canEditCars } = useFleetPricingAccess();
   const { toast } = useToast();
-  const canEdit = hasRoleOrHigher("admin");
+  const canEdit = canEditCars;
 
   const fleet = useMemo(
     () =>
