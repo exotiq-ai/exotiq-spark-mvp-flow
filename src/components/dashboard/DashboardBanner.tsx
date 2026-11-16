@@ -3,6 +3,7 @@ import { Camera, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import defaultBanner from "@/assets/dashboard-banner.jpg";
 
 // Static tagline for all users
@@ -32,14 +33,19 @@ export const DashboardBanner = () => {
     show_carbon_fiber: false,
   });
   const { toast } = useToast();
+  // The signed-in user from context: a getUser() call here was a server round
+  // trip that held the auth lock and delayed every other query on the dashboard.
+  const { user: authUser } = useAuth();
+  const authUserId = authUser?.id;
 
   useEffect(() => {
     loadUserBanner();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authUserId]);
 
   const loadUserBanner = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = authUser;
       if (!user) return;
 
       const { data, error } = await supabase

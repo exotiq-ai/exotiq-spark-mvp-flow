@@ -37,12 +37,21 @@ export const addDays = (d: string, n: number) => ymd(dayMs(d) + n * DAY);
 // Time zones
 // ---------------------------------------------------------------------------
 
+// Building an Intl.DateTimeFormat is expensive and these helpers run for every day of every booking, so each
+// zone's check and formatters are made once and reused (per call, they blocked the dashboard for seconds).
 const dayFormatters = new Map<string, Intl.DateTimeFormat>();
+const offsetFormatters = new Map<string, Intl.DateTimeFormat>();
+const checkedZones = new Map<string, string>();
 
 /** A usable IANA zone name, or "UTC" when the value is missing or not a real zone. */
 export function safeTimeZone(tz: string | null | undefined): string {
   if (!tz) return "UTC";
-  try { new Intl.DateTimeFormat("en-US", { timeZone: tz }); return tz; } catch { return "UTC"; }
+  let zone = checkedZones.get(tz);
+  if (zone === undefined) {
+    try { new Intl.DateTimeFormat("en-US", { timeZone: tz }); zone = tz; } catch { zone = "UTC"; }
+    checkedZones.set(tz, zone);
+  }
+  return zone;
 }
 
 /** The calendar day (yyyy-MM-dd) a moment falls on in a time zone. */
@@ -58,9 +67,15 @@ export function dayKey(ms: number, tz = "UTC"): string {
 
 /** Milliseconds a zone is ahead of UTC at a given moment (negative west of Greenwich). */
 export function tzOffsetMs(ms: number, tz: string): number {
-  const f = new Intl.DateTimeFormat("en-US", {
-    timeZone: safeTimeZone(tz), hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit",
-  });
+  const zone = safeTimeZone(tz);
+  if (zone === "UTC") return 0;
+  let f = offsetFormatters.get(zone);
+  if (!f) {
+    f = new Intl.DateTimeFormat("en-US", {
+      timeZone: zone, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit",
+    });
+    offsetFormatters.set(zone, f);
+  }
   const p: Record<string, string> = {};
   for (const part of f.formatToParts(ms)) p[part.type] = part.value;
   return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second) - Math.floor(ms / 1000) * 1000;

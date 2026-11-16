@@ -303,18 +303,23 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       setDamageClaims(claimsResult.data || []);
       setPayments(paymentsResult.data || []);
 
-      // Fetch customer notes based on loaded customers
+      // Customer notes need the customer ids, so they can only start now. Only the
+      // customer pages use them: fill them in afterwards instead of holding the
+      // whole dashboard on "loading" for another round trip.
       const customerIds = customersResult.data?.map(c => c.id) || [];
       if (customerIds.length > 0) {
-        const { data: notesData } = await supabase
-          .from('customer_notes')
-          .select('*')
-          .in('customer_id', customerIds)
-          .order('created_at', { ascending: false });
-        
-        if (seq === refreshSeqRef.current) {
-          setCustomerNotes(notesData || []);
-        }
+        void Promise.resolve(
+          supabase
+            .from('customer_notes')
+            .select('*')
+            .in('customer_id', customerIds)
+            .order('created_at', { ascending: false }),
+        )
+          .then(({ data: notesData, error: notesError }) => {
+            if (notesError) devError('[FleetContext] Error loading customer notes:', notesError);
+            if (seq === refreshSeqRef.current) setCustomerNotes(notesData || []);
+          })
+          .catch((notesErr) => devError('[FleetContext] Error loading customer notes:', notesErr));
       } else {
         setCustomerNotes([]);
       }
