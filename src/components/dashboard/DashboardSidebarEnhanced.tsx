@@ -28,6 +28,8 @@ import {
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { featureFlags } from "@/lib/featureFlags";
+import { useIsTablet } from "@/hooks/use-mobile";
+import { resolveSidebarCollapsed } from "@/lib/sidebarCollapse";
 
 interface DashboardSidebarEnhancedProps {
   activeModule: string;
@@ -171,7 +173,10 @@ export const DashboardSidebarEnhanced = ({
   onOpenRari,
   isSuperAdmin = false
 }: DashboardSidebarEnhancedProps) => {
-  const [collapsed, setCollapsed] = useLocalStorage("sidebarCollapsed", false);
+  // null = the user hasn't chosen; tablets then start collapsed (see resolveSidebarCollapsed).
+  const [savedCollapsed, setCollapsed] = useLocalStorage<boolean | null>("sidebarCollapsed", null);
+  const isTablet = useIsTablet();
+  const collapsed = resolveSidebarCollapsed(savedCollapsed, isTablet);
   const [expandedGroups, setExpandedGroups] = useLocalStorage<string[]>("sidebarExpandedGroups", ["operations", "intelligence"]);
   const { hasRoleOrHigher, isReadOnly, loading: roleLoading } = useUserRole();
   const { currentTeam } = useTeam();

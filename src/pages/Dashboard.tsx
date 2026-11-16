@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, Suspense } from "react";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
 import { useProfile } from "@/hooks/useProfile";
 import { useSearchParams, useLocation, useNavigate } from "react-router-dom";
-import { pathToModuleId, moduleIdToPath, MODULE_TITLES } from "@/lib/moduleRoutes";
+import { pathToModuleId, moduleIdToPath, MODULE_TITLES, moduleLabel } from "@/lib/moduleRoutes";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Logo } from "@/components/ui/logo";
@@ -243,19 +243,6 @@ const DashboardInner = () => {
     containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const moduleNames: Record<string, string> = {
-    dashboard: "Dashboard",
-    core: "FleetCopilot™",
-    book: "Book",
-    customers: "Customers",
-    pulse: "Pulse",
-    motoriq: "MotorIQ",
-    vault: "Vault",
-    margin: "Margin",
-    settings: "Settings",
-    "team-hub": "Team Hub",
-    messages: "Messages",
-  };
 
   // FAB actions filtered by role - operational only (Rari has dedicated FAB on desktop, AI tab on mobile)
   const allFabActions = [
@@ -486,7 +473,7 @@ const DashboardInner = () => {
               <Logo size="md" className="h-8 sm:h-10" />
               {activeModule !== "dashboard" && (
                 <Badge variant="outline" className="ml-2 sm:ml-4 text-xs sm:text-sm">
-                  {moduleNames[activeModule] || "Dashboard"}
+                  {moduleLabel(activeModule)}
                 </Badge>
               )}
             </div>

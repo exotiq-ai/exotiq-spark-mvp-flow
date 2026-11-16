@@ -57,7 +57,7 @@ export const DashboardHeader = ({ onOpenChat, onOpenRari, unreadMessages = 0 }: 
               <img
                 src={currentTeam.logo_url}
                 alt={currentTeam.name || "Company logo"}
-                className="h-7 sm:h-8 w-auto object-contain max-w-[120px] sm:max-w-[160px]"
+                className="h-7 sm:h-8 w-auto object-contain max-w-[96px] lg:max-w-[160px]"
               />
             </>
           ) : (
@@ -69,7 +69,8 @@ export const DashboardHeader = ({ onOpenChat, onOpenRari, unreadMessages = 0 }: 
           <LocationSwitcher onAddLocation={() => setAddLocationOpen(true)} />
         </div>
         
-        <div className="hidden md:flex flex-1 max-w-md mx-4">
+        {/* From 1024 px: beside the sidebar on a tablet it overlapped the logo and location picker */}
+        <div className="hidden lg:flex flex-1 max-w-md mx-4">
           <EnhancedGlobalSearch onOpenRari={onOpenRari} />
         </div>
 
