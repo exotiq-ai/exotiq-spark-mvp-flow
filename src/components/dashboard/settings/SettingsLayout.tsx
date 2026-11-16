@@ -20,6 +20,7 @@ import {
   ShieldCheck,
   Globe,
   Store,
+  Gauge,
 } from "lucide-react";
 
 // Settings sections
@@ -34,6 +35,7 @@ import { PaymentMethodsSection } from "@/components/settings/PaymentMethodsSecti
 import { LegalSection } from "./LegalSection";
 import { BusinessProfileSection } from "./BusinessProfileSection";
 import { MarketplaceSection } from "./MarketplaceSection";
+import { MileageSettings } from "@/components/settings/MileageSettings";
 
 interface SettingsTab {
   id: string;
@@ -45,6 +47,7 @@ interface SettingsTab {
 const allSettingsTabs: SettingsTab[] = [
   { id: "account", label: "My Account", icon: User },
   { id: "team", label: "Team", icon: Users },
+  { id: "mileage", label: "Mileage", icon: Gauge },
   { id: "business", label: "Business", icon: Globe, requiresAdmin: true },
   { id: "locations", label: "Locations", icon: MapPin, requiresAdmin: true },
   { id: "notifications", label: "Notifications", icon: Bell },
@@ -125,6 +128,12 @@ export const SettingsLayout = () => {
         return <MyAccountSection />;
       case "team":
         return <TeamHub />;
+      case "mileage":
+        return (
+          <Card className="p-4 sm:p-6">
+            <MileageSettings />
+          </Card>
+        );
       case "business":
         return isAdmin ? <BusinessProfileSection /> : null;
       case "locations":

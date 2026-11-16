@@ -165,6 +165,7 @@ export const CheckInOutDialog = ({
       startDate: booking.start_date,
       endDate: booking.end_date,
       returnedAt: resolveTimestamp(),
+      unlimited: booking.unlimited_mileage,
     });
     if (r.status === 'no_readings') return null;
     return { ...r, overage: r.overMiles };
@@ -614,7 +615,11 @@ export const CheckInOutDialog = ({
                       {mileageInfo.milesDriven.toLocaleString()} mi
                     </span>
                   </div>
-                  {mileageInfo.status === 'no_rule' ? (
+                  {mileageInfo.status === 'unlimited' ? (
+                    <p className="text-xs text-muted-foreground">
+                      Unlimited miles on this booking: no overage is charged.
+                    </p>
+                  ) : mileageInfo.status === 'no_rule' ? (
                     <p className="text-xs text-muted-foreground">
                       No mileage allowance or rate on this booking, so no overage is charged.
                     </p>

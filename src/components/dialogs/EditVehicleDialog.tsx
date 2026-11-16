@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -33,6 +34,7 @@ interface Vehicle {
   color?: string | null;
   default_mileage_limit?: number | null;
   mileage_overage_rate?: number | null;
+  unlimited_mileage?: boolean | null;
   location_id?: string | null;
   ownership_type?: string | null;
   partner_id?: string | null;
@@ -82,6 +84,7 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
   const [bodyType, setBodyType] = useState<string>("none");
   const [defaultMileageLimit, setDefaultMileageLimit] = useState("");
   const [mileageOverageRate, setMileageOverageRate] = useState("");
+  const [unlimitedMileage, setUnlimitedMileage] = useState(false);
   const [ownershipType, setOwnershipType] = useState<string>("owned");
   const [partnerId, setPartnerId] = useState<string>("none");
   const [splitType, setSplitType] = useState<string>("percentage");
@@ -116,6 +119,7 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
       setBodyType(vehicle.body_type || "none");
       setDefaultMileageLimit(vehicle.default_mileage_limit != null ? String(vehicle.default_mileage_limit) : "");
       setMileageOverageRate(vehicle.mileage_overage_rate != null ? Number(vehicle.mileage_overage_rate).toFixed(2) : "");
+      setUnlimitedMileage(vehicle.unlimited_mileage === true);
       setOwnershipType(vehicle.ownership_type || "owned");
       setPartnerId(vehicle.partner_id || "none");
       setSplitType(vehicle.split_type || "percentage");
@@ -208,6 +212,7 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
       
       const newOverageRate = parseMileageRate(mileageOverageRate) ?? null;
       if (newOverageRate !== (vehicle.mileage_overage_rate ?? null)) updates.mileage_overage_rate = newOverageRate;
+      if (unlimitedMileage !== (vehicle.unlimited_mileage === true)) updates.unlimited_mileage = unlimitedMileage;
 
       // Ownership
       const newPartnerId = partnerId === "none" ? null : partnerId;
@@ -328,14 +333,25 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-mileage">Included miles per day</Label>
-                <Input id="edit-mileage" type="number" value={defaultMileageLimit} onChange={(e) => setDefaultMileageLimit(e.target.value)} min="0" />
+              <div className="col-span-2 flex items-center justify-between gap-3 rounded-lg border p-3">
+                <div>
+                  <Label htmlFor="edit-unlimited">Unlimited miles</Label>
+                  <p className="text-xs text-muted-foreground">No allowance and no overage on new bookings of this car.</p>
+                </div>
+                <Switch id="edit-unlimited" checked={unlimitedMileage} onCheckedChange={setUnlimitedMileage} />
               </div>
-              <div className="space-y-2 col-span-2">
-                <Label htmlFor="edit-overage">Overage rate per mile</Label>
-                <MileageRateInput id="edit-overage" value={mileageOverageRate} onChange={setMileageOverageRate} currency={currency} />
-              </div>
+              {!unlimitedMileage && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-mileage">Included miles per day</Label>
+                    <Input id="edit-mileage" type="number" value={defaultMileageLimit} onChange={(e) => setDefaultMileageLimit(e.target.value)} min="0" />
+                  </div>
+                  <div className="space-y-2 col-span-2">
+                    <Label htmlFor="edit-overage">Overage rate per mile</Label>
+                    <MileageRateInput id="edit-overage" value={mileageOverageRate} onChange={setMileageOverageRate} currency={currency} />
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Location */}

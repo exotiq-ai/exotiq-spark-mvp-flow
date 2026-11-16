@@ -126,6 +126,7 @@ export const vehicleSchema = z.object({
   color: z.string().max(30, "Color too long").optional().nullable().or(z.literal('')),
   default_mileage_limit: z.number().min(0, "Mileage limit cannot be negative").max(10000, "Mileage limit too high").optional().nullable(),
   mileage_overage_rate: z.number().min(0, "Overage rate cannot be negative").max(100, "Overage rate too high").optional().nullable(),
+  unlimited_mileage: z.boolean().optional(),
   location_id: z.string().uuid("Invalid location ID").optional().nullable().or(z.literal('')),
 });
 // Edge function chat messages validation

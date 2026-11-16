@@ -2,6 +2,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { MILEAGE_RATE_TIERS } from "@/lib/pricingUtils";
 import { parseMileageRate } from "@/lib/mileage";
+import { currencySymbol } from "@/lib/currencySymbol";
 
 interface MileageRateInputProps {
   id: string;
@@ -12,27 +13,15 @@ interface MileageRateInputProps {
   className?: string;
 }
 
-const symbolFor = (currency: string): string => {
-  try {
-    return (
-      new Intl.NumberFormat(undefined, { style: "currency", currency, currencyDisplay: "narrowSymbol" })
-        .formatToParts(0)
-        .find((p) => p.type === "currency")?.value ?? currency
-    );
-  } catch {
-    return currency;
-  }
-};
-
 /** Overage rate per mile: any amount to the cent, with the common tiers as quick picks. */
 export const MileageRateInput = ({ id, value, onChange, currency = "USD", className }: MileageRateInputProps) => {
-  const currencySymbol = symbolFor(currency);
+  const symbol = currencySymbol(currency);
   const invalid = parseMileageRate(value) === undefined;
   return (
     <div className={cn("space-y-2", className)}>
       <div className="relative">
         <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-          {currencySymbol}
+          {symbol}
         </span>
         <Input
           id={id}
@@ -66,7 +55,7 @@ export const MileageRateInput = ({ id, value, onChange, currency = "USD", classN
                 : "border-border text-muted-foreground hover:bg-muted",
             )}
           >
-            {currencySymbol}{tier.value}
+            {symbol}{tier.value}
           </button>
         ))}
       </div>

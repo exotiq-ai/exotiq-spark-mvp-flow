@@ -11,6 +11,12 @@ describe('vehicle form input', () => {
     expect(parsed.success).toBe(true);
     expect(vehicleSchema.safeParse(base).success).toBe(true);
   });
+  it('keeps the unlimited-miles flag (an unknown key would be silently dropped on save)', () => {
+    const parsed = vehicleSchema.parse({ ...base, unlimited_mileage: true, default_mileage_limit: null, mileage_overage_rate: null });
+    expect(parsed.unlimited_mileage).toBe(true);
+    expect(vehicleSchema.parse(base).unlimited_mileage).toBeUndefined();
+    expect(vehicleSchema.safeParse({ ...base, unlimited_mileage: 'yes' }).success).toBe(false);
+  });
   it('still checks a year that is given', () => {
     expect(vehicleSchema.safeParse({ ...base, year: 2024 }).success).toBe(true);
     expect(vehicleSchema.safeParse({ ...base, year: 1800 }).success).toBe(false);

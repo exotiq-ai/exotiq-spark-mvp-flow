@@ -446,6 +446,7 @@ export type Database = {
           terms_consent_status: string | null
           total_value: number
           updated_at: string | null
+          unlimited_mileage: boolean | null
           user_id: string
           vehicle_id: string | null
           vehicle_name: string | null
@@ -534,6 +535,7 @@ export type Database = {
           terms_consent_status?: string | null
           total_value: number
           updated_at?: string | null
+          unlimited_mileage?: boolean | null
           user_id: string
           vehicle_id?: string | null
           vehicle_name?: string | null
@@ -622,6 +624,7 @@ export type Database = {
           terms_consent_status?: string | null
           total_value?: number
           updated_at?: string | null
+          unlimited_mileage?: boolean | null
           user_id?: string
           vehicle_id?: string | null
           vehicle_name?: string | null
@@ -5913,6 +5916,7 @@ export type Database = {
           team_id: string | null
           trashed_at: string | null
           updated_at: string | null
+          unlimited_mileage: boolean
           user_id: string
           utilization: number | null
           vin: string | null
@@ -5959,6 +5963,7 @@ export type Database = {
           team_id?: string | null
           trashed_at?: string | null
           updated_at?: string | null
+          unlimited_mileage?: boolean
           user_id: string
           utilization?: number | null
           vin?: string | null
@@ -6005,6 +6010,7 @@ export type Database = {
           team_id?: string | null
           trashed_at?: string | null
           updated_at?: string | null
+          unlimited_mileage?: boolean
           user_id?: string
           utilization?: number | null
           vin?: string | null
