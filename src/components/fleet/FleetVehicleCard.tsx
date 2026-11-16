@@ -314,7 +314,7 @@ export const FleetVehicleCard = ({
                       </Button>
                     );
                   })}
-                  <Button variant="ghost" size="sm" className="h-9 text-xs" onClick={() => onCreateTask(vehicle)}>
+                  <Button variant="ghost" size="sm" className="h-9 text-xs" onClick={() => onCreateTask(vehicle)} aria-label={`New task for ${vehicle.name}`}>
                     <MoreHorizontal className="h-4 w-4" />
                   </Button>
                 </div>
@@ -485,7 +485,7 @@ export const FleetVehicleCard = ({
         <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
+              <Button variant="ghost" size="icon" className="h-10 w-10 sm:h-8 sm:w-8" aria-label={`Actions for ${vehicle.name}`}>
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -639,7 +639,8 @@ export const FleetVehicleCard = ({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 bg-background/80 backdrop-blur-md hover:bg-background shadow-sm"
+                  className="h-10 w-10 sm:h-8 sm:w-8 bg-background/80 backdrop-blur-md hover:bg-background shadow-sm"
+                  aria-label={`Actions for ${vehicle.name}`}
                 >
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>

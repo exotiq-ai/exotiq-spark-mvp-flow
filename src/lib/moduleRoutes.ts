@@ -66,3 +66,9 @@ export function pathToModuleId(pathname: string): string {
   if (!match || !match[1]) return 'dashboard';
   return SEGMENT_TO_MODULE[match[1]] ?? match[1];
 }
+
+/** Short page name for a module ("Fleet"), from MODULE_TITLES so the two never drift apart. */
+export function moduleLabel(moduleId: string): string {
+  const title = MODULE_TITLES[moduleId];
+  return title ? title.replace(' | Exotiq.ai', '') : 'Dashboard';
+}

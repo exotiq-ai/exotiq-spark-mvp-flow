@@ -444,9 +444,10 @@ export const BookEnhanced = () => {
 
       <ModuleTabs
         tabs={[
-          { id: "overview", label: "Overview", shortLabel: "Home", icon: Car },
-          { id: "calendar", label: "Calendar", shortLabel: "Cal", icon: CalendarIcon },
-          { id: "payments", label: "Payments", shortLabel: "Pay", icon: Receipt },
+          // Full words on phones too: "Home" clashed with the bottom-bar Home, and three fit at 360 px.
+          { id: "overview", label: "Overview", shortLabel: "Overview", icon: Car },
+          { id: "calendar", label: "Calendar", shortLabel: "Calendar", icon: CalendarIcon },
+          { id: "payments", label: "Payments", shortLabel: "Payments", icon: Receipt },
         ]}
         defaultValue="overview"
         value={activeTab}

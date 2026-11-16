@@ -573,7 +573,7 @@ export const FleetPageEnhanced = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {/* Ops Mode Toggle - only show on Fleet tab */}
           {activeTab === 'fleet' && (
             <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 border">
@@ -600,7 +600,7 @@ export const FleetPageEnhanced = () => {
             Import
           </Button>
 
-          <Button variant="outline" size="icon" onClick={() => refreshData()}>
+          <Button variant="outline" size="icon" onClick={() => refreshData()} aria-label="Refresh fleet">
             <RefreshCw className="h-4 w-4" />
           </Button>
         </div>
