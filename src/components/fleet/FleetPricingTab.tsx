@@ -6,6 +6,7 @@ import { useMoney } from "@/hooks/useMoney";
 import { currencySymbol } from "@/lib/currencySymbol";
 import { MileageSettings } from "@/components/settings/MileageSettings";
 import { RateRulesTable } from "@/components/fleet/RateRulesTable";
+import { TeamPricingDefaults } from "@/components/fleet/TeamPricingDefaults";
 
 const VIEWS = [
   { id: "rates", label: "Rates & deposit", icon: Wallet },
@@ -60,9 +61,21 @@ export const FleetPricingTab = () => {
         </div>
       </div>
 
-      <Card className="p-4 sm:p-6">
-        {view === "rates" ? <RateRulesTable currencySymbol={currencySymbol(currency)} /> : <MileageSettings />}
-      </Card>
+      {view === "rates" ? (
+        <>
+          <Card className="p-4 sm:p-6">
+            <TeamPricingDefaults currencySymbol={currencySymbol(currency)} />
+          </Card>
+          <Card className="p-4 sm:p-6">
+            <h3 className="text-sm font-semibold mb-3">Each car</h3>
+            <RateRulesTable currencySymbol={currencySymbol(currency)} />
+          </Card>
+        </>
+      ) : (
+        <Card className="p-4 sm:p-6">
+          <MileageSettings />
+        </Card>
+      )}
     </div>
   );
 };

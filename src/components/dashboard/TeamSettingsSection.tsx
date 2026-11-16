@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -13,9 +12,8 @@ import { useMoney } from "@/hooks/useMoney";
 import { useTeam } from "@/contexts/TeamContext";
 import { PermissionGuard } from "@/components/common/PermissionGuard";
 import { supabase } from "@/integrations/supabase/client";
-import { DefaultDepositCard } from "@/components/settings/DefaultDepositCard";
 import { Link } from "react-router-dom";
-import { Save, Building2, Clock, Bell, Loader2, DollarSign, Fuel, ShieldCheck } from "lucide-react";
+import { Save, Building2, Clock, Bell, Loader2, ShieldCheck } from "lucide-react";
 
 interface TeamSettings {
   companyName: string;
@@ -24,10 +22,6 @@ interface TeamSettings {
   notifyOnRoleChange: boolean;
   requireTwoFactor: boolean;
   sessionTimeout: string;
-  minRate: string;
-  gasFeeEnabled: boolean;
-  gasFeeAmount: string;
-  gasFeeDefaultOn: boolean;
 }
 
 const defaultSettings: TeamSettings = {
@@ -37,10 +31,6 @@ const defaultSettings: TeamSettings = {
   notifyOnRoleChange: true,
   requireTwoFactor: false,
   sessionTimeout: "30",
-  minRate: "100",
-  gasFeeEnabled: true,
-  gasFeeAmount: "20",
-  gasFeeDefaultOn: true,
 };
 
 export const TeamSettingsSection = () => {
@@ -238,101 +228,14 @@ export const TeamSettingsSection = () => {
         </div>
       </Card>
 
-      {/* Rate Floor */}
-      <Card className="p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <DollarSign className="w-5 h-5 text-primary" />
-          <h3 className="text-lg font-semibold">Pricing</h3>
-        </div>
-        
-        <div className="space-y-2">
-          <Label htmlFor="minRate">Minimum Rental Rate ({currency})</Label>
-          <p className="text-sm text-muted-foreground">
-            The minimum allowed rate across all tiers (3hr, 6hr, daily, multi-day). 
-            Rates below this will be rejected when setting vehicle prices.
-          </p>
-          <Input
-            id="minRate"
-            type="number"
-            min="0"
-            step="1"
-            placeholder="100"
-            value={settings.minRate}
-            onChange={(e) => updateSetting('minRate', e.target.value)}
-            className="w-[200px]"
-          />
-        </div>
-
-        <Separator className="my-4" />
-
-        {/* Gas Fee Settings */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Fuel className="w-4 h-4 text-muted-foreground" />
-            <h4 className="text-sm font-semibold">Gas / Re-fueling Fee</h4>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <Label>Enable Gas/Re-fueling Fee</Label>
-              <p className="text-sm text-muted-foreground">Show the gas fee line item on bookings and payments</p>
-            </div>
-            <Switch
-              checked={settings.gasFeeEnabled}
-              onCheckedChange={(checked) => updateSetting('gasFeeEnabled', checked)}
-            />
-          </div>
-
-          {settings.gasFeeEnabled && (
-            <>
-              <div className="space-y-2">
-                <Label htmlFor="gasFeeAmount">Gas Fee Amount ({currency})</Label>
-                <Input
-                  id="gasFeeAmount"
-                  type="number"
-                  min="0"
-                  step="1"
-                  placeholder="20"
-                  value={settings.gasFeeAmount}
-                  onChange={(e) => updateSetting('gasFeeAmount', e.target.value)}
-                  onWheel={(e) => e.currentTarget.blur()}
-                  className="w-[200px]"
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>Default to ON for new bookings</Label>
-                  <p className="text-sm text-muted-foreground">When off, the fee toggle starts disabled on new bookings (opt-in per booking)</p>
-                </div>
-                <Switch
-                  checked={settings.gasFeeDefaultOn}
-                  onCheckedChange={(checked) => updateSetting('gasFeeDefaultOn', checked)}
-                />
-              </div>
-            </>
-          )}
-        </div>
-
-        <Separator className="my-4" />
-
-        {/* Pickup Deposit (operator reference only) — shared with Settings → Business */}
-        <DefaultDepositCard
-          variant="inline"
-          footnote="This is the same setting shown under Settings → Business. Changing it in either place updates both."
-        />
-
-
-        <Separator className="my-4" />
-
-        {/* Mileage moved to Fleet → Pricing (next to the cars it prices) */}
-        <div className="rounded-lg border border-dashed p-4 text-sm">
-          <p className="font-medium">Mileage rules have moved</p>
-          <p className="text-muted-foreground mt-1">
-            The team default and each car's miles per day, overage rate and unlimited miles are now in{" "}
-            <Link to="/dashboard/fleet?tab=pricing" className="text-primary underline underline-offset-2">Fleet → Pricing</Link>.
-          </p>
-        </div>
+      {/* Pricing moved to Fleet → Pricing (next to the cars it prices) */}
+      <Card className="p-6 border-dashed">
+        <p className="font-medium">Pricing has moved to Fleet → Pricing</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          The minimum rental rate, default deposit, gas / re-fuelling fee and mileage rules are now set next to the cars,
+          for the whole team, in{" "}
+          <Link to="/dashboard/fleet?tab=pricing" className="text-primary underline underline-offset-2">Fleet → Pricing</Link>.
+        </p>
       </Card>
 
       <div className="flex justify-end">

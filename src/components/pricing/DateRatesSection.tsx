@@ -1,3 +1,4 @@
+import { teamRateFloor } from "@/lib/rateRules";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Calendar, Check, Copy, Tag, Undo2 } from "lucide-react";
@@ -29,7 +30,7 @@ export const DateRatesSection = ({ vehicleId, quotes = [] }: Props) => {
   const { hasRoleOrHigher } = useUserRole();
   const { currentTeam } = useTeam();
   const canEdit = hasRoleOrHigher("manager");
-  const teamMin = Number((currentTeam as any)?.min_rate) || 0;
+  const teamMin = teamRateFloor(currentTeam) ?? 0; // the team's own minimum; none set = no floor
 
   const mine = active.filter((o) => o.vehicle_id === vehicleId);
   const [busy, setBusy] = useState<string | null>(null);

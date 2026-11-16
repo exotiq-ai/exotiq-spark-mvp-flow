@@ -1,6 +1,7 @@
 /**
  * Fleet → Pricing, Rates & deposit view: each car's daily, 3-hour, 6-hour and multi-day rates and its pickup
- * deposit hold (vehicles.deposit_override_cents; empty = the team default, which is what checkout charges).
+ * deposit (vehicles.deposit_override_cents; empty = the team default). That amount is quoted to renters
+ * (public_vehicle_quote.deposit_hold_cents); the operator collects it at pickup, Exotiq does not charge it.
  */
 export interface RateVehicle {
   id: string;
