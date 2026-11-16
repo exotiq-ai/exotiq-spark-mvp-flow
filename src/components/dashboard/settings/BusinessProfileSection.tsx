@@ -22,7 +22,7 @@ import {
   getCountryDefaults,
 } from "@/lib/countryDefaults";
 import { formatMoney } from "@/lib/format";
-import { DefaultDepositCard } from "@/components/settings/DefaultDepositCard";
+import { Link } from "react-router-dom";
 import { Globe, Building2, Receipt, Save, Mail, Store } from "lucide-react";
 import { describeError } from '@/lib/describeError';
 
@@ -468,7 +468,13 @@ export const BusinessProfileSection = () => {
       </Card>
 
       {/* Default pickup deposit — same stored value as Team → Settings */}
-      <DefaultDepositCard footnote="Also available under Settings → Team → Settings. Both places edit the same amount." />
+      <Card className="p-6 border-dashed">
+        <p className="font-medium">Default deposit has moved</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          Set the team default deposit and each car's deposit in{" "}
+          <Link to="/dashboard/fleet?tab=pricing" className="text-primary underline underline-offset-2">Fleet → Pricing</Link>.
+        </p>
+      </Card>
 
 
 

@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { useTeam } from '@/contexts/TeamContext';
+import { gasFeeFromTeam } from '@/lib/teamPricingDefaults';
 
 interface GasFeeConfig {
   gasFeeEnabled: boolean;
@@ -9,53 +8,12 @@ interface GasFeeConfig {
   isLoading: boolean;
 }
 
-const DEFAULTS: Omit<GasFeeConfig, 'isLoading'> = {
-  gasFeeEnabled: true,
-  gasFeeAmount: 20,
-  gasFeeDefaultOn: true,
-};
-
 /**
- * Reads gas fee configuration from the tenant's team settings.
- * Falls back to sensible defaults (enabled, $20, default on) when no settings exist.
+ * The team's gas / re-fuelling fee (teams.gas_fee_*), the same for every staff member.
+ * It used to be read from the signed-in person's own user_settings, so two people could charge different fees.
+ * Until a team row carries the columns (migration 20261116010000), the old built-in defaults apply.
  */
 export function useTeamGasFeeSettings(): GasFeeConfig {
-  const { user } = useAuth();
-  const [config, setConfig] = useState<Omit<GasFeeConfig, 'isLoading'>>(DEFAULTS);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    if (!user) {
-      setIsLoading(false);
-      return;
-    }
-
-    const load = async () => {
-      try {
-        const { data } = await supabase
-          .from('user_settings')
-          .select('settings')
-          .eq('user_id', user.id)
-          .eq('category', 'team')
-          .maybeSingle();
-
-        if (data?.settings && typeof data.settings === 'object') {
-          const s = data.settings as Record<string, unknown>;
-          setConfig({
-            gasFeeEnabled: typeof s.gasFeeEnabled === 'boolean' ? s.gasFeeEnabled : DEFAULTS.gasFeeEnabled,
-            gasFeeAmount: s.gasFeeAmount != null ? Number(s.gasFeeAmount) || DEFAULTS.gasFeeAmount : DEFAULTS.gasFeeAmount,
-            gasFeeDefaultOn: typeof s.gasFeeDefaultOn === 'boolean' ? s.gasFeeDefaultOn : DEFAULTS.gasFeeDefaultOn,
-          });
-        }
-      } catch (err) {
-        console.error('Failed to load gas fee settings:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    load();
-  }, [user]);
-
-  return { ...config, isLoading };
+  const { currentTeam, loading } = useTeam();
+  return { ...gasFeeFromTeam(currentTeam), isLoading: loading };
 }

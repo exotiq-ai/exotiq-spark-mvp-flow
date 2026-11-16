@@ -150,8 +150,8 @@ export const RateRulesTable = ({ currencySymbol = "$" }: { currencySymbol?: stri
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">
-        Leave a tier empty to stop offering it. An empty deposit uses the team default
-        {teamDeposit != null ? ` (${formatCurrency(teamDeposit)})` : ""}.
+        Leave a tier empty to stop offering it. The deposit is what renters are quoted for the car (you collect it at
+        pickup); an empty deposit uses the team default{teamDeposit != null ? ` (${formatCurrency(teamDeposit)})` : ""}.
         {floor !== null ? ` Rates can't go under the team minimum of ${formatCurrency(floor)}.` : ""}
       </p>
 

@@ -36,6 +36,9 @@ export interface Team {
   default_deposit_cents?: number | null;
   deposit_source_confirmed_at?: string | null;
   min_rate?: number | null;
+  gas_fee_enabled?: boolean | null;
+  gas_fee_amount?: number | null;
+  gas_fee_default_on?: boolean | null;
   support_email?: string | null;
   // Team-wide mileage allowance defaults (inherited by new vehicles)
   default_mileage_limit?: number | null;

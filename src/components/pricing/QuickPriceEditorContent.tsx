@@ -1,3 +1,4 @@
+import { teamRateFloor } from "@/lib/rateRules";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Car, Check, DollarSign, Sparkles } from "lucide-react";
@@ -47,7 +48,7 @@ export const QuickPriceEditorContent = ({ vehicle, recommendation, onApplyRate, 
   }, [vehicle, suggestion]);
 
   const rateChange = newRate - vehicle.current_rate;
-  const teamMin = Number((currentTeam as any)?.min_rate) || 50;
+  const teamMin = teamRateFloor(currentTeam) ?? 0; // the team's own minimum; none set = no floor
   const minRate = Math.max(teamMin, Math.floor(vehicle.current_rate * 0.5));
   const maxRate = Math.ceil(vehicle.current_rate * 2);
 
