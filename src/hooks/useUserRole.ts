@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -11,6 +12,8 @@ interface UserRoleData {
   error: string | null;
 }
 
+const EMPTY_PERMISSIONS: string[] = [];
+
 // Role hierarchy: owner > admin > manager > operator > viewer
 const roleHierarchy: Record<AppRole, number> = {
   owner: 5,
@@ -20,66 +23,44 @@ const roleHierarchy: Record<AppRole, number> = {
   viewer: 1,
 };
 
+interface RoleRow {
+  role: AppRole | null;
+  permissions: string[];
+}
+
+/** Shared cache key: every component reading the role shares one request. */
+export const myRoleQueryKey = (userId: string | undefined) => ['my-role', userId] as const;
+
 export const useUserRole = () => {
   const { user } = useAuth();
-  const [roleData, setRoleData] = useState<UserRoleData>({
-    role: null,
-    permissions: [],
-    loading: true,
-    error: null,
+  const userId = user?.id;
+
+  const query = useQuery({
+    queryKey: myRoleQueryKey(userId),
+    enabled: !!userId,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async (): Promise<RoleRow> => {
+      const { data, error } = await supabase.rpc('get_my_role');
+      if (error) throw error;
+      // No row yet = new user whose role trigger hasn't run, or an invite still
+      // being set up. Null role (not viewer) lets them use the app unrestricted;
+      // the auto_assign_user_role trigger assigns the role shortly.
+      if (!data || data.length === 0) return { role: null, permissions: [] };
+      return { role: data[0].role as AppRole, permissions: data[0].permissions || [] };
+    },
   });
 
+  const roleData: UserRoleData = {
+    role: query.data?.role ?? null,
+    permissions: query.data?.permissions ?? EMPTY_PERMISSIONS,
+    loading: userId ? query.isLoading : false,
+    error: query.error ? (query.error instanceof Error ? query.error.message : 'Failed to fetch role') : null,
+  };
+
+  const { refetch } = query;
   const fetchRole = useCallback(async () => {
-    if (!user?.id) {
-      setRoleData({
-        role: null,
-        permissions: [],
-        loading: false,
-        error: null,
-      });
-      return;
-    }
-
-    try {
-      setRoleData(prev => ({ ...prev, loading: true, error: null }));
-
-      const { data, error } = await supabase.rpc('get_my_role');
-
-      if (error) throw error;
-
-      if (data && data.length > 0) {
-        setRoleData({
-          role: data[0].role as AppRole,
-          permissions: data[0].permissions || [],
-          loading: false,
-          error: null,
-        });
-      } else {
-        // No role assigned yet - this is a new user whose role trigger hasn't run yet
-        // OR they were invited but haven't completed setup
-        // Return null role (not viewer) - let them access the app without restrictions
-        // The auto_assign_user_role trigger will assign admin role shortly
-        setRoleData({
-          role: null,
-          permissions: [],
-          loading: false,
-          error: null,
-        });
-      }
-    } catch (err) {
-      console.error('Error fetching user role:', err);
-      setRoleData({
-        role: null,
-        permissions: [],
-        loading: false,
-        error: err instanceof Error ? err.message : 'Failed to fetch role',
-      });
-    }
-  }, [user?.id]);
-
-  useEffect(() => {
-    fetchRole();
-  }, [fetchRole]);
+    await refetch();
+  }, [refetch]);
 
   // Check if user has a specific role
   const hasRole = useCallback((role: AppRole): boolean => {

@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { devLog, devError, devWarn } from '@/lib/logger';
 import { safeSignOut } from '@/lib/safeSignOut';
 import { useSessionHealth, SessionHealthStatus } from '@/hooks/useSessionHealth';
+import { keepUserIfSame } from '@/lib/authIdentity';
 
 // Subscription tier types
 export type SubscriptionTier = 'starter' | 'growth' | 'professional' | 'enterprise' | null;
@@ -100,8 +101,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   // Check subscription status
+  // Latest access token, read by checkSubscription so a token refresh alone
+  // does not re-run the (edge function) subscription check.
+  const accessTokenRef = useRef<string | undefined>(undefined);
+  accessTokenRef.current = session?.access_token;
+
   const checkSubscription = useCallback(async () => {
-    if (!session?.access_token) {
+    const accessToken = accessTokenRef.current;
+    if (!accessToken) {
       setSubscription({ ...defaultSubscription, loading: false });
       return;
     }
@@ -111,7 +118,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       const { data, error } = await supabase.functions.invoke('check-subscription', {
         headers: {
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${accessToken}`,
         },
       });
 
@@ -136,7 +143,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         error: error.message || 'Failed to check subscription',
       }));
     }
-  }, [session?.access_token]);
+  }, []);
 
   // Open Stripe customer portal
   const openCustomerPortal = useCallback(async () => {
@@ -184,14 +191,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return userTierLevel >= requiredTierLevel;
   }, [subscription.subscribed, subscription.tier]);
 
-  // Check subscription on session change
+  // Check subscription once per signed-in user (not on every token refresh)
+  const sessionUserId = session?.user?.id;
   useEffect(() => {
-    if (session) {
+    if (sessionUserId) {
       checkSubscription();
     } else {
       setSubscription({ ...defaultSubscription, loading: false });
     }
-  }, [session, checkSubscription]);
+  }, [sessionUserId, checkSubscription]);
 
   // Periodic subscription check removed — was calling Stripe API every 60s.
   // Subscription is now checked only on session change and after checkout success.
@@ -307,7 +315,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (currentPath === '/reset' || currentPath === '/signout') {
           devLog('[Auth] On reset/signout path, skipping side effects');
           setSession(session);
-          setUser(session?.user ?? null);
+          setUser(prev => keepUserIfSame(prev, session?.user ?? null));
           setLoading(false);
           return;
         }
@@ -327,7 +335,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         
         // SYNCHRONOUS: Set session/user immediately
         setSession(session);
-        setUser(session?.user ?? null);
+        setUser(prev => keepUserIfSame(prev, session?.user ?? null));
         setLoading(false);
 
         // Handle PASSWORD_RECOVERY event
@@ -447,7 +455,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           
           // Session is valid - use verified user data
           setSession(session);
-          setUser(verifiedUser);
+          setUser(prev => keepUserIfSame(prev, verifiedUser));
           devLog('[Auth] Session verified for user:', verifiedUser.id);
         } else {
           setSession(null);

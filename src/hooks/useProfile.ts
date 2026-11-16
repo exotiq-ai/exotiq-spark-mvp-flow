@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -13,67 +14,46 @@ interface Profile {
   tour_skipped_at: string | null;
 }
 
+/** Shared cache key: every component reading the profile shares one request. */
+export const profileQueryKey = (userId: string | undefined) => ['profile', userId] as const;
 
 export const useProfile = () => {
   const { user } = useAuth();
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const userId = user?.id;
+  const queryClient = useQueryClient();
 
-  const fetchProfile = useCallback(async () => {
-    if (!user?.id) {
-      setProfile(null);
-      setLoading(false);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      const { data, error: fetchError } = await supabase
+  const query = useQuery({
+    queryKey: profileQueryKey(userId),
+    enabled: !!userId,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async (): Promise<Profile | null> => {
+      const { data, error } = await supabase
         .from('profiles')
         .select('id, email, full_name, phone, company_name, avatar_url, tour_completed, tour_skipped_at')
-        .eq('id', user.id)
+        .eq('id', userId!)
         .maybeSingle();
+      if (error) throw error;
+      // No profile row yet is fine: callers treat null as "not set up".
+      return (data as Profile | null) ?? null;
+    },
+  });
 
-      if (fetchError) throw fetchError;
-      
-      // If no profile exists yet, that's okay - just set null
-      if (!data) {
-        setProfile(null);
-        return;
-      }
-      
-      setProfile(data);
-    } catch (err) {
-      console.error('Error fetching profile:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch profile');
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.id]);
-
+  // Live updates to this user's profile row go straight into the shared cache.
   useEffect(() => {
-    fetchProfile();
-  }, [fetchProfile]);
-
-  // Subscribe to profile changes
-  useEffect(() => {
-    if (!user?.id) return;
+    if (!userId) return;
 
     const channel = supabase
-      .channel(`profile-${user.id}`)
+      .channel(`profile-${userId}-${Math.random().toString(36).slice(2)}`)
       .on(
         'postgres_changes',
         {
           event: 'UPDATE',
           schema: 'public',
           table: 'profiles',
-          filter: `id=eq.${user.id}`,
+          filter: `id=eq.${userId}`,
         },
         (payload) => {
-          setProfile(payload.new as Profile);
+          queryClient.setQueryData(profileQueryKey(userId), payload.new as Profile);
         }
       )
       .subscribe();
@@ -81,32 +61,39 @@ export const useProfile = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id]);
+  }, [userId, queryClient]);
 
+  const profile = query.data ?? null;
   const displayName = profile?.full_name || user?.email?.split('@')[0] || 'User';
+
+  const { refetch } = query;
+  const fetchProfile = useCallback(async () => {
+    await refetch();
+  }, [refetch]);
 
   // Persist first-run choices (tour taken / "I'll set up myself") on the account
   // so they survive reloads and follow the user across devices.
   const updateProfile = useCallback(async (updates: Partial<Omit<Profile, 'id' | 'email'>>) => {
-    if (!user?.id) return;
-    setProfile(prev => (prev ? { ...prev, ...updates } as Profile : prev));
+    if (!userId) return;
+    queryClient.setQueryData<Profile | null>(profileQueryKey(userId), (prev) =>
+      prev ? ({ ...prev, ...updates } as Profile) : prev,
+    );
     const { error: updateError } = await supabase
       .from('profiles')
       .update(updates)
-      .eq('id', user.id);
+      .eq('id', userId);
     if (updateError) {
       console.error('Error updating profile:', updateError);
-      fetchProfile();
+      queryClient.invalidateQueries({ queryKey: profileQueryKey(userId) });
     }
-  }, [user?.id, fetchProfile]);
+  }, [userId, queryClient]);
 
   return {
     profile,
-    loading,
-    error,
+    loading: userId ? query.isLoading : false,
+    error: query.error ? (query.error instanceof Error ? query.error.message : 'Failed to fetch profile') : null,
     displayName,
     updateProfile,
     refetch: fetchProfile,
   };
 };
-

@@ -183,14 +183,10 @@ const DashboardInner = () => {
   }, []);
 
 
-  // Get user ID for welcome video
-  const [userId, setUserId] = useState<string | null>(null);
-  
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setUserId(data.user?.id || null);
-    });
-  }, []);
+  // User ID for the welcome video. Taken from auth context: a getUser() call
+  // here was a server round trip that held the auth lock and delayed the
+  // dashboard's other queries.
+  const userId = user?.id ?? null;
 
   useEffect(() => {
     let cancelled = false;
@@ -469,6 +465,7 @@ const DashboardInner = () => {
         {/* Desktop Header */}
         <div className="hidden md:block">
           <DashboardHeader 
+            unreadMessages={totalUnread}
             onOpenChat={() => {
               setChatOpen(true);
               setChatMinimized(false);

@@ -18,7 +18,6 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { UnifiedNotificationCenter } from "@/components/common/UnifiedNotificationCenter";
 import { LocationSwitcher } from "@/components/common/LocationSwitcher";
 import { AddLocationDialog } from "@/components/dialogs/AddLocationDialog";
-import { useTeamMessaging } from "@/hooks/useTeamMessaging";
 import { useTeam } from "@/contexts/TeamContext";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -26,17 +25,17 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 interface DashboardHeaderProps {
   onOpenChat?: () => void;
   onOpenRari?: (query?: string) => void;
+  /** Unread team messages, counted by the page (one conversations load, not two). */
+  unreadMessages?: number;
 }
 
-export const DashboardHeader = ({ onOpenChat, onOpenRari }: DashboardHeaderProps) => {
+export const DashboardHeader = ({ onOpenChat, onOpenRari, unreadMessages = 0 }: DashboardHeaderProps) => {
   const { user, signOut } = useAuth();
   const { profile, displayName } = useProfile();
-  const { conversations } = useTeamMessaging();
   const { currentTeam, refreshTeam } = useTeam();
   const [addLocationOpen, setAddLocationOpen] = useState(false);
 
-  // Calculate total unread messages
-  const totalUnread = conversations.reduce((acc, c) => acc + (c.unread_count || 0), 0);
+  const totalUnread = unreadMessages;
 
   const getInitials = () => {
     return displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
