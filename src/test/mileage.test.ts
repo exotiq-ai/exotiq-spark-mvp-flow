@@ -72,6 +72,25 @@ describe('computeMileageOverage', () => {
     expect(computeMileageOverage({ ...base, returnOdometer: 0 }).status).toBe('no_readings');
   });
 
+  it('never charges an unlimited-miles booking, however far it went', () => {
+    const r = computeMileageOverage({ ...base, unlimited: true, returnOdometer: 15_000 });
+    expect(r.status).toBe('unlimited');
+    expect(r.milesDriven).toBe(5_000);
+    expect(r.overMiles).toBe(0);
+    expect(r.charge).toBe(0);
+  });
+
+  it('treats unlimited as unlimited even without an allowance or rate on the booking', () => {
+    const r = computeMileageOverage({ ...base, unlimited: true, perDayAllowance: null, ratePerMile: null });
+    expect(r.status).toBe('unlimited');
+    expect(r.charge).toBe(0);
+  });
+
+  it('reads a missing flag (older bookings) as not unlimited', () => {
+    expect(computeMileageOverage({ ...base, unlimited: null }).status).toBe('ok');
+    expect(computeMileageOverage({ ...base, unlimited: null }).charge).toBe(319.5);
+  });
+
   it('never reports negative miles', () => {
     const r = computeMileageOverage({ ...base, returnOdometer: 9_900 });
     expect(r.milesDriven).toBe(0);

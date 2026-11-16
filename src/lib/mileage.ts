@@ -16,11 +16,16 @@ export interface MileageInput {
   endDate: string | Date;
   /** When the car actually came back; omit before check-in. */
   returnedAt?: string | Date | null;
+  /** Unlimited miles on this booking (snapshot of the car's flag). Null/absent = not unlimited. */
+  unlimited?: boolean | null;
 }
 
 export interface MileageResult {
-  /** no_rule: the booking has no allowance or no rate, so nothing is charged. */
-  status: 'ok' | 'no_rule' | 'no_readings';
+  /**
+   * unlimited: the booking has unlimited miles, nothing is ever charged.
+   * no_rule: the booking has no allowance or no rate, so nothing is charged.
+   */
+  status: 'ok' | 'unlimited' | 'no_rule' | 'no_readings';
   perDay: number;
   rate: number;
   bookedDays: number;
@@ -57,7 +62,8 @@ export function computeMileageOverage(input: MileageInput): MileageResult {
     ? Math.max(0, Number(input.returnOdometer) - Number(input.pickupOdometer))
     : 0;
 
-  const status: MileageResult['status'] = !hasRule ? 'no_rule' : !hasReadings ? 'no_readings' : 'ok';
+  const status: MileageResult['status'] =
+    input.unlimited === true ? 'unlimited' : !hasRule ? 'no_rule' : !hasReadings ? 'no_readings' : 'ok';
   const overMiles = status === 'ok' ? Math.max(0, milesDriven - included) : 0;
   const charge = Math.round(overMiles * rate * 100) / 100;
 

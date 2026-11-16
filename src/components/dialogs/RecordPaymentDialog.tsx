@@ -166,6 +166,7 @@ export const RecordPaymentDialog = ({
       startDate: booking.start_date,
       endDate: booking.end_date,
       returnedAt,
+      unlimited: booking.unlimited_mileage,
     });
     const mileageLimit = mileage.included;
     const mileageRate = mileage.rate;
@@ -191,7 +192,8 @@ export const RecordPaymentDialog = ({
       mileageCharge,
       mileagePerDay: mileage.perDay,
       mileageDays: mileage.days,
-      mileageHasRule: mileage.status !== 'no_rule',
+      mileageHasRule: mileage.status !== 'no_rule' && mileage.status !== 'unlimited',
+      mileageUnlimited: mileage.status === 'unlimited',
       balanceRemaining,
     };
   }, [booking, existingPayments, gasFeeWaived, gasFeeApplies, isMarketplace, teamGasFee, returnedAt]);
@@ -504,7 +506,11 @@ export const RecordPaymentDialog = ({
                         <span>{financials.mileageLimit.toLocaleString()} mi</span>
                       </div>
                     ) : (
-                      <p className="text-xs text-muted-foreground">No mileage allowance or rate on this booking.</p>
+                      <p className="text-xs text-muted-foreground">
+                        {financials.mileageUnlimited
+                          ? 'Unlimited miles on this booking: no overage.'
+                          : 'No mileage allowance or rate on this booking.'}
+                      </p>
                     )}
                     {financials.mileageOverage > 0 && (
                       <div className="flex justify-between items-center text-warning font-medium">

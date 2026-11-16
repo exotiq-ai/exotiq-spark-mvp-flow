@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Database } from "@/integrations/supabase/types";
@@ -43,6 +44,7 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit, onAddPhotos }: 
   const [color, setColor] = useState("");
   const [defaultMileageLimit, setDefaultMileageLimit] = useState(teamMileageLimit);
   const [mileageOverageRate, setMileageOverageRate] = useState(teamOverageRate);
+  const [unlimitedMileage, setUnlimitedMileage] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createdVehicle, setCreatedVehicle] = useState<{ id: string; name: string } | null>(null);
@@ -76,6 +78,7 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit, onAddPhotos }: 
     setColor("");
     setDefaultMileageLimit(teamMileageLimit);
     setMileageOverageRate(teamOverageRate);
+    setUnlimitedMileage(false);
     setError(null);
     setCreatedVehicle(null);
     setGeneratingHero(false);
@@ -137,6 +140,7 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit, onAddPhotos }: 
         color: color || null,
         default_mileage_limit: defaultMileageLimit ? parseInt(defaultMileageLimit) : null,
         mileage_overage_rate: parsedRate,
+        unlimited_mileage: unlimitedMileage,
       });
 
       if (result) {
@@ -331,6 +335,15 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit, onAddPhotos }: 
                     />
                   </div>
 
+                  <div className="col-span-2 flex items-center justify-between gap-3 rounded-lg border p-3">
+                    <div>
+                      <Label htmlFor="unlimitedMileage">Unlimited miles</Label>
+                      <p className="text-xs text-muted-foreground">No allowance and no overage on this car's bookings.</p>
+                    </div>
+                    <Switch id="unlimitedMileage" checked={unlimitedMileage} onCheckedChange={setUnlimitedMileage} />
+                  </div>
+
+                  {!unlimitedMileage && (<>
                   <div className="space-y-2">
                     <Label htmlFor="mileageLimit">Included miles per day</Label>
                     <Input
@@ -347,6 +360,7 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit, onAddPhotos }: 
                     <Label htmlFor="mileageRate">Overage rate per mile</Label>
                     <MileageRateInput id="mileageRate" value={mileageOverageRate} onChange={setMileageOverageRate} currency={currentTeam?.currency || "USD"} />
                   </div>
+                  </>)}
                 </div>
 
                 {/* Location Selection */}
