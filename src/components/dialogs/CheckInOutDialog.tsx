@@ -53,6 +53,7 @@ import {
   GUIDED_PHOTO_CONFIG,
 } from "@/components/inspections/types";
 import type { Database } from "@/integrations/supabase/types";
+import { computeMileageOverage } from "@/lib/mileage";
 
 type Booking = Database["public"]["Tables"]["bookings"]["Row"];
 
@@ -66,7 +67,8 @@ interface CheckInOutDialogProps {
   vehicleId?: string;
   vehicleName?: string;
   onComplete?: () => void;
-  onCollectPayment?: () => void;
+  /** Called after check-in when money is due; receives the check-in time. */
+  onCollectPayment?: (returnedAt: string) => void;
 }
 
 export const CheckInOutDialog = ({
@@ -141,21 +143,32 @@ export const CheckInOutDialog = ({
 
   const [loading, setLoading] = useState(false);
 
-  // Mileage calculations for check-in
+  // The moment of this check-in/out: now, or the historical date the operator set.
+  const resolveTimestamp = useCallback((): string => {
+    if (manualDate && dateOverride) {
+      const [h, m] = timeOverride.split(':').map(Number);
+      const combined = new Date(dateOverride);
+      combined.setHours(h, m, 0, 0);
+      return combined.toISOString();
+    }
+    return new Date().toISOString();
+  }, [manualDate, dateOverride, timeOverride]);
+
+  // Mileage for check-in: miles/day × days (booked, or kept if the car is late).
   const mileageInfo = useMemo(() => {
-    if (!isCheckIn || !booking.pickup_odometer) return null;
-    const returnOdo = Number(odometer) || 0;
-    const pickupOdo = Number(booking.pickup_odometer) || 0;
-    if (returnOdo <= 0) return null;
-
-    const milesDriven = returnOdo - pickupOdo;
-    const included = Number(booking.mileage_limit) || 0;
-    const overage = Math.max(0, milesDriven - included);
-    const rate = Number(booking.mileage_overage_fee) || 0.5;
-    const charge = overage * rate;
-
-    return { milesDriven, included, overage, rate, charge };
-  }, [isCheckIn, odometer, booking]);
+    if (!isCheckIn) return null;
+    const r = computeMileageOverage({
+      perDayAllowance: booking.mileage_limit,
+      ratePerMile: booking.mileage_overage_fee,
+      pickupOdometer: booking.pickup_odometer,
+      returnOdometer: Number(odometer) || 0,
+      startDate: booking.start_date,
+      endDate: booking.end_date,
+      returnedAt: resolveTimestamp(),
+    });
+    if (r.status === 'no_readings') return null;
+    return { ...r, overage: r.overMiles };
+  }, [isCheckIn, odometer, booking, resolveTimestamp]);
 
   // Photo handlers
   const handlePhotoCapture = useCallback((photoId: string, imageData: string) => {
@@ -238,15 +251,7 @@ export const CheckInOutDialog = ({
     const odoValue = Number(odometer);
     setLoading(true);
     try {
-      let timestamp: string;
-      if (manualDate && dateOverride) {
-        const [h, m] = timeOverride.split(':').map(Number);
-        const combined = new Date(dateOverride);
-        combined.setHours(h, m, 0, 0);
-        timestamp = combined.toISOString();
-      } else {
-        timestamp = new Date().toISOString();
-      }
+      const timestamp = resolveTimestamp();
 
       // --- Update booking ---
       if (isCheckIn) {
@@ -396,7 +401,7 @@ export const CheckInOutDialog = ({
       if (isCheckIn) {
         const balanceDue = Number(booking.balance_due) || 0;
         if (balanceDue > 0 || (mileageInfo && mileageInfo.charge > 0)) {
-          onCollectPayment?.();
+          onCollectPayment?.(timestamp);
         }
       }
 
@@ -609,16 +614,28 @@ export const CheckInOutDialog = ({
                       {mileageInfo.milesDriven.toLocaleString()} mi
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Included</span>
-                    <span>{mileageInfo.included.toLocaleString()} mi</span>
-                  </div>
+                  {mileageInfo.status === 'no_rule' ? (
+                    <p className="text-xs text-muted-foreground">
+                      No mileage allowance or rate on this booking, so no overage is charged.
+                    </p>
+                  ) : (
+                    <div className="flex justify-between gap-3">
+                      <span>
+                        Included
+                        <span className="block text-xs text-muted-foreground">
+                          {mileageInfo.perDay.toLocaleString()} mi/day × {mileageInfo.days} day{mileageInfo.days === 1 ? '' : 's'}
+                          {mileageInfo.daysKept != null && mileageInfo.daysKept > mileageInfo.bookedDays ? ' kept' : ''}
+                        </span>
+                      </span>
+                      <span>{mileageInfo.included.toLocaleString()} mi</span>
+                    </div>
+                  )}
                   {mileageInfo.overage > 0 && (
                     <>
                       <Separator />
-                      <div className="flex justify-between font-semibold text-warning">
+                      <div className="flex justify-between gap-3 font-semibold text-warning">
                         <span>
-                          Overage ({mileageInfo.overage} mi × {money(mileageInfo.rate)}/mi)
+                          Overage ({mileageInfo.overage.toLocaleString()} mi × {money(mileageInfo.rate)}/mi)
                         </span>
                         <span>{money(mileageInfo.charge)}</span>
                       </div>

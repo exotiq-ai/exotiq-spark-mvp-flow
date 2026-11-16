@@ -12,7 +12,8 @@ import { useTeam } from "@/contexts/TeamContext";
 import { useMoney } from "@/hooks/useMoney";
 import { useUserRole } from "@/hooks/useUserRole";
 import { usePartners } from "@/hooks/usePartners";
-import { MILEAGE_RATE_TIERS } from "@/lib/pricingUtils";
+import { MileageRateInput } from "@/components/vehicles/MileageRateInput";
+import { parseMileageRate } from "@/lib/mileage";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 
@@ -114,7 +115,7 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
       setColor(vehicle.color || "");
       setBodyType(vehicle.body_type || "none");
       setDefaultMileageLimit(vehicle.default_mileage_limit != null ? String(vehicle.default_mileage_limit) : "");
-      setMileageOverageRate(vehicle.mileage_overage_rate != null ? String(vehicle.mileage_overage_rate) : "");
+      setMileageOverageRate(vehicle.mileage_overage_rate != null ? Number(vehicle.mileage_overage_rate).toFixed(2) : "");
       setOwnershipType(vehicle.ownership_type || "owned");
       setPartnerId(vehicle.partner_id || "none");
       setSplitType(vehicle.split_type || "percentage");
@@ -179,6 +180,10 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
       setError("Please fill in all required fields.");
       return;
     }
+    if (parseMileageRate(mileageOverageRate) === undefined) {
+      setError("Overage rate: enter an amount like 2.25, or leave it empty.");
+      return;
+    }
 
     setLoading(true);
     try {
@@ -201,7 +206,7 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
       const newMileageLimit = defaultMileageLimit ? parseInt(defaultMileageLimit) : null;
       if (newMileageLimit !== (vehicle.default_mileage_limit ?? null)) updates.default_mileage_limit = newMileageLimit;
       
-      const newOverageRate = mileageOverageRate ? parseFloat(mileageOverageRate) : null;
+      const newOverageRate = parseMileageRate(mileageOverageRate) ?? null;
       if (newOverageRate !== (vehicle.mileage_overage_rate ?? null)) updates.mileage_overage_rate = newOverageRate;
 
       // Ownership
@@ -324,19 +329,12 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-mileage">Included Miles/Day</Label>
+                <Label htmlFor="edit-mileage">Included miles per day</Label>
                 <Input id="edit-mileage" type="number" value={defaultMileageLimit} onChange={(e) => setDefaultMileageLimit(e.target.value)} min="0" />
               </div>
               <div className="space-y-2 col-span-2">
-                <Label htmlFor="edit-overage">Overage Rate ({currency}/mi)</Label>
-                <Select value={mileageOverageRate} onValueChange={setMileageOverageRate}>
-                  <SelectTrigger><SelectValue placeholder="Select rate" /></SelectTrigger>
-                  <SelectContent>
-                    {MILEAGE_RATE_TIERS.map(tier => (
-                      <SelectItem key={tier.value} value={tier.value}>{tier.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="edit-overage">Overage rate per mile</Label>
+                <MileageRateInput id="edit-overage" value={mileageOverageRate} onChange={setMileageOverageRate} currency={currency} />
               </div>
             </div>
 

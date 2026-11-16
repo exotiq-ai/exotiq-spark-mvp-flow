@@ -37,6 +37,7 @@ import { calculateBookingTotal, getGasFeeForTeam } from "@/lib/pricingUtils";
 import { useTeamGasFeeSettings } from '@/hooks/useTeamGasFeeSettings';
 import { useMoney } from '@/hooks/useMoney';
 import { operatorPayments } from "@/lib/paymentLegs";
+import { computeMileageOverage } from "@/lib/mileage";
 
 type Booking = Database['public']['Tables']['bookings']['Row'];
 type Payment = Database['public']['Tables']['payments']['Row'];
@@ -53,6 +54,8 @@ interface RecordPaymentDialogProps {
   onOpenChange: (open: boolean) => void;
   booking: Booking;
   onSubmit: (payment: Omit<Database['public']['Tables']['payments']['Insert'], 'user_id'>) => Promise<void>;
+  /** When the car came back (from check-in); widens the mileage allowance for a late return. */
+  returnedAt?: string | null;
 }
 
 const ADJUSTMENT_TYPES = [
@@ -79,6 +82,7 @@ export const RecordPaymentDialog = ({
   onOpenChange,
   booking,
   onSubmit,
+  returnedAt,
 }: RecordPaymentDialogProps) => {
   const { toast } = useToast();
   const { currentTeam } = useTeam();
@@ -151,14 +155,23 @@ export const RecordPaymentDialog = ({
     const securityDeposit = Number(booking.security_deposit_amount) || 0;
     const securityStatus = booking.security_deposit_status || "none";
     
-    // Mileage calculation
+    // Mileage: miles/day × days (booked, or kept when the car came back late)
     const pickupOdo = Number(booking.pickup_odometer) || 0;
     const returnOdo = Number(booking.return_odometer) || 0;
-    const mileageLimit = Number(booking.mileage_limit) || 0;
-    const mileageRate = Number(booking.mileage_overage_fee) || 0.50;
-    const milesDriven = returnOdo > 0 && pickupOdo > 0 ? returnOdo - pickupOdo : 0;
-    const mileageOverage = Math.max(0, milesDriven - mileageLimit);
-    const mileageCharge = mileageOverage * mileageRate;
+    const mileage = computeMileageOverage({
+      perDayAllowance: booking.mileage_limit,
+      ratePerMile: booking.mileage_overage_fee,
+      pickupOdometer: booking.pickup_odometer,
+      returnOdometer: booking.return_odometer,
+      startDate: booking.start_date,
+      endDate: booking.end_date,
+      returnedAt,
+    });
+    const mileageLimit = mileage.included;
+    const mileageRate = mileage.rate;
+    const milesDriven = mileage.milesDriven;
+    const mileageOverage = mileage.overMiles;
+    const mileageCharge = mileage.charge;
     
     const balanceRemaining = pricing.grandTotal - totalPaid;
 
@@ -176,9 +189,12 @@ export const RecordPaymentDialog = ({
       milesDriven,
       mileageOverage,
       mileageCharge,
+      mileagePerDay: mileage.perDay,
+      mileageDays: mileage.days,
+      mileageHasRule: mileage.status !== 'no_rule',
       balanceRemaining,
     };
-  }, [booking, existingPayments, gasFeeWaived, gasFeeApplies, isMarketplace, teamGasFee]);
+  }, [booking, existingPayments, gasFeeWaived, gasFeeApplies, isMarketplace, teamGasFee, returnedAt]);
 
   // Total adjustments
   const adjustmentsTotal = useMemo(() => {
@@ -477,13 +493,22 @@ export const RecordPaymentDialog = ({
                       </span>
                       <span>{financials.milesDriven.toLocaleString()} mi</span>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Included Miles</span>
-                      <span>{financials.mileageLimit.toLocaleString()} mi</span>
-                    </div>
+                    {financials.mileageHasRule ? (
+                      <div className="flex justify-between items-center gap-3">
+                        <span className="text-muted-foreground">
+                          Included Miles
+                          <span className="block text-xs">
+                            {financials.mileagePerDay.toLocaleString()} mi/day × {financials.mileageDays} day{financials.mileageDays === 1 ? '' : 's'}
+                          </span>
+                        </span>
+                        <span>{financials.mileageLimit.toLocaleString()} mi</span>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">No mileage allowance or rate on this booking.</p>
+                    )}
                     {financials.mileageOverage > 0 && (
                       <div className="flex justify-between items-center text-warning font-medium">
-                        <span>Overage ({financials.mileageOverage} mi × {money(financials.mileageRate)}/mi)</span>
+                        <span>Overage ({financials.mileageOverage.toLocaleString()} mi × {money(financials.mileageRate)}/mi)</span>
                         <span>{money(financials.mileageCharge)}</span>
                       </div>
                     )}

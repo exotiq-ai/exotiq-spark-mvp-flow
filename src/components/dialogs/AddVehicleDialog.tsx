@@ -12,7 +12,8 @@ import { validators, validateForm } from "@/lib/validation";
 import { toast } from "@/hooks/use-toast";
 import { useTeam } from "@/contexts/TeamContext";
 import { useGenerateHeroImage } from "@/hooks/useGenerateHeroImage";
-import { MILEAGE_RATE_TIERS } from "@/lib/pricingUtils";
+import { MileageRateInput } from "@/components/vehicles/MileageRateInput";
+import { parseMileageRate } from "@/lib/mileage";
 
 type VehicleInsert = Omit<Database['public']['Tables']['vehicles']['Insert'], 'user_id'>;
 
@@ -28,7 +29,7 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit, onAddPhotos }: 
 
   // Team-wide mileage defaults (Settings → Team) seed every new vehicle.
   const teamMileageLimit = currentTeam?.default_mileage_limit != null ? String(currentTeam.default_mileage_limit) : "250";
-  const teamOverageRate = currentTeam?.default_mileage_overage_rate != null ? String(currentTeam.default_mileage_overage_rate) : "1.99";
+  const teamOverageRate = currentTeam?.default_mileage_overage_rate != null ? Number(currentTeam.default_mileage_overage_rate).toFixed(2) : "1.99";
   
   const [name, setName] = useState("");
   const [make, setMake] = useState("");
@@ -111,6 +112,11 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit, onAddPhotos }: 
       setError(validation.errors[0]);
       return;
     }
+    const parsedRate = parseMileageRate(mileageOverageRate);
+    if (parsedRate === undefined) {
+      setError("Overage rate: enter an amount like 2.25, or leave it empty");
+      return;
+    }
 
     setLoading(true);
     try {
@@ -130,7 +136,7 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit, onAddPhotos }: 
         location_id: effectiveLocationId || null,
         color: color || null,
         default_mileage_limit: defaultMileageLimit ? parseInt(defaultMileageLimit) : null,
-        mileage_overage_rate: mileageOverageRate ? parseFloat(mileageOverageRate) : null,
+        mileage_overage_rate: parsedRate,
       });
 
       if (result) {
@@ -326,7 +332,7 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit, onAddPhotos }: 
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="mileageLimit">Included Miles/Day</Label>
+                    <Label htmlFor="mileageLimit">Included miles per day</Label>
                     <Input
                       id="mileageLimit"
                       type="number"
@@ -338,20 +344,8 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit, onAddPhotos }: 
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="mileageRate">Overage Rate ($/mi)</Label>
-                    <Select value={mileageOverageRate} onValueChange={setMileageOverageRate}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select rate" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {!MILEAGE_RATE_TIERS.some(t => t.value === teamOverageRate) && (
-                          <SelectItem value={teamOverageRate}>${teamOverageRate}/mi (your default)</SelectItem>
-                        )}
-                        {MILEAGE_RATE_TIERS.map(tier => (
-                          <SelectItem key={tier.value} value={tier.value}>{tier.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Label htmlFor="mileageRate">Overage rate per mile</Label>
+                    <MileageRateInput id="mileageRate" value={mileageOverageRate} onChange={setMileageOverageRate} currency={currentTeam?.currency || "USD"} />
                   </div>
                 </div>
 
