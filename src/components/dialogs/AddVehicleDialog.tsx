@@ -29,7 +29,7 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit, onAddPhotos }: 
 
   // Team-wide mileage defaults (Settings → Team) seed every new vehicle.
   const teamMileageLimit = currentTeam?.default_mileage_limit != null ? String(currentTeam.default_mileage_limit) : "250";
-  const teamOverageRate = currentTeam?.default_mileage_overage_rate != null ? String(currentTeam.default_mileage_overage_rate) : "1.99";
+  const teamOverageRate = currentTeam?.default_mileage_overage_rate != null ? Number(currentTeam.default_mileage_overage_rate).toFixed(2) : "1.99";
   
   const [name, setName] = useState("");
   const [make, setMake] = useState("");
@@ -332,7 +332,7 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit, onAddPhotos }: 
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="mileageLimit">Included Miles/Day</Label>
+                    <Label htmlFor="mileageLimit">Included miles per day</Label>
                     <Input
                       id="mileageLimit"
                       type="number"

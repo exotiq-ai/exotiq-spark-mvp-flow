@@ -115,7 +115,7 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
       setColor(vehicle.color || "");
       setBodyType(vehicle.body_type || "none");
       setDefaultMileageLimit(vehicle.default_mileage_limit != null ? String(vehicle.default_mileage_limit) : "");
-      setMileageOverageRate(vehicle.mileage_overage_rate != null ? String(vehicle.mileage_overage_rate) : "");
+      setMileageOverageRate(vehicle.mileage_overage_rate != null ? Number(vehicle.mileage_overage_rate).toFixed(2) : "");
       setOwnershipType(vehicle.ownership_type || "owned");
       setPartnerId(vehicle.partner_id || "none");
       setSplitType(vehicle.split_type || "percentage");
@@ -329,7 +329,7 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-mileage">Included Miles/Day</Label>
+                <Label htmlFor="edit-mileage">Included miles per day</Label>
                 <Input id="edit-mileage" type="number" value={defaultMileageLimit} onChange={(e) => setDefaultMileageLimit(e.target.value)} min="0" />
               </div>
               <div className="space-y-2 col-span-2">
