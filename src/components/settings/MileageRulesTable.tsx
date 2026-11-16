@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Save, Search, Undo2 } from "lucide-react";
-import { useFleet } from "@/contexts/FleetContext";
+import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { useTeam } from "@/contexts/TeamContext";
 import { useFleetPricingAccess } from "@/hooks/useFleetPricingAccess";
 import { useToast } from "@/hooks/use-toast";
@@ -29,7 +29,7 @@ const SOURCE_LABEL = {
  * Changes apply to bookings made after saving; existing bookings keep the rule they were made with.
  */
 export const MileageRulesTable = ({ currencySymbol = "$" }: { currencySymbol?: string }) => {
-  const { vehicles, updateVehicle } = useFleet();
+  const { vehicles, updateVehicle } = useLocationFilteredFleet();
   const { currentTeam } = useTeam();
   const { canEditCars } = useFleetPricingAccess();
   const { toast } = useToast();
