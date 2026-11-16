@@ -8,7 +8,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { QuickPriceEditorDialog } from "@/components/dialogs/QuickPriceEditorDialog";
 import { DemandForecastCard } from "@/components/dashboard/DemandForecastCard";
 import { DemandForecastErrorBoundary } from "@/components/dashboard/DemandForecastErrorBoundary";
-import { RateTiersPanel } from "@/components/dashboard/RateTiersPanel";
+import { RateTiersMovedCard } from "@/components/motoriq/RateTiersMovedCard";
 import { PricingCalendar } from "@/components/dashboard/PricingCalendar";
 import { SkeletonAIInsight, SkeletonStatsRow, SkeletonVehicleCard } from "@/components/ui/skeleton-specialized";
 import { NoVehiclesState } from "@/components/common/EmptyState";
@@ -120,7 +120,7 @@ export const MotorIQEnhanced = () => {
           </TabsContent>
 
           <TabsContent value="rate-tiers" className="space-y-6">
-            <RateTiersPanel />
+            <RateTiersMovedCard />
           </TabsContent>
         </ModuleTabs>
       </div>
