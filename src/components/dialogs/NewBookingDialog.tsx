@@ -316,8 +316,9 @@ export const NewBookingDialog = ({
         notes: notes || null,
         status: 'pending',
         rental_duration_type: durationType,
-        mileage_limit: selectedVehicle.default_mileage_limit ?? 250,
-        mileage_overage_fee: selectedVehicle.mileage_overage_rate ?? 1.50,
+        // Same fallback as the renter booking path: vehicle, then team default; never an invented number.
+        mileage_limit: selectedVehicle.default_mileage_limit ?? currentTeam?.default_mileage_limit ?? null,
+        mileage_overage_fee: selectedVehicle.mileage_overage_rate ?? currentTeam?.default_mileage_overage_rate ?? null,
       } as any);
 
       // Reset form

@@ -118,6 +118,8 @@ export const EnhancedBookingDialog = ({
   
   const [showVehicleImage, setShowVehicleImage] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  // Check-in time, handed to the payment dialog so a late return widens the mileage allowance.
+  const [returnedAt, setReturnedAt] = useState<{ bookingId: string; at: string } | null>(null);
   const [showMessageDialog, setShowMessageDialog] = useState(false);
   const [showChangeVehicle, setShowChangeVehicle] = useState(false);
   const [showEditBooking, setShowEditBooking] = useState(false);
@@ -569,7 +571,7 @@ export const EnhancedBookingDialog = ({
         vehicleName={vehicle?.name || ""}
         vehicleDetails={vehicle ? { make: vehicle.make, model: vehicle.model, year: vehicle.year, status: vehicle.status || "available", dailyRate: Number(vehicle.current_rate) } : undefined}
       />
-      {booking && <RecordPaymentDialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog} booking={booking} onSubmit={createPayment} />}
+      {booking && <RecordPaymentDialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog} booking={booking} onSubmit={createPayment} returnedAt={returnedAt?.bookingId === booking.id ? returnedAt.at : null} />}
       {booking && showCheckInOut && (
         <CheckInOutDialog
           open={!!showCheckInOut}
@@ -579,7 +581,7 @@ export const EnhancedBookingDialog = ({
           vehicleId={vehicle?.id}
           vehicleName={vehicle?.name || booking.vehicle_name || undefined}
           onComplete={() => refreshData(true)}
-          onCollectPayment={() => { setShowCheckInOut(null); setShowPaymentDialog(true); }}
+          onCollectPayment={(at) => { if (booking) setReturnedAt({ bookingId: booking.id, at }); setShowCheckInOut(null); setShowPaymentDialog(true); }}
         />
       )}
       <SendMessageDialog open={showMessageDialog} onOpenChange={setShowMessageDialog} bookings={booking ? [booking] : []} onSubmit={sendMessage} />
