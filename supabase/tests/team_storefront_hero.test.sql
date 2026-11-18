@@ -1,4 +1,4 @@
--- Tests for 20261116000000_team_storefront_hero.sql. Read-only.
+-- Tests for 20261116020000_team_storefront_hero.sql. Read-only.
 do $$
 declare res text;
 begin
