@@ -71,5 +71,10 @@ begin
    where team_id = t and status = 'completed' and coalesce(payment_status, '') <> 'paid';
   assert n between 1 and 3, format('completed bookings not fully paid: 1–3 (found %s)', n);
 
+  -- Partners: nothing owed for rentals returned more than two weeks ago
+  select count(*) into n from public.partner_payouts p join public.bookings b on b.id = p.booking_id
+   where p.team_id = t and p.status = 'pending' and b.end_date < now_ts - interval '14 days';
+  assert n = 0, format('pending partner payouts older than 14 days: none (found %s)', n);
+
   raise notice 'demo_fleet_state: all checks passed';
 end $$;

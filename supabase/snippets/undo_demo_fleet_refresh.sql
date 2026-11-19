@@ -10,13 +10,28 @@ select distinct on (table_name, row_id) table_name, row_id, action, before
  order by table_name, row_id, id;   -- the first snapshot of a row in a run is its original state
 
 delete from public.payments where id in (select row_id from undo_rows where table_name = 'payments' and before is null);
+delete from public.partner_payouts where id in (select row_id from undo_rows where table_name = 'partner_payouts' and before is null);
+
+update public.partner_payouts t
+   set status = r.status, paid_at = r.paid_at, payout_method = r.payout_method, payout_reference = r.payout_reference,
+       gross_rental_base = r.gross_rental_base, platform_fee_amount = r.platform_fee_amount, net_after_fee = r.net_after_fee,
+       net_to_partner = r.net_to_partner, reconcile_flag = r.reconcile_flag, reconcile_note = r.reconcile_note
+  from undo_rows u, jsonb_populate_record(null::public.partner_payouts, u.before) r
+ where u.table_name = 'partner_payouts' and u.before is not null and t.id = u.row_id;
 
 update public.bookings t
-   set status = r.status, start_date = r.start_date, end_date = r.end_date, payment_status = r.payment_status,
+   set start_date = r.start_date, end_date = r.end_date, payment_status = r.payment_status,
        balance_due = r.balance_due, paid_at = r.paid_at, mileage_limit = r.mileage_limit,
        mileage_overage_fee = r.mileage_overage_fee, pickup_odometer = r.pickup_odometer, unlimited_mileage = r.unlimited_mileage
   from undo_rows u, jsonb_populate_record(null::public.bookings, u.before) r
  where u.table_name = 'bookings' and t.id = u.row_id;
+
+-- status only where it changed: writing the status column at all fires the booking status triggers
+-- (a "completed" write would create partner payouts)
+update public.bookings t
+   set status = r.status
+  from undo_rows u, jsonb_populate_record(null::public.bookings, u.before) r
+ where u.table_name = 'bookings' and t.id = u.row_id and t.status is distinct from r.status;
 
 update public.payments t
    set payment_status = r.payment_status, transaction_date = r.transaction_date, notes = r.notes
@@ -50,3 +65,5 @@ delete from public.notifications
 
 commit;
 -- Vehicle revenue totals are recomputed by the next refresh; they are not restored here.
+-- Marketplace bookings: the app re-snapshots the platform fee when a booking completes and then freezes it, so
+-- if the team's fee percentage changed since the booking was made, that snapshot is not reverted by this undo.
