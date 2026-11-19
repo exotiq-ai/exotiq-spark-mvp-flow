@@ -2,6 +2,7 @@
 
 One line per shipped change, newest first: date (UTC) — what changed — why.
 
+- 2026-11-19 — Demo fleet refresh fixes (migration 20261119030000): missing states are reported instead of crashing the run, and when no returned rental is left owing it raises post-rental charges on the latest one — on production the refresh failed with "malformed array literal" once settling the old overdue payments left nothing owing.
 - 2026-11-19 — The fleet loads every booking (last 90 days) and every payment, a page at a time; the demo refresh dates its payment rows when the rental ended and keeps only recent overdue payments (migration 20261119020000) — Supabase returns at most 1,000 rows per request, so teams past 1,000 payments or bookings silently lost the rest (on the demo team, every real payment and the overdue ones disappeared from Pulse).
 - 2026-11-19 — `supabase/snippets/backfill_demo_refresh_payouts.sql` logs the partner payouts a first-version demo refresh created, so its undo removes them too — the production demo refresh ran before the partner-payout fix was applied.
 - 2026-11-19 — Demo fleet refresh handles partner payouts (migration 20261119010000): payouts the booking trigger creates are logged for undo, payouts for rentals returned over 14 days ago are marked paid as demo records (no transfer), and the undo no longer re-writes unchanged booking statuses — completing rentals on partner cars created pending payouts the undo could not remove, and re-writing a completed status created new ones.
