@@ -25,6 +25,15 @@ begin
   select count(*) into n from public.payments where team_id = t and payment_status in ('pending', 'overdue');
   assert n between 1 and 3, format('overdue payments: 1–3 (found %s)', n);
 
+  select count(*) into n from public.payments
+   where team_id = t and payment_status in ('pending', 'overdue')
+     and coalesce(transaction_date, created_at) < now_ts - interval '45 days';
+  assert n = 0, format('overdue payments are recent, none due more than 45 days ago (found %s)', n);
+
+  select count(*) into n from public.payments
+   where team_id = t and notes = 'Demo record — no Stripe charge' and created_at is distinct from transaction_date;
+  assert n = 0, format('demo payment rows are dated when their rental ended (found %s undated)', n);
+
   select count(*) into n from public.vehicle_tasks where team_id = t and status <> 'completed' and due_at < now_ts;
   assert n between 1 and 3, format('overdue tasks: 1–3 (found %s)', n);
 

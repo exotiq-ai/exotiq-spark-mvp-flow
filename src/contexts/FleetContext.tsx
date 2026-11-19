@@ -20,6 +20,10 @@ import {
   vehicleSchema
 } from '@/lib/validationSchemas';
 import { operatorPayments, exotiqFeePayments } from '@/lib/paymentLegs';
+import { fetchAllPages } from '@/lib/fetchAllPages';
+
+// Bookings that ended more than this many days ago are not loaded with the fleet.
+const BOOKINGS_WINDOW_DAYS = 90;
 
 type Vehicle = Database['public']['Tables']['vehicles']['Row'];
 type Booking = Database['public']['Tables']['bookings']['Row'];
@@ -230,6 +234,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       // Determine filter column and value
       const filterCol = teamId ? 'team_id' : 'user_id';
       const filterVal = teamId || userId!;
+      const bookingsWindowStart = new Date(Date.now() - BOOKINGS_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
       // Timeout wrapper to prevent infinite loading
       // Use longer timeout for initial load (60s) vs background refresh (30s)
@@ -257,14 +262,26 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       ] = await fetchWithTimeout(
         Promise.all([
           supabase.from('vehicles').select('*').eq(filterCol, filterVal).order('created_at', { ascending: false }),
-          supabase.from('bookings').select('*').eq(filterCol, filterVal).gte('end_date', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()).order('start_date', { ascending: false }).limit(5000),
+          // Paged: a single request stops at 1,000 rows (PostgREST max-rows), whatever .limit() says.
+          fetchAllPages(
+            (from, to) =>
+              supabase.from('bookings').select('*').eq(filterCol, filterVal)
+                .gte('end_date', bookingsWindowStart)
+                .order('start_date', { ascending: false }).order('id', { ascending: true })
+                .range(from, to),
+            { maxRows: 5000 },
+          ),
           supabase.from('documents').select('*').eq(filterCol, filterVal).order('created_at', { ascending: false }),
           supabase.from('maintenance_schedules').select('*').eq(filterCol, filterVal).order('scheduled_date', { ascending: true }),
           supabase.from('messages').select('*').eq('user_id', userId!).order('created_at', { ascending: false }),
           supabase.from('customers').select('*').eq(filterCol, filterVal).order('created_at', { ascending: false }),
           supabase.from('vehicle_inspections').select('*').eq(filterCol, filterVal).order('created_at', { ascending: false }),
           supabase.from('damage_claims').select('*').eq(filterCol, filterVal).order('created_at', { ascending: false }),
-          supabase.from('payments').select('*').eq(filterCol, filterVal).order('created_at', { ascending: false }),
+          fetchAllPages((from, to) =>
+            supabase.from('payments').select('*').eq(filterCol, filterVal)
+              .order('created_at', { ascending: false }).order('id', { ascending: true })
+              .range(from, to),
+          ),
         ]),
         'fleet data fetch'
       );
@@ -434,16 +451,23 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     const teamId = teamRef.current?.id;
     if (!currentUser) return;
     
-    let query = supabase.from('bookings').select('*');
-    if (teamId) {
-      query = query.eq('team_id', teamId);
-    } else {
-      query = query.eq('user_id', currentUser.id);
-    }
-    query.gte('end_date', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString())
-      .order('start_date', { ascending: false })
-      .limit(5000)
-      .then(({ data }) => setBookings(data || []));
+    const windowStart = new Date(Date.now() - BOOKINGS_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    void fetchAllPages(
+      (from, to) => {
+        let query = supabase.from('bookings').select('*');
+        if (teamId) {
+          query = query.eq('team_id', teamId);
+        } else {
+          query = query.eq('user_id', currentUser.id);
+        }
+        return query.gte('end_date', windowStart)
+          .order('start_date', { ascending: false }).order('id', { ascending: true })
+          .range(from, to);
+      },
+      { maxRows: 5000 },
+    ).then(({ data, error }) => {
+      if (!error) setBookings(data);
+    });
   }, []);
 
   const refreshPayments = useCallback(() => {
@@ -451,14 +475,17 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     const teamId = teamRef.current?.id;
     if (!currentUser) return;
     
-    let query = supabase.from('payments').select('*');
-    if (teamId) {
-      query = query.eq('team_id', teamId);
-    } else {
-      query = query.eq('user_id', currentUser.id);
-    }
-    query.order('created_at', { ascending: false })
-      .then(({ data }) => setPayments(data || []));
+    void fetchAllPages((from, to) => {
+      let query = supabase.from('payments').select('*');
+      if (teamId) {
+        query = query.eq('team_id', teamId);
+      } else {
+        query = query.eq('user_id', currentUser.id);
+      }
+      return query.order('created_at', { ascending: false }).order('id', { ascending: true }).range(from, to);
+    }).then(({ data, error }) => {
+      if (!error) setPayments(data);
+    });
   }, []);
 
   const refreshDamageClaims = useCallback(() => {

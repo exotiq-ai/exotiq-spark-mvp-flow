@@ -34,7 +34,7 @@ update public.bookings t
  where u.table_name = 'bookings' and t.id = u.row_id and t.status is distinct from r.status;
 
 update public.payments t
-   set payment_status = r.payment_status, transaction_date = r.transaction_date, notes = r.notes
+   set payment_status = r.payment_status, transaction_date = r.transaction_date, notes = r.notes, created_at = r.created_at
   from undo_rows u, jsonb_populate_record(null::public.payments, u.before) r
  where u.table_name = 'payments' and u.before is not null and t.id = u.row_id;
 
