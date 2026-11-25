@@ -15,9 +15,39 @@ import {
   STUDIO_HERO_MAX_ATTEMPTS,
   STUDIO_HERO_ESCALATION_EMAIL,
 } from "../_shared/studioHero.ts";
+import {
+  STUDIO_RECIPE_VERSION,
+  IDENTITY_SHEET_PROMPT,
+  QC_V2_PROMPT,
+  V2_CORRECTIONS,
+  buildV2Prompt,
+  identitySheetToText,
+} from "../_shared/studioHeroV2.ts";
+import { validateStudioReview, mergeIdentity, identityRevision } from "../_shared/studioReview.ts";
+import {
+  correctionsFor,
+  isRealVehiclePhoto,
+  isValidIdentitySheet,
+  pickRenderReferences,
+  renderReferenceSplit,
+  studioPipeline,
+  type ClassifiedPhoto,
+} from "../_shared/studioHeroPlan.ts";
 
-
+// Pipelines (see _shared/studioHeroPlan.ts):
+//  v2 (default): identity sheet of the car + up to 3 of its photos + locked camera/light recipe + scored review.
+//                Never mirrors the source (mirroring flips badges and lettering). Same recipe as studio-hero-benchmark.
+//  v1:           the earlier single-photo v1.5 prompt. Set the secret STUDIO_HERO_PIPELINE=v1 to roll back without a redeploy.
 const RENDER_MODEL = geminiImageModel(); // Nano Banana
+const PIPELINE = studioPipeline(Deno.env.get("STUDIO_HERO_PIPELINE"));
+
+type Db = ReturnType<typeof createClient>;
+type Vehicle = { id: string; team_id: string; make: string; model: string; year?: number | null; color?: string | null };
+type Photo = {
+  id: string; url: string; detected_angle: string | null; quality_score: number | null; source: string | null;
+  width: number | null; height: number | null; photo_type: string | null; original_filename: string | null; updated_at: string | null;
+};
+type Job = { id: string };
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -33,21 +63,25 @@ function base64ToBytes(base64: string): Uint8Array {
   return bytes;
 }
 
+function bytesToBase64(bytes: Uint8Array): string {
+  let bin = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+
 async function fetchAsDataUrl(url: string): Promise<string | null> {
   try {
     const res = await fetch(url);
     if (!res.ok) return null;
     const buf = new Uint8Array(await res.arrayBuffer());
-    let bin = "";
-    for (let i = 0; i < buf.length; i++) bin += String.fromCharCode(buf[i]);
     const mime = res.headers.get("content-type") || "image/jpeg";
-    return `data:${mime};base64,${btoa(bin)}`;
+    return `data:${mime};base64,${bytesToBase64(buf)}`;
   } catch {
     return null;
   }
 }
 
-// Mirror an image horizontally (so a right-facing car faces left).
+// Mirror an image horizontally (so a right-facing car faces left). v1 only.
 // Uses imagescript; on any failure returns the original bytes unchanged.
 async function mirrorDataUrl(dataUrl: string): Promise<{ dataUrl: string; mirrored: boolean }> {
   try {
@@ -58,10 +92,7 @@ async function mirrorDataUrl(dataUrl: string): Promise<{ dataUrl: string; mirror
     const mime = header.match(/data:([^;]+)/)?.[1] || "image/jpeg";
     const out =
       mime === "image/png" ? await img.encode() : await img.encodeJPEG(92);
-    let bin = "";
-    const bytes = new Uint8Array(out);
-    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-    return { dataUrl: `data:${mime};base64,${btoa(bin)}`, mirrored: true };
+    return { dataUrl: `data:${mime};base64,${bytesToBase64(new Uint8Array(out))}`, mirrored: true };
   } catch (e) {
     console.warn("mirror failed, using original:", e);
     return { dataUrl, mirrored: false };
@@ -69,7 +100,7 @@ async function mirrorDataUrl(dataUrl: string): Promise<{ dataUrl: string; mirror
 }
 
 // Pad a portrait (taller-than-wide) image onto a 3:2 landscape charcoal canvas
-// so the render model never inherits a portrait frame. No-op for landscape.
+// so the render model never inherits a portrait frame. No-op for landscape. v1 only.
 async function padToLandscape(dataUrl: string): Promise<{ dataUrl: string; padded: boolean }> {
   try {
     const { Image } = await import("https://deno.land/x/imagescript@1.2.15/mod.ts");
@@ -82,9 +113,7 @@ async function padToLandscape(dataUrl: string): Promise<{ dataUrl: string; padde
     canvas.fill(Image.rgbaToColor(28, 28, 30, 255));
     canvas.composite(img, Math.round((w - img.width) / 2), 0);
     const out = new Uint8Array(await canvas.encodeJPEG(92));
-    let bin = "";
-    for (let i = 0; i < out.length; i++) bin += String.fromCharCode(out[i]);
-    return { dataUrl: `data:image/jpeg;base64,${btoa(bin)}`, padded: true };
+    return { dataUrl: `data:image/jpeg;base64,${bytesToBase64(out)}`, padded: true };
   } catch (e) {
     console.warn("pad failed, using original:", e);
     return { dataUrl, padded: false };
@@ -96,6 +125,9 @@ interface QcResult {
   failures: string[];
   notes?: string;
   pending?: boolean;
+  fidelity?: number;
+  studio?: number;
+  checks?: Record<string, unknown>;
 }
 
 interface SourceClass {
@@ -105,41 +137,49 @@ interface SourceClass {
   matches_listed_color: boolean | null;
 }
 
-// Classify a candidate source photo. Returns null on any failure (candidate skipped).
-async function classifySource(apiKey: string, url: string, listedColor: string | null): Promise<SourceClass | null> {
-  const dataUrl = await fetchAsDataUrl(url);
-  if (!dataUrl) return null;
+const imagePart = (url: string) => ({ type: "image_url", image_url: { url } });
+const parseJson = (text: string) => {
+  const m = (text ?? "").match(/\{[\s\S]*\}/);
+  if (!m) return null;
+  try { return JSON.parse(m[0]); } catch { return null; }
+};
+
+// One vision call to the OpenAI-compatible provider; returns the text reply, or null on any failure.
+async function visionText(apiKey: string, content: unknown[]): Promise<string | null> {
   try {
     const res = await fetch(aiChatUrl(), {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...aiRequestParams("vision"),
-        messages: [{
-          role: "user",
-          content: [
-            { type: "text", text: STUDIO_HERO_SOURCE_CLASSIFIER + (listedColor ? `\nListed exterior paint color: ${listedColor}` : "\nListed exterior paint color: none") },
-            { type: "image_url", image_url: { url: dataUrl } },
-          ],
-        }],
-      }),
+      body: JSON.stringify({ ...aiRequestParams("vision"), messages: [{ role: "user", content }] }),
     });
-    if (!res.ok) { console.error("classify failed:", res.status); return null; }
+    if (!res.ok) { console.error("vision call failed:", res.status, (await res.text()).slice(0, 200)); return null; }
     const data = await res.json();
-    const text: string = data.choices?.[0]?.message?.content ?? "";
-    const m = text.match(/\{[\s\S]*\}/);
-    if (!m) return null;
-    const p = JSON.parse(m[0]);
-    return {
-      kind: String(p.kind ?? ""),
-      facing: typeof p.facing === "string" ? p.facing : null,
-      paint: typeof p.paint === "string" ? p.paint : null,
-      matches_listed_color: typeof p.matches_listed_color === "boolean" ? p.matches_listed_color : null,
-    };
+    return data.choices?.[0]?.message?.content ?? null;
   } catch (e) {
-    console.warn("classify error:", e);
+    console.warn("vision call error:", e);
     return null;
   }
+}
+
+// Classify a candidate source photo. Returns null on any failure (candidate skipped).
+async function classifyDataUrl(apiKey: string, dataUrl: string, listedColor: string | null): Promise<SourceClass | null> {
+  const text = await visionText(apiKey, [
+    { type: "text", text: STUDIO_HERO_SOURCE_CLASSIFIER + (listedColor ? `\nListed exterior paint color: ${listedColor}` : "\nListed exterior paint color: none") },
+    imagePart(dataUrl),
+  ]);
+  const p = text ? parseJson(text) : null;
+  if (!p) return null;
+  return {
+    kind: String(p.kind ?? ""),
+    facing: typeof p.facing === "string" ? p.facing : null,
+    paint: typeof p.paint === "string" ? p.paint : null,
+    matches_listed_color: typeof p.matches_listed_color === "boolean" ? p.matches_listed_color : null,
+  };
+}
+
+async function classifySource(apiKey: string, url: string, listedColor: string | null): Promise<SourceClass | null> {
+  const dataUrl = await fetchAsDataUrl(url);
+  return dataUrl ? classifyDataUrl(apiKey, dataUrl, listedColor) : null;
 }
 
 async function runQc(
@@ -186,6 +226,68 @@ async function runQc(
   } catch {
     return { pass: false, failures: [], notes: 'Quality review is incomplete.', pending: true };
   }
+}
+
+// v2 review: identity sheet + up to 3 source photos + render + style reference, scored and fail-closed.
+async function runQcV2(
+  apiKey: string,
+  sheet: Record<string, unknown>,
+  reviewRefs: string[],
+  renderDataUrl: string,
+  styleRefDataUrl: string,
+): Promise<QcResult> {
+  const text = await visionText(apiKey, [
+    { type: "text", text: `${QC_V2_PROMPT}\n\n${identitySheetToText(sheet)}` },
+    ...reviewRefs.map(imagePart),
+    imagePart(renderDataUrl),
+    imagePart(styleRefDataUrl),
+  ]);
+  if (text === null) return { pass: false, failures: [], notes: 'Quality review is unavailable. The current hero is unchanged.', pending: true };
+  const review = validateStudioReview(parseJson(text));
+  if (!review) return { pass: false, failures: [], notes: 'Quality review is incomplete or invalid.', pending: true };
+  return { pass: review.pass, failures: review.failures, notes: review.notes, fidelity: review.fidelity, studio: review.studio, checks: review.checks };
+}
+
+// Builds (or reuses) the vehicle's identity sheet. Shares the cache with studio-hero-benchmark: same revision
+// inputs, same table. Support-reviewed overrides are merged on top. Returns null when no valid sheet can be made.
+async function loadIdentitySheet(
+  db: Db,
+  apiKey: string,
+  vehicle: Vehicle,
+  refs: Array<Photo & { dataUrl: string }>,
+): Promise<Record<string, unknown> | null> {
+  const revision = await identityRevision({
+    vehicle,
+    photos: refs.map((p) => [p.id, p.url, p.updated_at]),
+    prompt: IDENTITY_SHEET_PROMPT,
+  });
+  const { data: row } = await db
+    .from("vehicle_identity_sheets")
+    .select("sheet,source_revision,reviewed_overrides")
+    .eq("vehicle_id", vehicle.id)
+    .maybeSingle();
+  const overrides = (row?.reviewed_overrides ?? {}) as Record<string, unknown>;
+  let sheet = row?.sheet as Record<string, unknown> | undefined;
+  if (!row || row.source_revision !== revision || !isValidIdentitySheet(sheet)) {
+    const text = await visionText(apiKey, [
+      { type: "text", text: `${IDENTITY_SHEET_PROMPT}\nListing: ${vehicle.year ?? ""} ${vehicle.make} ${vehicle.model}, listed color ${vehicle.color ?? "unknown"}.` },
+      ...refs.map((r) => imagePart(r.dataUrl)),
+    ]);
+    const parsed = text ? parseJson(text) : null;
+    if (!isValidIdentitySheet(parsed)) return null;
+    const { error } = await db.from("vehicle_identity_sheets").upsert({
+      vehicle_id: vehicle.id,
+      team_id: vehicle.team_id,
+      sheet: parsed,
+      source_revision: revision,
+      source_photo_ids: refs.map((r) => r.id),
+      model: aiModel("vision"),
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "vehicle_id" });
+    if (error) console.error("identity sheet save failed (render continues):", error.message);
+    sheet = parsed;
+  }
+  return mergeIdentity(sheet as Record<string, unknown>, overrides);
 }
 
 serve(async (req) => {
@@ -260,7 +362,14 @@ serve(async (req) => {
       if (!sourceUrl || !renderUrl) return json({ success: false, error: 'Review photos could not be found.' }, 422);
       const [sourceData, renderData, styleData] = await Promise.all([fetchAsDataUrl(sourceUrl), fetchAsDataUrl(renderUrl), fetchAsDataUrl(STUDIO_HERO_STYLE_REFERENCE_URL)]);
       if (!sourceData || !renderData || !styleData) return json({ success: false, error: 'Review photos could not be loaded.' }, 422);
-      const qc = await runQc(OPENAI_API_KEY, sourceData, renderData, styleData);
+      let qc: QcResult;
+      if (String(pendingJob.recipe_version ?? '').startsWith('v2')) {
+        const v2 = await reviewContextV2(supabase, vehicleId, pendingJob.source_photo_id, sourceData);
+        if (!v2) return json({ success: false, error: 'The vehicle description for this render could not be found.' }, 422);
+        qc = await runQcV2(OPENAI_API_KEY, v2.sheet, v2.reviewRefs, renderData, styleData);
+      } else {
+        qc = await runQc(OPENAI_API_KEY, sourceData, renderData, styleData);
+      }
       if (qc.pending) return json({ success: false, reviewPending: true, error: qc.notes });
       const dims = imageDims(renderData);
       if (dims && dims.h >= dims.w) { qc.pass = false; qc.failures.push('wrong_orientation'); }
@@ -288,23 +397,16 @@ serve(async (req) => {
       );
     }
 
-    // Pick the best source photo: front_quarter first, highest quality.
-    // Landscape photos are strongly preferred — portrait shots and collages
-    // (taller than wide) make poor studio render sources.
+    // Candidate source photos: real photos of this car only (never a studio render or an AI-invented hero),
+    // front_quarter first, known-landscape before unknown before portrait, then highest quality.
     const { data: candidates } = await supabase
       .from("vehicle_photos")
-      .select("id, url, detected_angle, quality_score, source, width, height")
+      .select("id, url, detected_angle, quality_score, source, width, height, photo_type, original_filename, updated_at")
       .eq("vehicle_id", vehicleId)
-      .neq("source", "studio_render")
       .order("quality_score", { ascending: false });
-    const photos = (candidates ?? []) as Array<{
-      id: string; url: string; detected_angle: string | null;
-      quality_score: number | null; source: string | null;
-      width: number | null; height: number | null;
-    }>;
+    const photos = ((candidates ?? []) as Photo[]).filter(isRealVehiclePhoto);
     const angleRank = (a: string | null) =>
       a === "front_quarter" ? 0 : a === "front" ? 1 : 2;
-    // Known-landscape dims beat unknown dims; known-portrait ranks last.
     const dimRank = (p: { width: number | null; height: number | null }) =>
       p.width && p.height ? (p.width >= p.height ? 0 : 2) : 1;
     const pool = [...photos].sort((a, b) =>
@@ -312,14 +414,34 @@ serve(async (req) => {
       dimRank(a) - dimRank(b) ||
       (b.quality_score ?? 0) - (a.quality_score ?? 0)
     );
-    let source = pool[0];
-    let classifiedFacing: string | null = null;
+
     if (sourcePhotoId) {
       const { data: isSaOverride } = await supabase.rpc("is_super_admin", { check_user_id: userId });
       if (isSaOverride !== true) return json({ success: false, error: "Only Exotiq support can pick a source photo" }, 403);
-      const picked = photos.find((p) => p.id === sourcePhotoId);
-      if (!picked) return json({ success: false, error: "Source photo not found on this vehicle" }, 400);
-      source = picked;
+      if (!photos.some((p) => p.id === sourcePhotoId)) return json({ success: false, error: "Source photo not found on this vehicle" }, 400);
+    }
+
+    // Prior failures steer this attempt's prompt
+    const { data: priorJobs } = await supabase
+      .from("hero_render_jobs")
+      .select("qc_failure_reasons")
+      .eq("vehicle_id", vehicleId)
+      .is("archived_at", null)
+      .eq("status", "failed");
+    const priorFailures = new Set<string>();
+    (priorJobs ?? []).forEach((j) => (j.qc_failure_reasons ?? []).forEach((f: string) => priorFailures.add(f)));
+
+    const ctx: RenderContext = { supabase, vehicle, teamId, userId, attempt, apiKey: OPENAI_API_KEY };
+
+    if (PIPELINE === "v2") {
+      return await renderV2(ctx, pool, sourcePhotoId ?? null, priorFailures);
+    }
+
+    // ---- v1.5 (rollback path) ----------------------------------------------------------------
+    let source = pool[0];
+    let classifiedFacing: string | null = null;
+    if (sourcePhotoId) {
+      source = photos.find((p) => p.id === sourcePhotoId)!;
     } else if (pool.length) {
       // Classify candidates (costs no attempt) so interior/detail/rear shots are
       // never used as the source. Prefer an exterior front-quarter photo.
@@ -361,15 +483,6 @@ serve(async (req) => {
       );
     }
 
-    // Prior failures steer this attempt's prompt
-    const { data: priorJobs } = await supabase
-      .from("hero_render_jobs")
-      .select("qc_failure_reasons")
-      .eq("vehicle_id", vehicleId)
-      .is("archived_at", null)
-      .eq("status", "failed");
-    const priorFailures = new Set<string>();
-    (priorJobs ?? []).forEach((j) => (j.qc_failure_reasons ?? []).forEach((f) => priorFailures.add(f)));
     let prompt = STUDIO_HERO_MASTER_PROMPT;
     if (vehicle.color) {
       prompt += `\n\nPAINT HINT: the listed exterior paint color is ${vehicle.color}. If the source photo clearly shows a different paint color, match the source photo exactly.`;
@@ -382,8 +495,7 @@ serve(async (req) => {
     const { data: job, error: jobErr } = await supabase.rpc('studio_reserve_attempt', { _vehicle_id: vehicleId, _source_id: source.id, _actor_id: userId, _prompt: prompt, _version: STUDIO_HERO_PROMPT_VERSION, _model: RENDER_MODEL });
     if (jobErr || !job) return json({ success: false, error: jobErr?.message ?? 'Could not reserve a render attempt.' }, 409);
 
-    // Fetch source image; mirror if the car faces right (source facing unknown →
-    // rely on prompt + QC; we mirror only when analysis marked it rear/right-ish)
+    // Fetch source image; mirror if the car faces right
     let sourceDataUrl = await fetchAsDataUrl(source.url);
     if (!sourceDataUrl) {
       await supabase.from("hero_render_jobs").update({ status: "failed", error: "source_fetch_failed" }).eq("id", job.id);
@@ -406,151 +518,272 @@ serve(async (req) => {
     }
     // Render via Nano Banana (edit-style: source photo as reference)
     const renderRes = await geminiImageResponse({ prompt, sourceDataUrl, referenceDataUrls: [styleRefDataUrl] });
-
-    if (!renderRes.ok) {
-      const errText = await renderRes.text();
-      console.error("render error:", renderRes.status, errText);
-      await supabase.from("hero_render_jobs").update({ status: "failed", error: `render_${renderRes.status}` }).eq("id", job.id);
-      logTransfer({ team_id: teamId, user_id: userId, caller: "render-studio-hero", model: RENDER_MODEL, provider: "Google (Gemini API)", provider_region: "United States / Global", response_bytes: 0, status: "error" }).catch(() => {});
-      if (renderRes.status === 429) return json({ success: false, error: "Rate limit exceeded. Please try again later." }, 429);
-      if (renderRes.status === 402) return json({ success: false, error: "AI credits exhausted. Please add funds." }, 402);
-      return json({ success: false, error: "Studio render failed" }, 500);
-    }
-
-    const renderData = await renderRes.json();
-    const images = renderData.choices?.[0]?.message?.images;
-    const renderImageUrl: string | undefined = images?.[0]?.image_url?.url;
-    logTransfer({ team_id: teamId, user_id: userId, caller: "render-studio-hero", model: RENDER_MODEL, provider: "Google (Gemini API)", provider_region: "United States / Global", response_bytes: renderImageUrl?.length ?? 0, status: "ok" }).catch(() => {});
-
-    if (!renderImageUrl?.startsWith("data:image")) {
-      await supabase.from("hero_render_jobs").update({ status: "failed", error: "no_image_returned" }).eq("id", job.id);
-      return json({ success: false, error: "No image generated" }, 500);
-    }
-
-    // Save every render (pass or fail) so failed attempts are reviewable by
-    // support and included in the escalation trail. Failed renders stay
-    // non-hero; only a QC pass promotes to hero.
-    const [header, b64] = renderImageUrl.split(",");
-    const mime = header.match(/data:([^;]+)/)?.[1] || "image/png";
-    const ext = mime.split("/")[1] || "png";
-    const bytes = base64ToBytes(b64);
-    const storagePath = `${teamId}/vehicles/${vehicleId}/studio-hero-${Date.now()}.${ext}`;
-
-    const { error: upErr } = await supabase.storage
-      .from("vehicle-photos")
-      .upload(storagePath, bytes, { contentType: mime, cacheControl: "31536000", upsert: false });
-    if (upErr) {
-      await supabase.from("hero_render_jobs").update({ status: "failed", error: "storage_upload_failed" }).eq("id", job.id);
-      return json({ success: false, error: "Failed to save render" }, 500);
-    }
-
-    const { data: pub } = supabase.storage.from("vehicle-photos").getPublicUrl(storagePath);
-    const imageUrl = pub.publicUrl;
-
-    const { data: photoRecord, error: insErr } = await supabase
-      .from("vehicle_photos")
-      .insert({
-        vehicle_id: vehicleId,
-        user_id: userId,
-        team_id: teamId,
-        storage_path: storagePath,
-        url: imageUrl,
-        photo_type: "exterior",
-        display_order: 90 + attempt,
-        is_visible: false,
-        detected_angle: "front_quarter",
-        source: "studio_render",
-        generation_prompt: prompt,
-        is_vehicle_confirmed: true,
-        quality_score: 95,
-        quality_issues: [],
-        original_filename: `studio-hero-${vehicle.make}-${vehicle.model}-attempt${attempt}.${ext}`,
-        file_size_bytes: bytes.length,
-        mime_type: mime,
-        analyzed_at: new Date().toISOString(),
-      })
-      .select()
-      .single();
-
-    if (insErr) {
-      console.error("insert error:", insErr);
-      await supabase.from("hero_render_jobs").update({ status: "failed", error: "db_insert_failed" }).eq("id", job.id);
-      return json({ success: false, error: "Failed to save photo record" }, 500);
-    }
-
-    // QC gate
-    await supabase.from("hero_render_jobs").update({ status: "qc", render_photo_id: photoRecord.id }).eq("id", job.id);
-    let qc: QcResult;
-    try { qc = await runQc(OPENAI_API_KEY, sourceDataUrl, renderImageUrl, styleRefDataUrl); }
-    catch { qc = { pass: false, failures: [], notes: 'Quality review is unavailable. Current hero is unchanged.', pending: true }; }
-    if (qc.pending) {
-      await supabase.from('hero_render_jobs').update({ status: 'qc', review_state: 'waiting', qc_passed: false, error: qc.notes }).eq('id', job.id);
-      return json({ success: false, reviewPending: true, error: qc.notes, attemptsUsed: attempt });
-    }
-    // Deterministic orientation gate — the vision reviewer can miss portrait output.
-    const dims = imageDims(renderImageUrl);
-    if (dims && dims.h >= dims.w) {
-      qc.pass = false;
-      qc.failures = Array.from(new Set([...(qc.failures ?? []), "wrong_orientation"]));
-    }
-    logTransfer({ team_id: teamId, user_id: userId, caller: "render-studio-hero-qc", model: aiModel("vision"), provider: aiProviderLabel(), provider_region: "United States / Global", response_bytes: 0, status: "ok" }).catch(() => {});
-
-    if (!qc.pass) {
-      const finalAttempt = attempt >= STUDIO_HERO_MAX_ATTEMPTS;
-      await supabase
-        .from("hero_render_jobs")
-        .update({
-          status: finalAttempt ? "escalated" : "failed",
-          qc_passed: false,
-          review_state: 'rejected',
-          review_details: qc,
-          qc_failure_reasons: qc.failures,
-          error: qc.notes ?? null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", job.id);
-
-      if (finalAttempt) {
-        await escalate(supabase, teamId, vehicle, attempt);
-      }
-
-      return json({
-        success: false,
-        qcFailed: true,
-        failures: qc.failures,
-        escalated: finalAttempt,
-        attemptsUsed: attempt,
-        attemptsRemaining: Math.max(0, STUDIO_HERO_MAX_ATTEMPTS - attempt),
-        error: finalAttempt
-          ? "Render limit reached — Exotiq support has been notified"
-          : "Render didn't pass quality check — you can re-render",
-      });
-    }
-
-    const { error: reviewSaveError } = await supabase.from('hero_render_jobs').update({ qc_passed: true, review_state: 'passed', review_details: qc, qc_failure_reasons: [], mirrored_source: mirrored }).eq('id', job.id);
-    if (reviewSaveError) return json({ success: false, error: 'Could not save quality review. Current hero is unchanged.' }, 500);
-    const { error: promoteError } = await supabase.rpc('studio_promote_job', { _job_id: job.id, _actor_id: userId });
-    if (promoteError) return json({ success: false, error: 'Could not promote reviewed photo. Current hero is unchanged.' }, 500);
-
-    return json({
-      success: true,
-      imageUrl,
-      photoId: photoRecord.id,
-      attemptsUsed: attempt,
-      attemptsRemaining: Math.max(0, STUDIO_HERO_MAX_ATTEMPTS - attempt),
-      qcNotes: qc.notes,
-    });
+    const finalSource = sourceDataUrl;
+    return await saveAndReview(ctx, job, prompt, renderRes, mirrored, (renderImageUrl) =>
+      runQc(OPENAI_API_KEY, finalSource, renderImageUrl, styleRefDataUrl));
   } catch (error) {
     console.error("render-studio-hero error:", error);
     return json({ success: false, error: error instanceof Error ? error.message : "Unknown error" }, 500);
   }
 });
 
+interface RenderContext {
+  supabase: Db;
+  vehicle: Vehicle;
+  teamId: string;
+  userId: string;
+  attempt: number;
+  apiKey: string;
+}
+
+// ---- v2 ----------------------------------------------------------------------------------------
+// Everything that can fail for reasons other than the render itself (photo check, identity sheet,
+// studio reference) happens BEFORE an attempt is reserved, so it never costs the owner one of the 3 renders.
+async function renderV2(
+  ctx: RenderContext,
+  pool: Photo[],
+  sourcePhotoId: string | null,
+  priorFailures: Set<string>,
+): Promise<Response> {
+  const { supabase, vehicle, userId, apiKey } = ctx;
+  const ordered = sourcePhotoId
+    ? [pool.find((p) => p.id === sourcePhotoId)!, ...pool.filter((p) => p.id !== sourcePhotoId)]
+    : pool;
+  const candidates = ordered.filter(Boolean).slice(0, 6);
+  if (!candidates.length) {
+    return json({ success: false, error: "Add a front 45° exterior photo first", needsSourcePhoto: true }, 400);
+  }
+
+  // Load and classify the candidates in parallel (no attempt used).
+  const loaded = await Promise.all(candidates.map(async (photo) => {
+    const dataUrl = await fetchAsDataUrl(photo.url);
+    if (!dataUrl) return null;
+    const c = await classifyDataUrl(apiKey, dataUrl, vehicle.color ?? null);
+    if (!c) return null;
+    const entry: ClassifiedPhoto<Photo & { dataUrl: string }> = {
+      photo: { ...photo, dataUrl }, kind: c.kind, facing: c.facing, paint: c.paint, matchesListedColor: c.matches_listed_color,
+    };
+    return entry;
+  }));
+  const classified = loaded.filter((x): x is ClassifiedPhoto<Photo & { dataUrl: string }> => x !== null);
+  if (!classified.length) {
+    return json({ success: false, error: "The photo check is unavailable right now. Nothing was rendered and no render was used — try again shortly." }, 503);
+  }
+
+  const { main, extras } = pickRenderReferences(
+    classified,
+    sourcePhotoId ? { mainId: sourcePhotoId, idOf: (p) => p.id } : {},
+  );
+  if (!main) {
+    return json({ success: false, error: "Add a front 45° exterior photo first", needsSourcePhoto: true }, 400);
+  }
+  if (!sourcePhotoId && main.matchesListedColor === false && main.paint && vehicle.color) {
+    return json({
+      success: false,
+      paintConflict: true,
+      error: `Check paint color: the listing says ${vehicle.color} but the photo shows ${main.paint}. Update the listing color, then render again.`,
+    }, 409);
+  }
+  const refs = [main, ...extras].map((r) => r.photo);
+
+  const sheet = await loadIdentitySheet(supabase, apiKey, vehicle, refs);
+  if (!sheet) {
+    return json({ success: false, error: "Could not describe this vehicle from its photos. Nothing was rendered and no render was used — try again shortly." }, 502);
+  }
+  const style = await fetchAsDataUrl(STUDIO_HERO_STYLE_REFERENCE_URL);
+  if (!style) return json({ success: false, error: 'Studio reference is unavailable. No image was generated.' }, 422);
+
+  const prompt = buildV2Prompt(sheet, correctionsFor(priorFailures, STUDIO_HERO_CORRECTIONS, V2_CORRECTIONS));
+  const { data: job, error: jobErr } = await supabase.rpc('studio_reserve_attempt', { _vehicle_id: vehicle.id, _source_id: main.photo.id, _actor_id: userId, _prompt: prompt, _version: STUDIO_RECIPE_VERSION, _model: RENDER_MODEL });
+  if (jobErr || !job) return json({ success: false, error: jobErr?.message ?? 'Could not reserve a render attempt.' }, 409);
+  await supabase.from("hero_render_jobs").update({ recipe_version: STUDIO_RECIPE_VERSION, mirrored_source: false }).eq("id", job.id);
+
+  // Image order matters to the prompt: FIRST = main photo, then extra photos of the same car, LAST = studio reference.
+  const split = renderReferenceSplit(refs.map((r) => r.dataUrl));
+  const renderRes = await geminiImageResponse({ prompt, sourceDataUrl: split.source, referenceDataUrls: [...split.extras, style] });
+  return await saveAndReview(ctx, job, prompt, renderRes, false, (renderImageUrl) =>
+    runQcV2(apiKey, sheet, split.review, renderImageUrl, style));
+}
+
+// Re-review of a v2 render that was waiting: the saved identity sheet and the photos it was built from.
+async function reviewContextV2(
+  db: Db,
+  vehicleId: string,
+  sourcePhotoId: string,
+  sourceDataUrl: string,
+): Promise<{ sheet: Record<string, unknown>; reviewRefs: string[] } | null> {
+  const { data: row } = await db
+    .from("vehicle_identity_sheets")
+    .select("sheet,reviewed_overrides,source_photo_ids")
+    .eq("vehicle_id", vehicleId)
+    .maybeSingle();
+  if (!row || !isValidIdentitySheet(row.sheet)) return null;
+  const sheet = mergeIdentity(row.sheet as Record<string, unknown>, (row.reviewed_overrides ?? {}) as Record<string, unknown>);
+  const otherIds = ((row.source_photo_ids ?? []) as string[]).filter((id) => id !== sourcePhotoId).slice(0, 2);
+  const reviewRefs = [sourceDataUrl];
+  if (otherIds.length) {
+    const { data: others } = await db.from("vehicle_photos").select("id,url").eq("vehicle_id", vehicleId).in("id", otherIds);
+    for (const id of otherIds) {
+      const url = others?.find((p) => p.id === id)?.url;
+      const data = url ? await fetchAsDataUrl(url) : null;
+      if (data) reviewRefs.push(data);
+    }
+  }
+  return { sheet, reviewRefs };
+}
+
+// ---- shared by both pipelines: save the render, review it, then fail / escalate / promote ----------
+async function saveAndReview(
+  ctx: RenderContext,
+  job: Job,
+  prompt: string,
+  renderRes: Response,
+  mirrored: boolean,
+  review: (renderImageUrl: string) => Promise<QcResult>,
+): Promise<Response> {
+  const { supabase, vehicle, teamId, userId, attempt } = ctx;
+  const vehicleId = vehicle.id;
+
+  if (!renderRes.ok) {
+    const errText = await renderRes.text();
+    console.error("render error:", renderRes.status, errText);
+    await supabase.from("hero_render_jobs").update({ status: "failed", error: `render_${renderRes.status}` }).eq("id", job.id);
+    logTransfer({ team_id: teamId, user_id: userId, caller: "render-studio-hero", model: RENDER_MODEL, provider: "Google (Gemini API)", provider_region: "United States / Global", response_bytes: 0, status: "error" }).catch(() => {});
+    if (renderRes.status === 429) return json({ success: false, error: "Rate limit exceeded. Please try again later." }, 429);
+    if (renderRes.status === 402) return json({ success: false, error: "AI credits exhausted. Please add funds." }, 402);
+    return json({ success: false, error: "Studio render failed" }, 500);
+  }
+
+  const renderData = await renderRes.json();
+  const images = renderData.choices?.[0]?.message?.images;
+  const renderImageUrl: string | undefined = images?.[0]?.image_url?.url;
+  logTransfer({ team_id: teamId, user_id: userId, caller: "render-studio-hero", model: RENDER_MODEL, provider: "Google (Gemini API)", provider_region: "United States / Global", response_bytes: renderImageUrl?.length ?? 0, status: "ok" }).catch(() => {});
+
+  if (!renderImageUrl?.startsWith("data:image")) {
+    await supabase.from("hero_render_jobs").update({ status: "failed", error: "no_image_returned" }).eq("id", job.id);
+    return json({ success: false, error: "No image generated" }, 500);
+  }
+
+  // Save every render (pass or fail) so failed attempts are reviewable by
+  // support and included in the escalation trail. Failed renders stay
+  // non-hero; only a QC pass promotes to hero.
+  const [header, b64] = renderImageUrl.split(",");
+  const mime = header.match(/data:([^;]+)/)?.[1] || "image/png";
+  const ext = mime.split("/")[1] || "png";
+  const bytes = base64ToBytes(b64);
+  const storagePath = `${teamId}/vehicles/${vehicleId}/studio-hero-${Date.now()}.${ext}`;
+
+  const { error: upErr } = await supabase.storage
+    .from("vehicle-photos")
+    .upload(storagePath, bytes, { contentType: mime, cacheControl: "31536000", upsert: false });
+  if (upErr) {
+    await supabase.from("hero_render_jobs").update({ status: "failed", error: "storage_upload_failed" }).eq("id", job.id);
+    return json({ success: false, error: "Failed to save render" }, 500);
+  }
+
+  const { data: pub } = supabase.storage.from("vehicle-photos").getPublicUrl(storagePath);
+  const imageUrl = pub.publicUrl;
+
+  const { data: photoRecord, error: insErr } = await supabase
+    .from("vehicle_photos")
+    .insert({
+      vehicle_id: vehicleId,
+      user_id: userId,
+      team_id: teamId,
+      storage_path: storagePath,
+      url: imageUrl,
+      photo_type: "exterior",
+      display_order: 90 + attempt,
+      is_visible: false,
+      detected_angle: "front_quarter",
+      source: "studio_render",
+      generation_prompt: prompt,
+      is_vehicle_confirmed: true,
+      quality_score: 95,
+      quality_issues: [],
+      original_filename: `studio-hero-${vehicle.make}-${vehicle.model}-attempt${attempt}.${ext}`,
+      file_size_bytes: bytes.length,
+      mime_type: mime,
+      analyzed_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
+
+  if (insErr) {
+    console.error("insert error:", insErr);
+    await supabase.from("hero_render_jobs").update({ status: "failed", error: "db_insert_failed" }).eq("id", job.id);
+    return json({ success: false, error: "Failed to save photo record" }, 500);
+  }
+
+  // QC gate
+  await supabase.from("hero_render_jobs").update({ status: "qc", render_photo_id: photoRecord.id }).eq("id", job.id);
+  let qc: QcResult;
+  try { qc = await review(renderImageUrl); }
+  catch { qc = { pass: false, failures: [], notes: 'Quality review is unavailable. Current hero is unchanged.', pending: true }; }
+  if (qc.pending) {
+    await supabase.from('hero_render_jobs').update({ status: 'qc', review_state: 'waiting', qc_passed: false, error: qc.notes }).eq('id', job.id);
+    return json({ success: false, reviewPending: true, error: qc.notes, attemptsUsed: attempt });
+  }
+  // Deterministic orientation gate — the vision reviewer can miss portrait output.
+  const dims = imageDims(renderImageUrl);
+  if (dims && dims.h >= dims.w) {
+    qc.pass = false;
+    qc.failures = Array.from(new Set([...(qc.failures ?? []), "wrong_orientation"]));
+  }
+  logTransfer({ team_id: teamId, user_id: userId, caller: "render-studio-hero-qc", model: aiModel("vision"), provider: aiProviderLabel(), provider_region: "United States / Global", response_bytes: 0, status: "ok" }).catch(() => {});
+
+  if (!qc.pass) {
+    const finalAttempt = attempt >= STUDIO_HERO_MAX_ATTEMPTS;
+    await supabase
+      .from("hero_render_jobs")
+      .update({
+        status: finalAttempt ? "escalated" : "failed",
+        qc_passed: false,
+        review_state: 'rejected',
+        review_details: qc,
+        qc_failure_reasons: qc.failures,
+        error: qc.notes ?? null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", job.id);
+
+    if (finalAttempt) {
+      await escalate(supabase, teamId, vehicle, attempt);
+    }
+
+    return json({
+      success: false,
+      qcFailed: true,
+      failures: qc.failures,
+      escalated: finalAttempt,
+      attemptsUsed: attempt,
+      attemptsRemaining: Math.max(0, STUDIO_HERO_MAX_ATTEMPTS - attempt),
+      error: finalAttempt
+        ? "Render limit reached — Exotiq support has been notified"
+        : "Render didn't pass quality check — you can re-render",
+    });
+  }
+
+  const { error: reviewSaveError } = await supabase.from('hero_render_jobs').update({ qc_passed: true, review_state: 'passed', review_details: qc, qc_failure_reasons: [], mirrored_source: mirrored }).eq('id', job.id);
+  if (reviewSaveError) return json({ success: false, error: 'Could not save quality review. Current hero is unchanged.' }, 500);
+  const { error: promoteError } = await supabase.rpc('studio_promote_job', { _job_id: job.id, _actor_id: userId });
+  if (promoteError) return json({ success: false, error: 'Could not promote reviewed photo. Current hero is unchanged.' }, 500);
+
+  return json({
+    success: true,
+    imageUrl,
+    photoId: photoRecord.id,
+    attemptsUsed: attempt,
+    attemptsRemaining: Math.max(0, STUDIO_HERO_MAX_ATTEMPTS - attempt),
+    qcNotes: qc.notes,
+  });
+}
+
 // 3rd failed run: notify Super Admins in-app + email the support desk.
 async function escalate(
-  supabase: ReturnType<typeof createClient>,
+  supabase: Db,
   teamId: string,
-  vehicle: { id: string; make: string; model: string; year?: number },
+  vehicle: { id: string; make: string; model: string; year?: number | null },
   attempts: number
 ) {
   const label = `${vehicle.year ? vehicle.year + " " : ""}${vehicle.make} ${vehicle.model}`;
