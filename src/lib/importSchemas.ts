@@ -148,6 +148,14 @@ export const vehicleImportSchema: ImportEntitySchema = {
 
 // Strip currency symbols, thousands separators, and trailing rate units
 // ("/day", "/night", "per day", "pd") so values like "£2500/day" coerce cleanly.
+// A tags cell as a list: "VIP, repeat" → ["VIP", "repeat"]; an empty cell → null.
+const splitTags = (val: unknown): unknown => {
+  if (val === null || val === undefined) return null;
+  const list = Array.isArray(val) ? val.map(String) : String(val).split(',');
+  const tags = list.map(t => t.trim()).filter(Boolean);
+  return tags.length ? tags : null;
+};
+
 const cleanNumeric = (val: unknown): unknown => {
   if (val === null || val === undefined || val === '') return val;
   if (typeof val === 'number') return val;
@@ -198,10 +206,10 @@ export const customerImportSchema: ImportEntitySchema = {
     {
       name: 'email',
       label: 'Email',
-      required: false,
+      required: true,
       type: 'email',
       aliases: ['email_address', 'e-mail', 'customer_email', 'contact_email'],
-      description: 'Customer email address (email or phone required)',
+      description: 'Customer email address',
       example: 'john.smith@email.com'
     },
     {
@@ -210,7 +218,7 @@ export const customerImportSchema: ImportEntitySchema = {
       required: false,
       type: 'phone',
       aliases: ['phone_number', 'telephone', 'mobile', 'cell', 'contact_phone', 'cell_phone'],
-      description: 'Customer phone number (email or phone required)',
+      description: 'Customer phone number',
       example: '+1 (305) 555-1234'
     },
     {
@@ -294,6 +302,15 @@ export const customerImportSchema: ImportEntitySchema = {
       enumValues: ['active', 'inactive', 'blacklisted'],
       description: 'Customer account status',
       example: 'active'
+    },
+    {
+      name: 'tags',
+      label: 'Tags',
+      required: false,
+      type: 'string',
+      aliases: ['labels', 'customer_tags', 'groups'],
+      description: 'Comma-separated tags',
+      example: 'VIP, repeat'
     }
   ]
 };
@@ -548,7 +565,8 @@ export const vehicleImportValidation = z.object({
 
 export const customerImportValidation = z.object({
   full_name: z.string().min(1, 'Full name is required'),
-  email: z.string().email('Invalid email address').optional().nullable().or(z.literal('')),
+  // customers.email is NOT NULL in the database, so a row without one cannot be imported.
+  email: z.string({ required_error: 'Email is required', invalid_type_error: 'Email is required' }).min(1, 'Email is required').email('Invalid email address'),
   phone: z.string().optional().nullable(),
   address: z.string().optional().nullable(),
   drivers_license: z.string().optional().nullable(),
@@ -558,11 +576,9 @@ export const customerImportValidation = z.object({
   insurance_policy: z.string().optional().nullable(),
   insurance_expiry: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
-  customer_status: z.enum(['active', 'inactive', 'blacklisted']).optional().default('active')
-}).refine(
-  (data) => (data.email && data.email.length > 0) || (data.phone && data.phone.length > 0),
-  { message: 'Either email or phone is required', path: ['email'] }
-);
+  customer_status: z.enum(['active', 'inactive', 'blacklisted']).optional().default('active'),
+  tags: z.preprocess(splitTags, z.array(z.string()).optional().nullable())
+});
 
 export const bookingImportValidation = z.object({
   customer_name: z.string().min(1, 'Customer name is required'),
