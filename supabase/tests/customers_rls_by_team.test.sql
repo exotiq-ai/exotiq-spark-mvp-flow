@@ -9,7 +9,7 @@ declare
   pol record;
   n bigint;
 begin
-  -- 1. the role helper: active membership of the row's team, role in that team or platform role
+  -- 1. the role helper: active membership of the row's team, with the role held in that team
   assert fn is not null, 'has_team_record_role: the customers policies depend on this function';
   select p.prosrc into def from pg_proc p where p.oid = fn;
   assert def ilike '%team_members%', 'has_team_record_role: reads team_members';
@@ -17,6 +17,8 @@ begin
   assert def ilike '%tm.is_active = true%', 'has_team_record_role: only active memberships count';
   assert def ilike '%_team_id is not null%', 'has_team_record_role: a row with no team grants nothing';
   assert def not ilike '%is_same_team%', 'has_team_record_role: does not go through the creator''s team';
+  assert def ilike '%tm.role = any (_roles)%', 'has_team_record_role: checks the role held in that team';
+  assert def not ilike '%user_roles%', 'has_team_record_role: a platform role from another team grants nothing here';
   assert (select p.prosecdef from pg_proc p where p.oid = fn), 'has_team_record_role: runs with the owner''s rights';
   assert exists (select 1 from pg_proc p where p.oid = fn and 'search_path=public' = any (p.proconfig)),
     'has_team_record_role: pins search_path';

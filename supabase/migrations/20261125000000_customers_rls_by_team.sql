@@ -12,8 +12,9 @@
 --           the row after the update must belong to a team the user is an active member of (or to no team)
 --   DELETE  creator, or an active member of customers.team_id with role owner / admin
 --   INSERT  creator only, and only into a team the user is an active member of (or no team)
--- The role is the member's role in that team, or (as before) their platform role in user_roles, so nobody who reads
--- a team's customers today through their platform role loses it. The vehicles / bookings / payments / damage_claims
+-- The role is the member's role in that team (team_members.role). The platform role in user_roles no longer counts:
+-- every self-signup holds platform 'admin', which made a viewer in another team an admin of its customers.
+-- Support sessions join the team as 'admin', so they keep working. The vehicles / bookings / payments / damage_claims
 -- policies (20260103050456) already key on team_id; customers was the one table left behind.
 --
 -- Safe to run more than once.
@@ -32,19 +33,12 @@ as $$
        where tm.user_id = _user_id
          and tm.team_id = _team_id
          and tm.is_active = true
-         and (
-           tm.role = any (_roles)
-           or exists (
-             select 1 from public.user_roles ur
-             where ur.user_id = _user_id
-               and ur.role = any (_roles)
-           )
-         )
+         and tm.role = any (_roles)
      )
 $$;
 
 comment on function public.has_team_record_role(uuid, uuid, public.app_role[]) is
-  'True when the user is an active member of the team and holds one of the roles, in that team or as platform role. '
+  'True when the user is an active member of the team with one of the roles in that team. '
   'For row-level security on tables that carry team_id.';
 
 revoke all on function public.has_team_record_role(uuid, uuid, public.app_role[]) from public, anon;
@@ -52,20 +46,16 @@ grant execute on function public.has_team_record_role(uuid, uuid, public.app_rol
 
 alter table public.customers enable row level security;
 
--- the policies this migration replaces, by every name they have carried
-drop policy if exists "Users can view own customers" on public.customers;
-drop policy if exists "Users can insert own customers" on public.customers;
-drop policy if exists "Users can update own customers" on public.customers;
-drop policy if exists "Users can delete own customers" on public.customers;
-drop policy if exists "Team members can view customers" on public.customers;
-drop policy if exists "Owners can insert customers" on public.customers;
-drop policy if exists "Authorized users can update customers" on public.customers;
-drop policy if exists "Authorized users can delete customers" on public.customers;
--- and the ones it creates, so a second run starts clean
-drop policy if exists "Customers: view by team" on public.customers;
-drop policy if exists "Customers: insert into own team" on public.customers;
-drop policy if exists "Customers: update by team" on public.customers;
-drop policy if exists "Customers: delete by team" on public.customers;
+-- Drop every policy on customers, whatever its name: policies are OR'ed, so one left over (an older name, or one
+-- added outside the migrations) would keep the old access. A second run also starts clean this way.
+do $$
+declare
+  pol record;
+begin
+  for pol in select policyname from pg_policies where schemaname = 'public' and tablename = 'customers' loop
+    execute format('drop policy %I on public.customers', pol.policyname);
+  end loop;
+end $$;
 
 create policy "Customers: view by team"
 on public.customers
