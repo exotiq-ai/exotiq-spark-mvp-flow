@@ -45,7 +45,9 @@ export function FileUploadZone({
     setIsDragging(false);
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
+  // Plain functions, not useCallback([]): they must call the current onFileSelect, which reads the wizard's
+  // current state (e.g. the source the operator chose), not the one from the first render.
+  const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
     
@@ -53,16 +55,16 @@ export function FileUploadZone({
     if (files.length > 0) {
       validateAndSelectFile(files[0]);
     }
-  }, []);
+  };
 
-  const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
       validateAndSelectFile(files[0]);
     }
     // Reset input
     e.target.value = '';
-  }, []);
+  };
 
   const validateAndSelectFile = (file: File) => {
     const fileName = file.name.toLowerCase();

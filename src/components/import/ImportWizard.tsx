@@ -20,6 +20,11 @@ import { useTeam } from '@/contexts/TeamContext';
 import { useFleet } from '@/contexts/FleetContext';
 import { useQueryClient } from '@tanstack/react-query';
 import { ImportSummary } from './ImportSummary';
+import { HqImportBanner } from './HqImportBanner';
+import { HqImportReport, isHqCustomerExport, mapHqCustomers, missingHqColumns } from '@/lib/hqRentalCustomers';
+import { describeError } from '@/lib/describeError';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface ImportWizardProps {
   onClose?: () => void;
@@ -29,6 +34,11 @@ interface ImportWizardProps {
 }
 
 type WizardStep = 'upload' | 'entity' | 'mapping' | 'preview' | 'duplicates' | 'import' | 'summary';
+
+/** Where the file comes from: worked out from its columns, or a system's export the operator names. */
+type ImportSource = 'auto' | 'hq-customers';
+
+const HQ_MAPPED_HEADERS = ['full_name', 'email', 'phone', 'address', 'drivers_license', 'license_expiry', 'notes', 'customer_status', 'tags'];
 
 const steps: { key: WizardStep; label: string }[] = [
   { key: 'upload', label: 'Upload File' },
@@ -65,6 +75,10 @@ export function ImportWizard({ onClose, onComplete, initialEntityType }: ImportW
   });
   const [bookingsNeedingAttention, setBookingsNeedingAttention] = useState(0);
   const [photoReferences, setPhotoReferences] = useState<string[]>([]);
+  const [source, setSource] = useState<ImportSource>('auto');
+  const [hqReport, setHqReport] = useState<HqImportReport | null>(null);
+  // The HQ preset makes customers, so it is offered only where the wizard may import customers.
+  const canImportCustomers = !initialEntityType || initialEntityType === 'customers';
 
   const currentStepIndex = steps.findIndex(s => s.key === currentStep);
 
@@ -82,21 +96,42 @@ export function ImportWizard({ onClose, onComplete, initialEntityType }: ImportW
     setImportProgress({ status: 'idle', totalRows: 0, processedRows: 0, importedCount: 0, skippedCount: 0, failedCount: 0, currentBatch: 0, totalBatches: 0 });
     setBookingsNeedingAttention(0);
     setPhotoReferences([]);
+    setHqReport(null);
   }, []);
 
   const handleFileSelect = async (file: File) => {
     setSelectedFile(file);
     setFileError(null);
+    setHqReport(null);
+    setColumnMappings([]);
     setIsProcessing(true);
     try {
       const data = await parseFile(file);
+      const looksHq = isHqCustomerExport(data.headers);
+      if (source === 'hq-customers' && !looksHq) {
+        const missing = missingHqColumns(data.headers);
+        throw new Error(
+          `This file is not an HQ Rental customer export${missing.length ? `: it has no ${missing.join(' or ')} column` : ''}. ` +
+            'Export Customers from HQ Rental, or choose "Detect automatically".'
+        );
+      }
+      if (canImportCustomers && looksHq) {
+        // HQ Rental preset: the rows arrive already in customer columns, so the mapping step matches them one to one.
+        const { customers, report } = mapHqCustomers(data.rows);
+        setParsedData({ headers: HQ_MAPPED_HEADERS, rows: customers, fileName: data.fileName, rowCount: customers.length });
+        setHqReport(report);
+        setDetectedEntity({ entityType: 'customers', confidence: 100, reasoning: 'HQ Rental customer export' });
+        setSelectedEntity('customers');
+        return;
+      }
       setParsedData(data);
       const detected = detectEntityType(data.headers);
       setDetectedEntity(detected);
       if (!initialEntityType && detected.confidence >= 70) setSelectedEntity(detected.entityType);
     } catch (error) {
-      setFileError(error instanceof Error ? error.message : 'Failed to parse file');
+      setFileError(describeError(error, 'Failed to parse file'));
       setSelectedFile(null);
+      setParsedData(null);
     } finally {
       setIsProcessing(false);
     }
@@ -104,7 +139,7 @@ export function ImportWizard({ onClose, onComplete, initialEntityType }: ImportW
 
   const handleNext = async () => {
     if (currentStep === 'upload' && parsedData) {
-      setCurrentStep(initialEntityType ? 'mapping' : 'entity');
+      setCurrentStep(initialEntityType || hqReport ? 'mapping' : 'entity');
     } else if (currentStep === 'entity' && selectedEntity) {
       setCurrentStep('mapping');
     } else if (currentStep === 'mapping' && selectedEntity && parsedData) {
@@ -149,7 +184,7 @@ export function ImportWizard({ onClose, onComplete, initialEntityType }: ImportW
   };
 
   const handleBack = () => {
-    if (initialEntityType && currentStep === 'mapping') {
+    if ((initialEntityType || hqReport) && currentStep === 'mapping') {
       setCurrentStep('upload');
       return;
     }
@@ -491,7 +526,7 @@ export function ImportWizard({ onClose, onComplete, initialEntityType }: ImportW
   const visibleSteps = (duplicateResult?.duplicates?.length 
     ? steps 
     : steps.filter(s => s.key !== 'duplicates')
-  ).filter(s => !(initialEntityType && s.key === 'entity'));
+  ).filter(s => !((initialEntityType || hqReport) && s.key === 'entity'));
   
   const visibleStepIndex = visibleSteps.findIndex(s => s.key === currentStep);
 
@@ -515,13 +550,34 @@ export function ImportWizard({ onClose, onComplete, initialEntityType }: ImportW
       {/* Step Content */}
       <div className="flex-1 overflow-y-auto py-4">
         {currentStep === 'upload' && (
-          <FileUploadZone 
-            onFileSelect={handleFileSelect} 
-            selectedFile={selectedFile} 
-            onClear={() => { setSelectedFile(null); setParsedData(null); }} 
-            isProcessing={isProcessing} 
-            error={fileError} 
-          />
+          <div className="space-y-4">
+            {canImportCustomers && (
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <Label htmlFor="import-source" className="text-sm text-muted-foreground">Where is this file from?</Label>
+                <Select
+                  value={source}
+                  onValueChange={(v) => setSource(v as ImportSource)}
+                  disabled={isProcessing || !!selectedFile}
+                >
+                  <SelectTrigger id="import-source" className="w-full sm:w-72" data-testid="import-source">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto">Detect automatically</SelectItem>
+                    <SelectItem value="hq-customers">HQ Rental Software — customers</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <FileUploadZone 
+              onFileSelect={handleFileSelect} 
+              selectedFile={selectedFile} 
+              onClear={() => { setSelectedFile(null); setParsedData(null); setHqReport(null); setColumnMappings([]); }} 
+              isProcessing={isProcessing} 
+              error={fileError} 
+            />
+            {hqReport && <HqImportBanner report={hqReport} />}
+          </div>
         )}
         {currentStep === 'entity' && (
           <EntityTypeSelector 
@@ -540,10 +596,13 @@ export function ImportWizard({ onClose, onComplete, initialEntityType }: ImportW
           />
         )}
         {currentStep === 'preview' && selectedEntity && validationResult && (
-          <ValidationPreview 
-            entityType={selectedEntity} 
-            validationResult={validationResult} 
-          />
+          <div className="space-y-4">
+            {hqReport && <HqImportBanner report={hqReport} />}
+            <ValidationPreview 
+              entityType={selectedEntity} 
+              validationResult={validationResult} 
+            />
+          </div>
         )}
         {currentStep === 'duplicates' && duplicateResult && (
           <DuplicateResolver
