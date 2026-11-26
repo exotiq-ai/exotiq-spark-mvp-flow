@@ -4293,6 +4293,7 @@ export type Database = {
           stripe_subscription_id: string | null
           stripe_test_account_id: string | null
           studio_hero_opt_out: boolean
+          storefront_hero_url: string | null
           support_email: string | null
           support_phone: string | null
           tax_inclusive: boolean
@@ -4382,6 +4383,7 @@ export type Database = {
           stripe_subscription_id?: string | null
           stripe_test_account_id?: string | null
           studio_hero_opt_out?: boolean
+          storefront_hero_url?: string | null
           support_email?: string | null
           support_phone?: string | null
           tax_inclusive?: boolean
@@ -4471,6 +4473,7 @@ export type Database = {
           stripe_subscription_id?: string | null
           stripe_test_account_id?: string | null
           studio_hero_opt_out?: boolean
+          storefront_hero_url?: string | null
           support_email?: string | null
           support_phone?: string | null
           tax_inclusive?: boolean
@@ -7160,6 +7163,7 @@ export type Database = {
           name: string
           pickup_address: string
           pickup_instructions: string
+          storefront_hero_url: string
           public_description: string
           slug: string
           state: string
