@@ -1,5 +1,10 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  buildTeamMemberJoinedEmail,
+  selectJoinNotificationRecipients,
+  type JoinTeamMemberRow,
+} from "../_shared/teamJoinNotify.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,95 +22,108 @@ interface AcceptRequest {
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
-async function notifyAdminsOfNewUser(
+interface JoinNotice {
+  newUserId: string;
+  newUserEmail: string;
+  newUserName: string;
+  role: string;
+  companyName: string;
+  teamId: string | null | undefined;
+  invitedBy: string | null | undefined;
+}
+
+// Tells the owners and admins of the team that was joined (or, with no team,
+// only the inviter). Never platform-wide: user_roles.admin is held by every
+// self-signup, so it would tell every admin of every team.
+async function notifyTeamOfNewMember(
+  // deno-lint-ignore no-explicit-any
   supabaseAdmin: any,
-  newUserEmail: string,
-  newUserName: string,
-  role: string,
-  companyName: string
+  notice: JoinNotice
 ) {
   try {
-    // Get all admin user IDs
-    const { data: adminRoles, error: adminError } = await supabaseAdmin
-      .from("user_roles")
-      .select("user_id")
-      .eq("role", "admin");
+    let teamMembers: JoinTeamMemberRow[] = [];
+    if (notice.teamId) {
+      const { data, error } = await supabaseAdmin
+        .from("team_members")
+        .select("team_id, user_id, role, is_active")
+        .eq("team_id", notice.teamId)
+        .eq("is_active", true)
+        .in("role", ["owner", "admin"]);
+      if (error) {
+        console.error("Could not load team admins to notify:", error);
+        return;
+      }
+      teamMembers = data ?? [];
+    }
 
-    if (adminError || !adminRoles?.length) {
-      console.log("No admins found to notify");
+    const recipientIds = selectJoinNotificationRecipients({
+      teamId: notice.teamId,
+      invitedBy: notice.invitedBy,
+      newUserId: notice.newUserId,
+      teamMembers,
+    });
+    if (!recipientIds.length) {
+      console.log("No team owner or admin to notify");
       return;
     }
 
-    // Get admin profiles
-    const adminUserIds = adminRoles.map((r: any) => r.user_id);
-    const { data: adminProfiles, error: profilesError } = await supabaseAdmin
+    const { data: recipients, error: profilesError } = await supabaseAdmin
       .from("profiles")
       .select("id, email, full_name")
-      .in("id", adminUserIds);
+      .in("id", recipientIds);
 
-    if (profilesError || !adminProfiles?.length) {
-      console.log("No admin profiles found");
+    if (profilesError || !recipients?.length) {
+      console.log("No recipient profiles found");
       return;
     }
 
-    // Send email to each admin
-    for (const admin of adminProfiles) {
+    for (const recipient of recipients as { id: string; email: string | null; full_name: string | null }[]) {
       if (!RESEND_API_KEY) {
         console.log("RESEND_API_KEY not set, skipping email");
-        continue;
-      }
-
-      try {
-        await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${RESEND_API_KEY}`,
-          },
-          body: JSON.stringify({
-            from: "Exotiq <notifications@mail.exotiq.ai>",
-            to: [admin.email],
-            subject: `New Team Member Joined: ${newUserName}`,
-            html: `
-              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #333;">New Team Member Alert</h2>
-                <p>Hi ${admin.full_name || 'Admin'},</p>
-                <p>A new team member has joined ${companyName || 'your organization'}:</p>
-                <div style="background-color: #f5f5f5; padding: 16px; border-radius: 8px; margin: 16px 0;">
-                  <p style="margin: 4px 0;"><strong>Name:</strong> ${newUserName}</p>
-                  <p style="margin: 4px 0;"><strong>Email:</strong> ${newUserEmail}</p>
-                  <p style="margin: 4px 0;"><strong>Role:</strong> ${role}</p>
-                </div>
-                <p>You can view and manage team members in the Settings → User Management section.</p>
-                <p style="color: #666; font-size: 12px; margin-top: 24px;">
-                  This is an automated notification from ExotIQ Fleet Management.
-                </p>
-              </div>
-            `,
-          }),
+      } else if (recipient.email) {
+        const { subject, html } = buildTeamMemberJoinedEmail({
+          recipientName: recipient.full_name,
+          newUserName: notice.newUserName,
+          newUserEmail: notice.newUserEmail,
+          role: notice.role,
+          companyName: notice.companyName,
         });
-        console.log(`Admin notification sent to ${admin.email}`);
-      } catch (emailError) {
-        console.error(`Failed to send email to ${admin.email}:`, emailError);
+        try {
+          await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${RESEND_API_KEY}`,
+            },
+            body: JSON.stringify({
+              from: "Exotiq <notifications@mail.exotiq.ai>",
+              to: [recipient.email],
+              subject,
+              html,
+            }),
+          });
+        } catch (emailError) {
+          console.error("Failed to send new-member email to", recipient.id, emailError);
+        }
       }
 
-      // Create in-app notification for admin
       await supabaseAdmin.from("notifications").insert({
-        user_id: admin.id,
+        user_id: recipient.id,
         type: "team_member_joined",
         title: "New Team Member Joined",
-        message: `${newUserName} (${newUserEmail}) has joined as ${role}`,
+        message: `${notice.newUserName} (${notice.newUserEmail}) has joined as ${notice.role}`,
         data: {
-          new_user_email: newUserEmail,
-          new_user_name: newUserName,
-          role: role,
+          new_user_email: notice.newUserEmail,
+          new_user_name: notice.newUserName,
+          role: notice.role,
+          team_id: notice.teamId ?? null,
         },
       });
     }
 
-    console.log(`Notified ${adminProfiles.length} admins about new user`);
+    console.log(`Notified ${recipients.length} team owner(s)/admin(s) about new member`);
   } catch (error) {
-    console.error("Error notifying admins:", error);
+    console.error("Error notifying team of new member:", error);
   }
 }
 
@@ -341,14 +359,16 @@ serve(async (req: Request) => {
         team_id: invitation.team_id,
       });
 
-      // Notify all admins about the new user
-      await notifyAdminsOfNewUser(
-        supabaseAdmin,
+      // Tell the joined team's owners and admins (not every admin on the platform)
+      await notifyTeamOfNewMember(supabaseAdmin, {
+        newUserId: userId,
         newUserEmail,
         newUserName,
-        invitation.role || "viewer",
-        companyName
-      );
+        role: invitation.role || "viewer",
+        companyName,
+        teamId: invitation.team_id,
+        invitedBy: invitation.invited_by,
+      });
 
       console.log("Invitation accepted successfully for:", invitation.email);
 
